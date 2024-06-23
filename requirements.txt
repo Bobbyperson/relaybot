@@ -1,0 +1,7 @@
+discord
+aiosqlite
+asyncpg
+requests
+json
+aiohttp
+dateutil

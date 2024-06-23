@@ -52,6 +52,11 @@ async def reload(ctx, extension):
 @client.event
 async def on_ready():
     print("I am ready.")
+    
 
-discord.utils.setup_logging()
-asyncio.run(main())
+if __name__ == "__main__":
+    if not os.path.exists("database.sqlite"):
+        with open("database.sqlite", "w") as f:
+            pass
+    discord.utils.setup_logging()
+    asyncio.run(main())

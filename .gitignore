@@ -1,0 +1,7 @@
+*.bat
+*.lnk
+*.sqlite
+__pycache__
+.vscode
+config.py
+.stignore

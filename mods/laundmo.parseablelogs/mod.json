@@ -16,6 +16,10 @@
 		{
 			"Name": "api_url",
 			"DefaultValue": "https://your_api_url"
+		},
+		{
+			"Name": "server_identifier",
+			"DefaultValue": "server_identifier_change_me"
 		}
 	],
 	"Scripts": [

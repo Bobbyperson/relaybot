@@ -14,7 +14,10 @@ import cogs.utils.utils as utils  # this is stupid
 import cogs.utils.crashes as crashes
 import re
 import aiohttp
+from quart import Quart, request, jsonify
+import threading
 
+app = Quart(__name__)
 
 class Relay(commands.Cog):
     """Relay stuff."""
@@ -23,11 +26,6 @@ class Relay(commands.Cog):
         self.client.current_log = None
         self.client.old = 0
         self.client.auth = {}
-        self.check_server.add_exception_type(
-            discord.errors.HTTPException
-        )  # discord will timeout more frequently than you think...
-        self.check_server.add_exception_type(UnicodeDecodeError)
-        self.check_server.start()
         if not config.debug:
             # if there is a common exception occuring, add it here.
             self.update_stats.add_exception_type(
@@ -54,11 +52,17 @@ class Relay(commands.Cog):
         self.update_stats.start()
         self.lazy_playing_update.start()
         self.client.crash_handler = crashes.Crash_Handler()
+        self.start_quart()
+    
+    def start_quart(self):
+        threading.Thread(target=self.run_quart).start()
+
+    def run_quart(self):
+        app.run(port=5000)
         
 
     def cog_unload(self):
         self.update_stats.cancel()
-        self.check_server.cancel()
         self.lazy_playing_update.cancel()
         
     async def make_mentionable(self):
@@ -146,272 +150,184 @@ class Relay(commands.Cog):
         else:
             await msg.edit(embed=embed)
 
-        # # dm notifs logic
-        # print(1)
-        # if table != []:
-        #     playercount = table[0][1]
-        #     peopleToMessage = await get_notifs(playercount)
-        #     print(2)
-        #     print(peopleToMessage)
-        #     if peopleToMessage:
-        #         print(3)
-        #         await discordLog(peopleToMessage)
-        #         for i in range(len(peopleToMessage)):
-        #             user = await client.fetch_user(peopleToMessage[i][1])
-        #             await user.send(
-        #                 f"the awesome infection server has reached **{playercount} players**. i am messaging you as per the notification you set\n",
-        #                 f"i will be messaging you again after {peopleToMessage[i][3]} hours have passed and at least {peopleToMessage[i][2]} people are on the server",
-        #             )
-        #             await set_cooldown(peopleToMessage[i][1])
-        #         await discordLog(f"server reached {playercount} players and i annoyed {len(peopleToMessage)} people about it")
-        
-    @tasks.loop(seconds=15)
-    async def lazy_playing_update(self):
-        self.client.lazy_playing = self.client.playing[:]
-
-    @tasks.loop(seconds=5)
-    async def check_server(self):
-        loge = await self.get_log()
-        if loge is None:
-            print("loge is none!!!!")
-            return
-        if self.client.old != 0:
-            print(str(len(self.client.old)) + " == old")
-        else:
-            print("old == None")
-        print(str(len(loge)) + " == new")
-        # new_lines = []
-        if self.client.old != 0:
-            if len(loge) < len(self.client.old):
-                await self.send_relay_misc(
-                    "__**New log file detected! The server appears to have crashed.\nIt should restart within 30 seconds.**__"
-                )
-                await self.client.crash_handler.log_crash()
-                message = "Server crashed! The following players were playing:\n```"
-                adminrelay = self.client.get_channel(config.admin_relay)
-                if await self.client.crash_handler.recommend_whitelist(self.client.whitelist):
-                    self.client.whitelist -= 1
-                    await adminrelay.send(f"Warning! Fuckery detected! The server has crashed {len(self.client.crash_handler.crashes) if len(self.client.crash_handler.crashes) < 5 else '4+'} times in the past 10 minutes. Whitelist mode has been set to {self.client.whitelist}.")
-                    await crashes.whitelist_set(self.client.whitelist)
-                playing = self.client.playing if self.client.playing > self.client.lazy_playing else self.client.lazy_playing
-                if len(playing) == 0:
-                    message += "nobody"
-                for uid in playing:
-                    db = await aiosqlite.connect(config.bank, timeout=10)
-                    cursor = await db.cursor()
-                    await cursor.execute("SELECT name FROM main WHERE uid = ?", (uid[0],))
-                    result = await cursor.fetchone()
-                    message += result[0] + "\n" if result is not None else "USER NOT FOUND" + "\n"
-                    await cursor.close()
-                    await db.close()
-                message += f"```\nTotal: {len(playing)} players"
-                await self.discord_log(message + "\nPlease note: if someone joined the server and crashed the server instantly, they will likely not be seen here! Check logs if needed!")
-                try:
-                    logchnl = await self.client.fetch_channel(config.log_channel)
-                    logdir = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\logs"
-                    newest = sorted([f for f in os.listdir(logdir) if f.startswith("nslog")])
-                    await logchnl.send(file=discord.File(f"{logdir}\\{newest[-2]}"), content="Please note that this log is private information, and **should not be shared** with anyone outside of this channel. Additionally, **if a crash is due to a player, please ensure that is was intentional**, just because a crash was caused by a player does not mean it was!")
-                except Exception as e:
-                    await self.discord_log(f"Could not post last log!: `{e}`")
-                await self.clear_playing()
-                await self.set_old(loge)
-                print("Server crashed!!!!")
+    @app.route('/post', methods=['POST'])
+    async def recieve_relay_info(self):
+        auth_header = request.headers.get('Authorization')
+        if auth_header != config.authentication_key:
+            return jsonify({'error': 'Unauthorized'}), 401
+        line = request.data.decode('utf-8')
+        if "command|" in line:
+            start = line.find("command|")
+            line = line[start:]
+            print(line)
+            await self.big_brother(discord.utils.escape_mentions(line))
+        elif "killstreak|" in line:
+            start = line.find("killstreak|")
+            line = line[start:]
+            bits = line.split("|")  # 1 = name, 2 = streak
+            if len(bits) != 3:
+                print("too many killstreak bits! returning!")
                 return
-            if len(loge) != len(self.client.old):
-                loopable_lines = len(loge) - len(self.client.old)
-                print(f"Looping through {str(loopable_lines)} lines")
-                startTime = int(round(time.time() * 1000))
-                line_count = 0
-                for i in range(
-                    len(self.client.old) - 1, len(loge) - 1
-                ):  # instead of popping hundreds of thousands of elements from an array, this just loops through the new bits. in other words, the obvious solution
-                    line = loge[i]
-                    line_count += 1
-                    if "command|" in line:
-                        start = line.find("command|")
-                        line = line[start:]
-                        print(line)
-                        await self.big_brother(discord.utils.escape_mentions(line))
-                    elif "killstreak|" in line:
-                        start = line.find("killstreak|")
-                        line = line[start:]
-                        bits = line.split("|")  # 1 = name, 2 = streak
-                        if len(bits) != 3:
-                            await self.set_old(loge)
-                            print("too many killstreak bits! returning!")
-                            return
-                        try:
-                            int(bits[2])
-                        except:
-                            await self.set_old(loge)
-                            print("not int! returning!")
-                            return
-                        if int(bits[2]) == 5:
-                            await self.send_relay_misc(
-                                "<< "
-                                + bits[1]
-                                + " is on a KILLING SPREE "
-                                + (bits[2])
-                                + " >>"
-                            )
-                        elif int(bits[2]) == 10:
-                            await self.send_relay_misc(
-                                "<< " + bits[1] + " is UNSTOPPABLE " + (bits[2]) + " >>"
-                            )
-                        elif int(bits[2]) == 15:
-                            await self.send_relay_misc(
-                                "<< "
-                                + bits[1]
-                                + " is on a RAMPAGE "
-                                + (bits[2])
-                                + " >>"
-                            )
-                        elif int(bits[2]) == 20:
-                            await self.send_relay_misc(
-                                "<< " + bits[1] + " is GOD-LIKE " + (bits[2]) + " >>"
-                            )
-                        elif (int(bits[2]) % 5) == 0 and int(bits[2]) < 96:
-                            await self.send_relay_misc(
-                                "<< "
-                                + bits[1]
-                                + " is still GOD-LIKE "
-                                + (bits[2])
-                                + " >>"
-                            )
-                        elif (int(bits[2]) % 5) == 0 and int(bits[2]) > 99:
-                            await self.send_relay_misc(
-                                "<< "
-                                + bits[1]
-                                + " is FUCKING CHEATING "
-                                + (bits[2])
-                                + " >>"
-                            )
-                    elif "killstreakend|" in line:
-                        start = line.find("killstreakend|")
-                        line = line[start:]
-                        bits = line.split("|")  # 1 = name, 2 = streak
-                        if len(bits) != 3:
-                            await self.set_old(loge)
-                            print("fucked up killstreakend!")
-                            return
-                        try:
-                            int(bits[2])
-                        except:
-                            await self.set_old(loge)
-                            print("not int! returning!")
-                            return
-                        await self.log_killstreak(bits[1], int(bits[2]))
-                        print(line)
-                    elif "firstinfected|" in line:
-                        start = line.find("firstinfected|")
-                        line = line[start:]
-                        bits = line.split("|")  # 1 = name
-                        if len(bits) != 2:
-                            await self.set_old(loge)
-                            return
-                        await self.log_firstinfected(bits[1])
-                    elif "boomer|" in line:
-                        start = line.find("boomer|")
-                        line = line[start:]
-                        bits = line.split("|")  # 1 = name, 2 = streak
-                        if len(bits) != 2:
-                            await self.set_old(loge)
-                            return
-                        boomerName = line[1]
-                        # remove one death from boomer
-                        db = await aiosqlite.connect(config.bank, timeout=10)
-                        cursor = await db.cursor()
-                        await cursor.execute(
-                            "UPDATE main SET deaths_as_inf = deaths_as_inf - 1 WHERE name=?",
-                            (boomerName,),
-                        )
-                        await db.commit()
-                        await cursor.close()
-                        await db.close()
-                    elif "[ParseableLog]" in line:
-                        start = line.find("[ParseableLog]")
-                        line = line[start+15:]
-                        if len(line) == 0:
-                            await self.set_old(loge)
-                            return
-                        if line[0] == " ":
-                            line = line[
-                                1:
-                            ]  # ooh look at me im gonna make inconsistencies in my mod just to fuck with you heeeheee
-                        done = False
-                        while not done:  # clean stupid ass color
-                            if "" in line:
-                                startEsc = line.find("")
-                                endEsc = line[startEsc:].find("m")
-                                line = line[:startEsc] + line[endEsc + startEsc + 1 :]
-                            else:
-                                done = True
-                        try:
-                            line = json.loads(line)  # convert to fucking json
-                        except Exception as e:
-                            print("i could not convert the following line to json:")
-                            print(line)
-                            await self.discord_log(
-                                "i could not convert the following line to json:\n"
-                                + line
-                            )
-                            await self.discord_log(f"{e}")
-                            await self.set_old(loge)
-                            return
-                        try:  # how is json in python THIS BAD
-                            player = line["subject"]["name"]
-                            uid = line["subject"]["uid"]
-                            team = line["subject"]["teamId"]
-                        except:
-                            pass
-                        try:
-                            message = line["object"]["message"]
-                        except:
-                            pass
-                        match line["verb"]:
-                            case "sent":
-                                # if line["object"]["team_chat"] == False:
-                                await self.send_relay_msg(player, message, team, uid)
-                                if self.client.auth != {}:
-                                    try:
-                                        auth = int(message)
-                                    except:
-                                        auth = 0
-                                    if auth in self.client.auth and self.client.auth[auth]["name"] == player:
-                                        self.client.auth[auth]["confirmed"] = True
-                            case "winnerDetermined":
-                                await self.send_relay_misc("**The round has ended.**")
-                                await self.award_games_to_online()
-                                await self.clear_playing()
-                            case "waitingForPlayers":
-                                await self.send_relay_misc("**The game is loading.**")
-                            case "playing":
-                                await self.send_relay_misc("**The game has started.**")
-                            case "connected":
-                                await self.send_relay_misc(f"**{player} just connected.**")
-                                await self.log_join(player, uid)
-                                await self.check_for_changed_name(uid, player)
-                                await self.add_playing(uid)
-                            case "respawned":
-                                await self.add_playing(uid) # sometimes connected will just not be sent
-                            case "disconnected":
-                                await self.send_relay_misc(
-                                    f"**{player} just disconnected.**"
-                                )
-                                await self.remove_playing(uid)
-                            case "killed":
-                                victim = line["object"]["name"]
-                                kteam = line["subject"]["teamId"]
-                                iteam = line["object"]["teamId"]
-                                await self.log_kill(line)
-                                await self.send_relay_kill(player, victim, kteam, iteam)
-                            case _:
-                                print("unknown verb: " + line["verb"])
-                endTime = int(round(time.time() * 1000))
-                print(
-                    f"It took {endTime - startTime} ms to loop through {loopable_lines} lines."
+            try:
+                int(bits[2])
+            except:
+                print("not int! returning!")
+                return
+            if int(bits[2]) == 5:
+                await self.send_relay_misc(
+                    "<< "
+                    + bits[1]
+                    + " is on a KILLING SPREE "
+                    + (bits[2])
+                    + " >>"
                 )
-        await self.set_old(loge)
+            elif int(bits[2]) == 10:
+                await self.send_relay_misc(
+                    "<< " + bits[1] + " is UNSTOPPABLE " + (bits[2]) + " >>"
+                )
+            elif int(bits[2]) == 15:
+                await self.send_relay_misc(
+                    "<< "
+                    + bits[1]
+                    + " is on a RAMPAGE "
+                    + (bits[2])
+                    + " >>"
+                )
+            elif int(bits[2]) == 20:
+                await self.send_relay_misc(
+                    "<< " + bits[1] + " is GOD-LIKE " + (bits[2]) + " >>"
+                )
+            elif (int(bits[2]) % 5) == 0 and int(bits[2]) < 96:
+                await self.send_relay_misc(
+                    "<< "
+                    + bits[1]
+                    + " is still GOD-LIKE "
+                    + (bits[2])
+                    + " >>"
+                )
+            elif (int(bits[2]) % 5) == 0 and int(bits[2]) > 99:
+                await self.send_relay_misc(
+                    "<< "
+                    + bits[1]
+                    + " is FUCKING CHEATING "
+                    + (bits[2])
+                    + " >>"
+                )
+        elif "killstreakend|" in line:
+            start = line.find("killstreakend|")
+            line = line[start:]
+            bits = line.split("|")  # 1 = name, 2 = streak
+            if len(bits) != 3:
+                print("fucked up killstreakend!")
+                return
+            try:
+                int(bits[2])
+            except:
+                print("not int! returning!")
+                return
+            await self.log_killstreak(bits[1], int(bits[2]))
+            print(line)
+        elif "firstinfected|" in line:
+            start = line.find("firstinfected|")
+            line = line[start:]
+            bits = line.split("|")  # 1 = name
+            if len(bits) != 2:
+                return
+            await self.log_firstinfected(bits[1])
+        elif "boomer|" in line:
+            start = line.find("boomer|")
+            line = line[start:]
+            bits = line.split("|")  # 1 = name, 2 = streak
+            if len(bits) != 2:
+                return
+            boomerName = line[1]
+            # remove one death from boomer
+            db = await aiosqlite.connect(config.bank, timeout=10)
+            cursor = await db.cursor()
+            await cursor.execute(
+                "UPDATE main SET deaths_as_inf = deaths_as_inf - 1 WHERE name=?",
+                (boomerName,),
+            )
+            await db.commit()
+            await cursor.close()
+            await db.close()
+        elif "[ParseableLog]" in line:
+            start = line.find("[ParseableLog]")
+            line = line[start+15:]
+            if len(line) == 0:
+                return
+            if line[0] == " ":
+                line = line[
+                    1:
+                ]  # ooh look at me im gonna make inconsistencies in my mod just to fuck with you heeeheee
+            done = False
+            while not done:  # clean stupid ass color
+                if "" in line:
+                    startEsc = line.find("")
+                    endEsc = line[startEsc:].find("m")
+                    line = line[:startEsc] + line[endEsc + startEsc + 1 :]
+                else:
+                    done = True
+            try:
+                line = json.loads(line)  # convert to fucking json
+            except Exception as e:
+                print("i could not convert the following line to json:")
+                print(line)
+                await self.discord_log(
+                    "i could not convert the following line to json:\n"
+                    + line
+                )
+                await self.discord_log(f"{e}")
+                return
+            try:  # how is json in python THIS BAD
+                player = line["subject"]["name"]
+                uid = line["subject"]["uid"]
+                team = line["subject"]["teamId"]
+            except:
+                pass
+            try:
+                message = line["object"]["message"]
+            except:
+                pass
+            match line["verb"]:
+                case "sent":
+                    # if line["object"]["team_chat"] == False:
+                    await self.send_relay_msg(player, message, team, uid)
+                    if self.client.auth != {}:
+                        try:
+                            auth = int(message)
+                        except:
+                            auth = 0
+                        if auth in self.client.auth and self.client.auth[auth]["name"] == player:
+                            self.client.auth[auth]["confirmed"] = True
+                case "winnerDetermined":
+                    await self.send_relay_misc("**The round has ended.**")
+                    await self.award_games_to_online()
+                    await self.clear_playing()
+                case "waitingForPlayers":
+                    await self.send_relay_misc("**The game is loading.**")
+                case "playing":
+                    await self.send_relay_misc("**The game has started.**")
+                case "connected":
+                    await self.send_relay_misc(f"**{player} just connected.**")
+                    await self.log_join(player, uid)
+                    await self.check_for_changed_name(uid, player)
+                    await self.add_playing(uid)
+                case "respawned":
+                    await self.add_playing(uid) # sometimes connected will just not be sent
+                case "disconnected":
+                    await self.send_relay_misc(
+                        f"**{player} just disconnected.**"
+                    )
+                    await self.remove_playing(uid)
+                case "killed":
+                    victim = line["object"]["name"]
+                    kteam = line["subject"]["teamId"]
+                    iteam = line["object"]["teamId"]
+                    await self.log_kill(line)
+                    await self.send_relay_kill(player, victim, kteam, iteam)
+                case _:
+                    print("unknown verb: " + line["verb"])
 
     async def add_playing(self, player):
         unix = int(time.time())

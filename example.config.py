@@ -6,6 +6,7 @@ admin_relay = 0
 ban_log = 0
 channel_id = 0  # dedicated relay channel id
 query = ["server name"]  
+authentication_key = "super_secret"
 masterurl = "https://northstar.tf/client/servers"  # don't change this
 whitelist_folder = "C:\Program Files (x86)\Steam\steamapps\common\Titanfall2\R2Northstar\save_data\Whitelist"
 debug = False
@@ -20,5 +21,4 @@ admins = [
 #northstar ids
 admin_uids = [
 ]
-ID = 0
 owner_id = 0

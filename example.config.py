@@ -1,7 +1,9 @@
 TOKEN = ""
 ban_words = [r"f([aeiou*x])\1*g+([aeiou*x])\1*t", "nig+er"] # automatic ban words
 bad_words = ["nigg", "fag", "bundle of sticks", "tnd"] # admin warnings
-relay = 0
+relay = {"server1": 0,
+         "server2": 0,
+         "server3": 0}
 admin_relay = 0
 ban_log = 0
 channel_id = 0  # dedicated relay channel id

@@ -156,178 +156,75 @@ class Relay(commands.Cog):
         if auth_header != config.authentication_key:
             return jsonify({'error': 'Unauthorized'}), 401
         line = request.data.decode('utf-8')
-        if "command|" in line:
-            start = line.find("command|")
-            line = line[start:]
+        done = False
+        while not done:  # clean stupid ass color
+            if "" in line:
+                startEsc = line.find("")
+                endEsc = line[startEsc:].find("m")
+                line = line[:startEsc] + line[endEsc + startEsc + 1 :]
+            else:
+                done = True
+        try:
+            line = json.loads(line)  # convert to fucking json
+        except Exception as e:
+            print("i could not convert the following line to json:")
             print(line)
-            await self.big_brother(discord.utils.escape_mentions(line))
-        elif "killstreak|" in line:
-            start = line.find("killstreak|")
-            line = line[start:]
-            bits = line.split("|")  # 1 = name, 2 = streak
-            if len(bits) != 3:
-                print("too many killstreak bits! returning!")
-                return
-            try:
-                int(bits[2])
-            except:
-                print("not int! returning!")
-                return
-            if int(bits[2]) == 5:
-                await self.send_relay_misc(
-                    "<< "
-                    + bits[1]
-                    + " is on a KILLING SPREE "
-                    + (bits[2])
-                    + " >>"
-                )
-            elif int(bits[2]) == 10:
-                await self.send_relay_misc(
-                    "<< " + bits[1] + " is UNSTOPPABLE " + (bits[2]) + " >>"
-                )
-            elif int(bits[2]) == 15:
-                await self.send_relay_misc(
-                    "<< "
-                    + bits[1]
-                    + " is on a RAMPAGE "
-                    + (bits[2])
-                    + " >>"
-                )
-            elif int(bits[2]) == 20:
-                await self.send_relay_misc(
-                    "<< " + bits[1] + " is GOD-LIKE " + (bits[2]) + " >>"
-                )
-            elif (int(bits[2]) % 5) == 0 and int(bits[2]) < 96:
-                await self.send_relay_misc(
-                    "<< "
-                    + bits[1]
-                    + " is still GOD-LIKE "
-                    + (bits[2])
-                    + " >>"
-                )
-            elif (int(bits[2]) % 5) == 0 and int(bits[2]) > 99:
-                await self.send_relay_misc(
-                    "<< "
-                    + bits[1]
-                    + " is FUCKING CHEATING "
-                    + (bits[2])
-                    + " >>"
-                )
-        elif "killstreakend|" in line:
-            start = line.find("killstreakend|")
-            line = line[start:]
-            bits = line.split("|")  # 1 = name, 2 = streak
-            if len(bits) != 3:
-                print("fucked up killstreakend!")
-                return
-            try:
-                int(bits[2])
-            except:
-                print("not int! returning!")
-                return
-            await self.log_killstreak(bits[1], int(bits[2]))
-            print(line)
-        elif "firstinfected|" in line:
-            start = line.find("firstinfected|")
-            line = line[start:]
-            bits = line.split("|")  # 1 = name
-            if len(bits) != 2:
-                return
-            await self.log_firstinfected(bits[1])
-        elif "boomer|" in line:
-            start = line.find("boomer|")
-            line = line[start:]
-            bits = line.split("|")  # 1 = name, 2 = streak
-            if len(bits) != 2:
-                return
-            boomerName = line[1]
-            # remove one death from boomer
-            db = await aiosqlite.connect(config.bank, timeout=10)
-            cursor = await db.cursor()
-            await cursor.execute(
-                "UPDATE main SET deaths_as_inf = deaths_as_inf - 1 WHERE name=?",
-                (boomerName,),
+            await self.discord_log(
+                "i could not convert the following line to json:\n"
+                + line
             )
-            await db.commit()
-            await cursor.close()
-            await db.close()
-        elif "[ParseableLog]" in line:
-            start = line.find("[ParseableLog]")
-            line = line[start+15:]
-            if len(line) == 0:
-                return
-            if line[0] == " ":
-                line = line[
-                    1:
-                ]  # ooh look at me im gonna make inconsistencies in my mod just to fuck with you heeeheee
-            done = False
-            while not done:  # clean stupid ass color
-                if "" in line:
-                    startEsc = line.find("")
-                    endEsc = line[startEsc:].find("m")
-                    line = line[:startEsc] + line[endEsc + startEsc + 1 :]
-                else:
-                    done = True
-            try:
-                line = json.loads(line)  # convert to fucking json
-            except Exception as e:
-                print("i could not convert the following line to json:")
-                print(line)
-                await self.discord_log(
-                    "i could not convert the following line to json:\n"
-                    + line
+            await self.discord_log(f"{e}")
+            return
+        try:  # how is json in python THIS BAD
+            player = line["subject"]["name"]
+            uid = line["subject"]["uid"]
+            team = line["subject"]["teamId"]
+        except:
+            pass
+        try:
+            message = line["object"]["message"]
+        except:
+            pass
+        server = line["server"]
+        match line["verb"]:
+            case "sent":
+                # if line["object"]["team_chat"] == False:
+                await self.send_relay_msg(player, message, team, uid)
+                if self.client.auth != {}:
+                    try:
+                        auth = int(message)
+                    except:
+                        auth = 0
+                    if auth in self.client.auth and self.client.auth[auth]["name"] == player:
+                        self.client.auth[auth]["confirmed"] = True
+            case "winnerDetermined":
+                await self.send_relay_misc("**The round has ended.**")
+                await self.award_games_to_online()
+                await self.clear_playing()
+            case "waitingForPlayers":
+                await self.send_relay_misc("**The game is loading.**")
+            case "playing":
+                await self.send_relay_misc("**The game has started.**")
+            case "connected":
+                await self.send_relay_misc(f"**{player} just connected.**")
+                await self.log_join(player, uid)
+                await self.check_for_changed_name(uid, player)
+                await self.add_playing(uid)
+            case "respawned":
+                await self.add_playing(uid) # sometimes connected will just not be sent
+            case "disconnected":
+                await self.send_relay_misc(
+                    f"**{player} just disconnected.**"
                 )
-                await self.discord_log(f"{e}")
-                return
-            try:  # how is json in python THIS BAD
-                player = line["subject"]["name"]
-                uid = line["subject"]["uid"]
-                team = line["subject"]["teamId"]
-            except:
-                pass
-            try:
-                message = line["object"]["message"]
-            except:
-                pass
-            match line["verb"]:
-                case "sent":
-                    # if line["object"]["team_chat"] == False:
-                    await self.send_relay_msg(player, message, team, uid)
-                    if self.client.auth != {}:
-                        try:
-                            auth = int(message)
-                        except:
-                            auth = 0
-                        if auth in self.client.auth and self.client.auth[auth]["name"] == player:
-                            self.client.auth[auth]["confirmed"] = True
-                case "winnerDetermined":
-                    await self.send_relay_misc("**The round has ended.**")
-                    await self.award_games_to_online()
-                    await self.clear_playing()
-                case "waitingForPlayers":
-                    await self.send_relay_misc("**The game is loading.**")
-                case "playing":
-                    await self.send_relay_misc("**The game has started.**")
-                case "connected":
-                    await self.send_relay_misc(f"**{player} just connected.**")
-                    await self.log_join(player, uid)
-                    await self.check_for_changed_name(uid, player)
-                    await self.add_playing(uid)
-                case "respawned":
-                    await self.add_playing(uid) # sometimes connected will just not be sent
-                case "disconnected":
-                    await self.send_relay_misc(
-                        f"**{player} just disconnected.**"
-                    )
-                    await self.remove_playing(uid)
-                case "killed":
-                    victim = line["object"]["name"]
-                    kteam = line["subject"]["teamId"]
-                    iteam = line["object"]["teamId"]
-                    await self.log_kill(line)
-                    await self.send_relay_kill(player, victim, kteam, iteam)
-                case _:
-                    print("unknown verb: " + line["verb"])
+                await self.remove_playing(uid)
+            case "killed":
+                victim = line["object"]["name"]
+                kteam = line["subject"]["teamId"]
+                iteam = line["object"]["teamId"]
+                await self.log_kill(line)
+                await self.send_relay_kill(player, victim, kteam, iteam)
+            case _:
+                print("unknown verb: " + line["verb"])
 
     async def add_playing(self, player):
         unix = int(time.time())

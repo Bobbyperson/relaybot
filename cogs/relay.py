@@ -13,11 +13,7 @@ import os
 import cogs.utils.utils as utils  # this is stupid
 import cogs.utils.crashes as crashes
 import re
-import aiohttp
-from quart import Quart, request, jsonify
-import threading
-
-app = Quart(__name__)
+from aiohttp import web, ClientSession
 
 class Relay(commands.Cog):
     """Relay stuff."""
@@ -50,23 +46,22 @@ class Relay(commands.Cog):
         self.client.whitelist = 5
         self.client.lazy_playing = []
         self.update_stats.start()
-        self.lazy_playing_update.start()
+        # self.lazy_playing_update.start()
         self.client.crash_handler = crashes.Crash_Handler()
-        self.start_quart()
-    
-    def start_quart(self):
-        threading.Thread(target=self.run_quart).start()
-
-    def run_quart(self):
-        app.run(port=5000)
+        self.app = web.Application()
+        self.app.router.add_post('/post', self.recieve_relay_info)
+        self.runner = web.AppRunner(self.app)
         
 
     def cog_unload(self):
         self.update_stats.cancel()
-        self.lazy_playing_update.cancel()
+        # self.lazy_playing_update.cancel()
         
     async def make_mentionable(self):
         await self.client.get_guild(929895874799226881).get_role(1000617424934154260).edit(mentionable=True)
+        
+    async def send_test_message(self, request):
+        await self.client.get_channel(745410408482865267).send("test")
         
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -79,6 +74,17 @@ class Relay(commands.Cog):
                 await asyncio.sleep(3600)
                 await role.edit(mentionable=True)
                 await self.discord_log("looking to play is now mentionable")
+                
+    @commands.Cog.listener()
+    async def on_ready(self):
+        await self.make_mentionable()
+        print("Relay is ready. Starting web server...")
+        await self.start_web_server()
+                
+    async def start_web_server(self):
+        await self.runner.setup()
+        site = web.TCPSite(self.runner, 'localhost', 5000)
+        await site.start()
     # events
     @tasks.loop(seconds=30)
     async def update_stats(self):
@@ -95,7 +101,7 @@ class Relay(commands.Cog):
         else:
             msg = None
         
-        async with aiohttp.ClientSession() as session:
+        async with ClientSession() as session:
             async with session.get(config.masterurl) as response:
                 servers = await response.json()
 
@@ -150,43 +156,42 @@ class Relay(commands.Cog):
         else:
             await msg.edit(embed=embed)
 
-    @app.route('/post', methods=['POST'])
-    async def recieve_relay_info(self):
+    async def recieve_relay_info(self, request):
         auth_header = request.headers.get('Authorization')
         if auth_header != config.authentication_key:
-            return jsonify({'error': 'Unauthorized'}), 401
-        line = request.data.decode('utf-8')
+            return web.Response(status=401, text="Unauthorized")
+        data = request.data.decode('utf-8')
         done = False
         while not done:  # clean stupid ass color
-            if "" in line:
-                startEsc = line.find("")
-                endEsc = line[startEsc:].find("m")
-                line = line[:startEsc] + line[endEsc + startEsc + 1 :]
+            if "" in data:
+                startEsc = data.find("")
+                endEsc = data[startEsc:].find("m")
+                data = data[:startEsc] + data[endEsc + startEsc + 1 :]
             else:
                 done = True
         try:
-            line = json.loads(line)  # convert to fucking json
+            data = json.loads(data)  # convert to fucking json
         except Exception as e:
             print("i could not convert the following line to json:")
-            print(line)
+            print(data)
             await self.discord_log(
                 "i could not convert the following line to json:\n"
-                + line
+                + data
             )
             await self.discord_log(f"{e}")
             return
         try:  # how is json in python THIS BAD
-            player = line["subject"]["name"]
-            uid = line["subject"]["uid"]
-            team = line["subject"]["teamId"]
+            player = data["subject"]["name"]
+            uid = data["subject"]["uid"]
+            team = data["subject"]["teamId"]
         except:
             pass
         try:
-            message = line["object"]["message"]
+            message = data["object"]["message"]
         except:
             pass
-        server = line["server"]
-        match line["verb"]:
+        server = data["server"]
+        match data["verb"]:
             case "sent":
                 # if line["object"]["team_chat"] == False:
                 await self.send_relay_msg(player, message, team, uid)
@@ -218,13 +223,13 @@ class Relay(commands.Cog):
                 )
                 await self.remove_playing(uid)
             case "killed":
-                victim = line["object"]["name"]
-                kteam = line["subject"]["teamId"]
-                iteam = line["object"]["teamId"]
-                await self.log_kill(line)
+                victim = data["object"]["name"]
+                kteam = data["subject"]["teamId"]
+                iteam = data["object"]["teamId"]
+                await self.log_kill(data)
                 await self.send_relay_kill(player, victim, kteam, iteam)
             case _:
-                print("unknown verb: " + line["verb"])
+                print("unknown verb: " + data["verb"])
 
     async def add_playing(self, player):
         unix = int(time.time())

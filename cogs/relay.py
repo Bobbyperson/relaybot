@@ -83,7 +83,7 @@ class Relay(commands.Cog):
                 
     async def start_web_server(self):
         await self.runner.setup()
-        site = web.TCPSite(self.runner, 'localhost', 5000)
+        site = web.TCPSite(self.runner, 'localhost', 2585)
         await site.start()
     # events
     @tasks.loop(seconds=30)
@@ -157,10 +157,10 @@ class Relay(commands.Cog):
             await msg.edit(embed=embed)
 
     async def recieve_relay_info(self, request):
-        auth_header = request.headers.get('Authorization')
+        auth_header = request.headers.get('authentication')
         if auth_header != config.authentication_key:
             return web.Response(status=401, text="Unauthorized")
-        data = request.data.decode('utf-8')
+        data = await request.text()
         done = False
         while not done:  # clean stupid ass color
             if "" in data:
@@ -190,7 +190,7 @@ class Relay(commands.Cog):
             message = data["object"]["message"]
         except:
             pass
-        server = data["server"]
+        server_identifier = data["server_identifier"]
         match data["verb"]:
             case "sent":
                 # if line["object"]["team_chat"] == False:

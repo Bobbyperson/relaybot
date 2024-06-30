@@ -152,7 +152,7 @@ void function log_svo( string subject, string verb, string object){
 		rMap("subject", subject),
 		rMap("verb", verb),
 		rMap("object", object),
-        rMap("server_identifier", file.server_identifier)
+        sMap("server_identifier", file.server_identifier)
 	]))
 }
 
@@ -166,7 +166,7 @@ void function log_sv( string subject, string verb){
 	postRequest(jsonMapJoin([
 		rMap("subject", subject),
 		rMap("verb", verb),
-        rMap("server_identifier", file.server_identifier)
+        sMap("server_identifier", file.server_identifier)
 	]))
 }
 
@@ -180,7 +180,7 @@ void function log_sv_s( string subject, string verb){
 	postRequest(jsonMapJoin([
 		sMap("subject", subject),
 		sMap("verb", verb),
-        rMap("server_identifier", file.server_identifier)
+        sMap("server_identifier", file.server_identifier)
 	]))
 }
 

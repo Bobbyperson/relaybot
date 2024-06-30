@@ -1,4 +1,3 @@
-import discord
 import time
 from discord.ext import commands
 import config
@@ -7,9 +6,6 @@ import cogs.utils.utils as utils # this is stupid
 import aiosqlite
 from rcon.source import rcon
 import asyncio
-from datetime import datetime
-from dateutil.relativedelta import relativedelta
-import secrets
 
 
 class Admin(commands.Cog):
@@ -123,14 +119,16 @@ class Admin(commands.Cog):
         first_join = first_join[0]
         playtime = playtime[0]
         banned = False
-        with open(
-            "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\banlist.txt",
-            "r",
-        ) as f:
-            file_lines = [line.rstrip() for line in f.readlines()]
-            for line in file_lines:
-                if str(uid) in line:
-                    banned = True
+        
+        # TODO: figure out how to check if user is banned, have server periodically POST information maybe?
+        # with open(
+        #     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\banlist.txt",
+        #     "r",
+        # ) as f:
+        #     file_lines = [line.rstrip() for line in f.readlines()]
+        #     for line in file_lines:
+        #         if str(uid) in line:
+        #             banned = True
         await ctx.send(
             f"`{user}`:\nUID: `{uid}`\nFirst seen: `{first_join}`\nLast seen: `{timestamp}`\nPlaytime: `{await utils.human_time_duration(playtime)}`\nBanned: `{banned}`"
         )
@@ -246,105 +244,107 @@ class Admin(commands.Cog):
         await cursor.close()
         await db.close()
         
-    @commands.command(aliases=["defcon"])
-    @utils.is_admin()
-    async def whitelistmode(self, ctx, mode: int = None):
-        date_format = "%Y-%m-%d %H:%M:%S"
-        whitelist_file = "C:\Program Files (x86)\Steam\steamapps\common\Titanfall2\R2Northstar\save_data\Whitelist\whitelist.txt"
-        whitelist_on = "C:\Program Files (x86)\Steam\steamapps\common\Titanfall2\R2Northstar\save_data\Whitelist\whitelist_on.txt"
-        if mode is None:
-            with open(whitelist_file, "r") as f:
-                lines = f.readlines()
-            await ctx.send(f"We are currently at **DEFCON {self.client.whitelist}**\nWhitelist contains `{len(lines)}` users.")
-            return
-        if mode == 5:
-            with open(whitelist_on, "w") as f:
-                f.write("0")
-            with open(whitelist_file, "w") as f:
-                f.write("")
-            await ctx.send("whitelist off and recent crashes cleared, thank fuck")
-            self.client.crash_handler.crashes = []
-            self.client.whitelist = 5
-            return
-        elif mode == 4:
-            with open(whitelist_on, "w") as f:
-                f.write("1")
-            async with ctx.typing():
-                async with aiosqlite.connect(config.bank, timeout=10) as db:
-                    cursor = await db.cursor()
-                    await cursor.execute("SELECT uid FROM main")
-                    uids = await cursor.fetchall()
-                    with open(whitelist_file, "w") as f:
-                        for uid in uids:
-                            uid = uid[0]
-                            f.write(f"{uid}\n")
-                await ctx.send("Of fucking course, ok anyone who has ever joined the server ever is now whitelisted.")
-                self.client.whitelist = 4
-        elif mode == 3:
-            with open(whitelist_on, "w") as f:
-                f.write("1")
-            async with ctx.typing():
-                async with aiosqlite.connect(config.bank, timeout=10) as db:
-                    cursor = await db.cursor()
-                    await cursor.execute("SELECT * FROM main")
-                    uids = await cursor.fetchall()
-                    with open(whitelist_file, "w") as f:
-                        for uid in uids:
-                            last_join = datetime.strptime(uid[8], date_format)
-                            first_join = datetime.strptime(uid[7], date_format)
-                            if last_join > (datetime.now() - relativedelta(months=1)) and first_join < (datetime.now() - relativedelta(weeks=1)):
-                                f.write(f"{uid[2]}\n")
-                await ctx.send("well shit, everyone who has joined within the last month, and was first seen at least 1 week ago, is now whitelisted.")
-                self.client.whitelist = 3
-        elif mode == 2:
-            with open(whitelist_on, "w") as f:
-                f.write("1")
-            async with ctx.typing():
-                async with aiosqlite.connect(config.bank, timeout=10) as db:
-                    cursor = await db.cursor()
-                    await cursor.execute("SELECT titanfallID FROM connection")
-                    uids = await cursor.fetchall()
-                    with open(whitelist_file, "w") as f:
-                        for uid in uids:
-                            uid = uid[0]
-                            f.write(f"{uid}\n")
-                await ctx.send("jeez ok, everyone who has a linked account can join")
-                self.client.whitelist = 2
-        elif mode == 1:
-            with open(whitelist_on, "w") as f:
-                f.write("1")
-            with open(whitelist_file, "w") as f:
-                f.write(f"{secrets.randbelow(1000)}") # Random fake uid in case uid spoofing is a thing again, needed because whitelist mod will turn off with nothing in whitelist
-            await ctx.send("we're officially at DEFCON 1, no one is whitelisted, may god save our souls.")
-            self.client.whitelist = 1
-        else:
-            await ctx.reply("Please specify a valid mode. This follows the DEFCON system, so 5 is no whitelist and 1 is nuclear war.")
-        with open(whitelist_file, "r") as f:
-            lines = f.readlines()
-        await asyncio.sleep(1)
-        await ctx.send(f"Whitelist now contains `{len(lines)}` users.\nReminder: You may use `,.whitelistadd (uid)` and ``,.whitelistremove (uid)` to manually add or remove users from the whitelist.")
-            
-            
-            
-    @commands.command(aliases=["whitelist"])
-    @utils.is_admin()
-    async def whitelistadd(self, ctx, uid):
-        whitelist_file = "C:\Program Files (x86)\Steam\steamapps\common\Titanfall2\R2Northstar\save_data\Whitelist\whitelist.txt"
-        with open(whitelist_file, "a+") as f:
-            f.write(f"{uid}\n")
-        await ctx.send(f"`{uid}` has been added to the whitelist.")
+    # TODO: make server periodically check a /whitelist file and update    
         
-    @commands.command(aliases=["unwhitelist"])
-    @utils.is_admin()
-    async def whitelistremove(self, ctx, uid):
-        whitelist_file = "C:\Program Files (x86)\Steam\steamapps\common\Titanfall2\R2Northstar\save_data\Whitelist\whitelist.txt"
-        with open(whitelist_file, "r") as f:
-            lines = f.readlines()
-        with open(whitelist_file, "w") as f:
-            for line in lines:
-                if line != f"{uid}\n":
-                    f.write(line)
-        await ctx.send(f"`{uid}` has been removed from the whitelist.")
+    # @commands.command(aliases=["defcon"])
+    # @utils.is_admin()
+    # async def whitelistmode(self, ctx, mode: int = None):
+    #     date_format = "%Y-%m-%d %H:%M:%S"
+    #     whitelist_file = "C:\Program Files (x86)\Steam\steamapps\common\Titanfall2\R2Northstar\save_data\Whitelist\whitelist.txt"
+    #     whitelist_on = "C:\Program Files (x86)\Steam\steamapps\common\Titanfall2\R2Northstar\save_data\Whitelist\whitelist_on.txt"
+    #     if mode is None:
+    #         with open(whitelist_file, "r") as f:
+    #             lines = f.readlines()
+    #         await ctx.send(f"We are currently at **DEFCON {self.client.whitelist}**\nWhitelist contains `{len(lines)}` users.")
+    #         return
+    #     if mode == 5:
+    #         with open(whitelist_on, "w") as f:
+    #             f.write("0")
+    #         with open(whitelist_file, "w") as f:
+    #             f.write("")
+    #         await ctx.send("whitelist off and recent crashes cleared, thank fuck")
+    #         self.client.crash_handler.crashes = []
+    #         self.client.whitelist = 5
+    #         return
+    #     elif mode == 4:
+    #         with open(whitelist_on, "w") as f:
+    #             f.write("1")
+    #         async with ctx.typing():
+    #             async with aiosqlite.connect(config.bank, timeout=10) as db:
+    #                 cursor = await db.cursor()
+    #                 await cursor.execute("SELECT uid FROM main")
+    #                 uids = await cursor.fetchall()
+    #                 with open(whitelist_file, "w") as f:
+    #                     for uid in uids:
+    #                         uid = uid[0]
+    #                         f.write(f"{uid}\n")
+    #             await ctx.send("Of fucking course, ok anyone who has ever joined the server ever is now whitelisted.")
+    #             self.client.whitelist = 4
+    #     elif mode == 3:
+    #         with open(whitelist_on, "w") as f:
+    #             f.write("1")
+    #         async with ctx.typing():
+    #             async with aiosqlite.connect(config.bank, timeout=10) as db:
+    #                 cursor = await db.cursor()
+    #                 await cursor.execute("SELECT * FROM main")
+    #                 uids = await cursor.fetchall()
+    #                 with open(whitelist_file, "w") as f:
+    #                     for uid in uids:
+    #                         last_join = datetime.strptime(uid[8], date_format)
+    #                         first_join = datetime.strptime(uid[7], date_format)
+    #                         if last_join > (datetime.now() - relativedelta(months=1)) and first_join < (datetime.now() - relativedelta(weeks=1)):
+    #                             f.write(f"{uid[2]}\n")
+    #             await ctx.send("well shit, everyone who has joined within the last month, and was first seen at least 1 week ago, is now whitelisted.")
+    #             self.client.whitelist = 3
+    #     elif mode == 2:
+    #         with open(whitelist_on, "w") as f:
+    #             f.write("1")
+    #         async with ctx.typing():
+    #             async with aiosqlite.connect(config.bank, timeout=10) as db:
+    #                 cursor = await db.cursor()
+    #                 await cursor.execute("SELECT titanfallID FROM connection")
+    #                 uids = await cursor.fetchall()
+    #                 with open(whitelist_file, "w") as f:
+    #                     for uid in uids:
+    #                         uid = uid[0]
+    #                         f.write(f"{uid}\n")
+    #             await ctx.send("jeez ok, everyone who has a linked account can join")
+    #             self.client.whitelist = 2
+    #     elif mode == 1:
+    #         with open(whitelist_on, "w") as f:
+    #             f.write("1")
+    #         with open(whitelist_file, "w") as f:
+    #             f.write(f"{secrets.randbelow(1000)}") # Random fake uid in case uid spoofing is a thing again, needed because whitelist mod will turn off with nothing in whitelist
+    #         await ctx.send("we're officially at DEFCON 1, no one is whitelisted, may god save our souls.")
+    #         self.client.whitelist = 1
+    #     else:
+    #         await ctx.reply("Please specify a valid mode. This follows the DEFCON system, so 5 is no whitelist and 1 is nuclear war.")
+    #     with open(whitelist_file, "r") as f:
+    #         lines = f.readlines()
+    #     await asyncio.sleep(1)
+    #     await ctx.send(f"Whitelist now contains `{len(lines)}` users.\nReminder: You may use `,.whitelistadd (uid)` and ``,.whitelistremove (uid)` to manually add or remove users from the whitelist.")
+            
+            
+            
+    # @commands.command(aliases=["whitelist"])
+    # @utils.is_admin()
+    # async def whitelistadd(self, ctx, uid):
+    #     whitelist_file = "C:\Program Files (x86)\Steam\steamapps\common\Titanfall2\R2Northstar\save_data\Whitelist\whitelist.txt"
+    #     with open(whitelist_file, "a+") as f:
+    #         f.write(f"{uid}\n")
+    #     await ctx.send(f"`{uid}` has been added to the whitelist.")
+        
+    # @commands.command(aliases=["unwhitelist"])
+    # @utils.is_admin()
+    # async def whitelistremove(self, ctx, uid):
+    #     whitelist_file = "C:\Program Files (x86)\Steam\steamapps\common\Titanfall2\R2Northstar\save_data\Whitelist\whitelist.txt"
+    #     with open(whitelist_file, "r") as f:
+    #         lines = f.readlines()
+    #     with open(whitelist_file, "w") as f:
+    #         for line in lines:
+    #             if line != f"{uid}\n":
+    #                 f.write(line)
+    #     await ctx.send(f"`{uid}` has been removed from the whitelist.")
         
     @commands.command()
     @utils.is_admin()

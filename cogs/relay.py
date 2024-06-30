@@ -9,9 +9,8 @@ import requests
 import json
 import asyncio
 from datetime import datetime
-import os
 import cogs.utils.utils as utils  # this is stupid
-import cogs.utils.crashes as crashes
+# import cogs.utils.crashes as crashes
 import re
 from aiohttp import web, ClientSession
 
@@ -43,11 +42,11 @@ class Relay(commands.Cog):
                 json.decoder.JSONDecodeError
             )  # sometimes northstar server will return nothing
         self.client.playing = []
-        self.client.whitelist = 5
+        # self.client.whitelist = 5
         self.client.lazy_playing = []
         self.update_stats.start()
         # self.lazy_playing_update.start()
-        self.client.crash_handler = crashes.Crash_Handler()
+        # self.client.crash_handler = crashes.Crash_Handler()
         self.app = web.Application()
         self.app.router.add_post('/post', self.recieve_relay_info)
         self.runner = web.AppRunner(self.app)
@@ -88,7 +87,7 @@ class Relay(commands.Cog):
     # events
     @tasks.loop(seconds=30)
     async def update_stats(self):
-        channel = self.client.get_channel(config.channel_id)
+        channel = self.client.get_channel(config.stats_channel)
         fetchMessage = None
         async for message in channel.history(limit=200):
             if message.author.id == self.client.user.id:
@@ -115,9 +114,7 @@ class Relay(commands.Cog):
                     query_results.append(server)
         
         if query_results:
-            if self.client.whitelist != 5:
-                sdescription = "Server is in whitelist mode. Use `/amiwhitelisted`."
-            elif highest == query_results[0]["playerCount"]:
+            if highest == query_results[0]["playerCount"]:
                 sdescription = "We currently have the most players on any server!!!!!"
             else:
                 sdescription = "Server is up!"
@@ -558,21 +555,6 @@ class Relay(commands.Cog):
         if team == 3:
             await self.add_element("kills_as_sur", player, 1, uid)
             await self.add_element("deaths_as_inf", victim, 1, vuid)
-
-    async def get_log(self):
-        startTime = int(round(time.time() * 1000))
-        logdir = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\logs"
-        newest = sorted([f for f in os.listdir(logdir) if f.startswith("nslog")])
-        with open(logdir + "\\" + newest[-1], "r", encoding="utf-8") as f:
-            lines = [line.strip() for line in f.readlines()]
-            for pp in lines:
-                if "-dedicated" in pp:
-                    endTime = int(round(time.time() * 1000))
-                    print(
-                        f"It took {endTime - startTime} ms to get the log, which is {len(lines)} lines long."
-                    )
-                    return lines
-            return None
 
     async def init_playing(self):
         self.client.playing = []

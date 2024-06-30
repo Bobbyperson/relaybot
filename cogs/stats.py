@@ -6,7 +6,7 @@ import config
 import random
 import cogs.utils.utils as utils # this is stupid
 import asyncio
-import cogs.utils.crashes as crashes
+# import cogs.utils.crashes as crashes
 
 
 
@@ -24,8 +24,8 @@ class Stats(commands.Cog):
     async def on_member_join(self, member):
         try:
             await member.send("Welcome to the awesome titanfall server! I am a stat tracking bot you can use to see all of your kills, deaths, games played, etc, but you need to link your titanfall and discord accounts first. Run `,.link <your titanfall name>` in the server to get started! My prefix is `,.` and my commands can be seen with `,.help`.")
-            if self.client.whitelist != 5:
-                await member.send("The server is currently being affected by a targeted attack, and thus is temporarily whitelist only. If you wish to be whitelisted, please contact an admin. Sorry for the inconvenience, and thank you for your patience")
+            # if self.client.whitelist != 5:
+                # await member.send("The server is currently being affected by a targeted attack, and thus is temporarily whitelist only. If you wish to be whitelisted, please contact an admin. Sorry for the inconvenience, and thank you for your patience")
         except:
             pass
         
@@ -640,6 +640,7 @@ Playtime: {await utils.human_time_duration(profile[9])}""")
         
     @commands.hybrid_command()
     async def amiwhitelisted(self, ctx, name: str = None):
+        return await ctx.send("The whitelist has been deprecated for now.")
         if self.client.whitelist == 5:
             await ctx.send("The whitelist does not appear to be on at this time. You should be able to join the server.\n**Remember: to ensure you're whitelisted, please `,.link` your account.**")
             return

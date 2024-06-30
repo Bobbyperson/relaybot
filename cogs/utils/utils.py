@@ -60,30 +60,30 @@ async def commafy(num: int) -> str:
     return format(num, ",d")
 
 async def get_uid_from_connection(did):
-    db = await aiosqlite.connect(config.bank, timeout=10)
-    cursor = await db.cursor()
-    await cursor.execute("SELECT titanfallID FROM connection WHERE discordID = (?)", (did,))
-    uid = await cursor.fetchone()
-    return uid[0] if uid else None
+    async with aiosqlite.connect(config.bank, timeout=10) as db:
+        cursor = await db.cursor()
+        await cursor.execute("SELECT titanfallID FROM connection WHERE discordID = (?)", (did,))
+        uid = await cursor.fetchone()
+        return uid[0] if uid else None
 
 async def get_name_from_connection(did):
-    db = await aiosqlite.connect(config.bank, timeout=10)
-    cursor = await db.cursor()
-    uid = await get_uid_from_connection(did)
-    await cursor.execute("SELECT name FROM main WHERE uid = (?)", (uid,))
-    name = await cursor.fetchone()
-    return name[0] if name else None
+    async with aiosqlite.connect(config.bank, timeout=10) as db:
+        cursor = await db.cursor()
+        uid = await get_uid_from_connection(did)
+        await cursor.execute("SELECT name FROM main WHERE uid = (?)", (uid,))
+        name = await cursor.fetchone()
+        return name[0] if name else None
 
 async def get_discord_id_user_from_connection(uid):
-    db = await aiosqlite.connect(config.bank, timeout=10)
-    cursor = await db.cursor()
-    await cursor.execute("SELECT discordID FROM connection WHERE titanfallID = (?)", (uid,))
-    did = await cursor.fetchone()
-    return did[0] if did else None
+    async with aiosqlite.connect(config.bank, timeout=10) as db:
+        cursor = await db.cursor()
+        await cursor.execute("SELECT discordID FROM connection WHERE titanfallID = (?)", (uid,))
+        did = await cursor.fetchone()
+        return did[0] if did else None
 
 async def get_uid_from_name(name: str = None) -> int:
-    db = await aiosqlite.connect(config.bank, timeout=10)
-    cursor = await db.cursor()
-    await cursor.execute("SELECT uid FROM main WHERE name = (?)", (name,))
-    uid = await cursor.fetchone()
-    return uid[0] if uid else None
+    async with aiosqlite.connect(config.bank, timeout=10) as db:
+        cursor = await db.cursor()
+        await cursor.execute("SELECT uid FROM main WHERE name = (?)", (name,))
+        uid = await cursor.fetchone()
+        return uid[0] if uid else None

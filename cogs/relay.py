@@ -236,56 +236,50 @@ class Relay(commands.Cog):
         self.client.playing.append([player, unix])
 
     async def remove_playing(self, player):
-        db = await aiosqlite.connect(config.bank, timeout=10)
-        cursor = await db.cursor()
+        async with aiosqlite.connect(config.bank, timeout=10) as db:
+            cursor = await db.cursor()
 
-        # Using reversed enumeration to ensure list consistency when popping elements
-        for i, uid in reversed(list(enumerate(self.client.playing))):
-            if player == uid[0]:
+            # Using reversed enumeration to ensure list consistency when popping elements
+            for i, uid in reversed(list(enumerate(self.client.playing))):
+                if player == uid[0]:
+                    unix = int(time.time())
+                    time_diff = unix - uid[1]
+                    if len(self.client.lazy_playing) > 1:
+                        await cursor.execute(
+                            f"UPDATE main SET playtime = playtime + {time_diff} WHERE uid = {player}"
+                        )
+                    self.client.playing.pop(i)
+
+            await db.commit()
+
+    async def clear_playing(self):
+        async with aiosqlite.connect(config.bank, timeout=10) as db:
+            cursor = await db.cursor()
+
+            self.client.lazy_playing = self.client.playing
+            
+            # Using a copy to iterate
+            for uid in self.client.playing[:]:
                 unix = int(time.time())
                 time_diff = unix - uid[1]
                 if len(self.client.lazy_playing) > 1:
                     await cursor.execute(
-                        f"UPDATE main SET playtime = playtime + {time_diff} WHERE uid = {player}"
+                        f"UPDATE main SET playtime = playtime + {time_diff} WHERE uid = {uid[0]}"
                     )
-                self.client.playing.pop(i)
+                self.client.playing.remove(uid)
 
-        await db.commit()
-        await cursor.close()
-        await db.close()
-
-    async def clear_playing(self):
-        db = await aiosqlite.connect(config.bank, timeout=10)
-        cursor = await db.cursor()
-
-        self.client.lazy_playing = self.client.playing
-        
-        # Using a copy to iterate
-        for uid in self.client.playing[:]:
-            unix = int(time.time())
-            time_diff = unix - uid[1]
-            if len(self.client.lazy_playing) > 1:
-                await cursor.execute(
-                    f"UPDATE main SET playtime = playtime + {time_diff} WHERE uid = {uid[0]}"
-                )
-            self.client.playing.remove(uid)
-
-        await db.commit()
-        await cursor.close()
-        await db.close()
+            await db.commit()
         
     async def award_games_to_online(self):
-        db = await aiosqlite.connect(config.bank, timeout=10)
-        cursor = await db.cursor()
-        playing = self.client.playing if self.client.playing > self.client.lazy_playing else self.client.lazy_playing
-        if len(playing) > 1:
-            for uid in playing:
-                await cursor.execute(
-                    f"UPDATE main SET gamesplayed = gamesplayed + 1 WHERE uid = {uid[0]}"
-                )
-        await db.commit()
-        await cursor.close()
-        await db.close()
+        async with aiosqlite.connect(config.bank, timeout=10) as db:
+            cursor = await db.cursor()
+            playing = self.client.playing if self.client.playing > self.client.lazy_playing else self.client.lazy_playing
+            if len(playing) > 1:
+                for uid in playing:
+                    await cursor.execute(
+                        f"UPDATE main SET gamesplayed = gamesplayed + 1 WHERE uid = {uid[0]}"
+                    )
+            await db.commit()
 
     async def send_relay_msg(self, player, message, team, uid):
         channel = self.client.get_channel(config.relay)
@@ -331,203 +325,142 @@ class Relay(commands.Cog):
     async def log_kill_db(
         self, killer, action, victim
     ):  # 0 = s kills i, 1 = i kills s, 2, suicide
-        db = await aiosqlite.connect(config.bank, timeout=10)
-        cursor = await db.cursor()
-        await cursor.execute('SELECT uid FROM main WHERE name=?', (killer,))
-        killerid = await cursor.fetchone()
-        if killerid is None:
-            print(f"{killer} does not have a uid!!!")
-            await self.discord_log(f"{killer} does not have a uid!!!")
-            return
-        killerid = killerid[0]
-        await cursor.execute('SELECT uid FROM main WHERE name=?', (victim,))
-        victimid = await cursor.fetchone()
-        if victimid is None:
-            print(f"{victim} does not have a uid!!!")
-            await self.discord_log(f"{victim} does not have a uid!!!")
-            return
-        victimid = victimid[0]
-        await cursor.execute(
-            "INSERT INTO killLog(killer, action, victim, timestamp) values(?, ?, ?, ?)",
-            (killerid, action, victimid, int(time.time()))
-        )
-        await db.commit()
-        await cursor.close()
-        await db.close()
-        return
+        async with aiosqlite.connect(config.bank, timeout=10) as db:
+            cursor = await db.cursor()
+            await cursor.execute('SELECT uid FROM main WHERE name=?', (killer,))
+            killerid = await cursor.fetchone()
+            if killerid is None:
+                print(f"{killer} does not have a uid!!!")
+                await self.discord_log(f"{killer} does not have a uid!!!")
+                return
+            killerid = killerid[0]
+            await cursor.execute('SELECT uid FROM main WHERE name=?', (victim,))
+            victimid = await cursor.fetchone()
+            if victimid is None:
+                print(f"{victim} does not have a uid!!!")
+                await self.discord_log(f"{victim} does not have a uid!!!")
+                return
+            victimid = victimid[0]
+            await cursor.execute(
+                "INSERT INTO killLog(killer, action, victim, timestamp) values(?, ?, ?, ?)",
+                (killerid, action, victimid, int(time.time()))
+            )
+            await db.commit()
 
     async def check_for_changed_name(self, uid, name):
-        db = await aiosqlite.connect(config.bank, timeout=10)
-        cursor = await db.cursor()
-        await cursor.execute("SELECT name FROM main WHERE uid = ?", (uid,))
-        result = await cursor.fetchone()
-        if result[0] != name:
-            await cursor.execute('UPDATE main SET name = ? WHERE uid = ?', (name, uid))
-            await db.commit()
-            adminrelay = self.client.get_channel(config.admin_relay)
-            await adminrelay.send(
-                f"Name change detected.\n`{result[0]}` -> `{name}`\nUID: `{uid}`"
-            )
-            discord_id = await utils.get_discord_id_user_from_connection(uid)
-            if discord_id is not None:
-                discord_user = await self.client.fetch_user(discord_id)
-                if discord_user is not None:
-                    try:
-                        await discord_user.send(f"Warning! Your name on titanfall has been changed from `{result[0]}` to `{name}`. If this was not you, your EA/Origin account has been compromised. Please change your password immediately. If this was in fact you, you can safely ignore this message.")
-                    except discord.errors.Forbidden:
-                        await adminrelay.send(f"Could not send message to {discord_user.name} about name change.")
-        await cursor.close()
-        await db.close()
+        async with aiosqlite.connect(config.bank, timeout=10) as db:
+            cursor = await db.cursor()
+            await cursor.execute("SELECT name FROM main WHERE uid = ?", (uid,))
+            result = await cursor.fetchone()
+            if result[0] != name:
+                await cursor.execute('UPDATE main SET name = ? WHERE uid = ?', (name, uid))
+                await db.commit()
+                adminrelay = self.client.get_channel(config.admin_relay)
+                await adminrelay.send(
+                    f"Name change detected.\n`{result[0]}` -> `{name}`\nUID: `{uid}`"
+                )
+                discord_id = await utils.get_discord_id_user_from_connection(uid)
+                if discord_id is not None:
+                    discord_user = await self.client.fetch_user(discord_id)
+                    if discord_user is not None:
+                        try:
+                            await discord_user.send(f"Warning! Your name on titanfall has been changed from `{result[0]}` to `{name}`. If this was not you, your EA/Origin account has been compromised. Please change your password immediately. If this was in fact you, you can safely ignore this message.")
+                        except discord.errors.Forbidden:
+                            await adminrelay.send(f"Could not send message to {discord_user.name} about name change.")
 
     async def new_account(self, user, uid):
-        db = await aiosqlite.connect(config.bank, timeout=10)
-        cursor = await db.cursor()
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        await cursor.execute(
-            'INSERT INTO main(name, uid, kills_as_inf, kills_as_sur, deaths_as_inf, deaths_as_sur, first_join, last_join, playtime, killstreak, slevel, ilevel) values(?,?,?,?,?,?,?,?,?,?,?,?)',
-            (user, uid, 0, 0, 0, 0, current_time, current_time, 0, 0, 0, 0)
-        )
-        await self.discord_log(f"New account created for {user} with uid {uid}")
-        await db.commit()
-        await db.close()
-
-    async def new_notif(self, userid, threshhold, cooldown):
-        unix = int(time.time())
-        db = await aiosqlite.connect(config.bank, timeout=10)
-        cursor = await db.cursor()
-        await cursor.execute(
-            "INSERT INTO notifs(id, threshold, cooldown, nextPing) values(?, ?, ?, ?)",
-            (userid, threshhold, cooldown, unix)
-        )
-        await db.commit()
-        await db.close()
-
-    async def delete_notif(self, userid):
-        db = await aiosqlite.connect(config.bank, timeout=10)
-        cursor = await db.cursor()
-        await cursor.execute("DELETE FROM notifs WHERE id=?", (userid,))
-        await db.commit()
-        await db.close()
-
-    async def check_notif(self, userid):
-        unix = int(time.time())
-        db = await aiosqlite.connect(config.bank, timeout=10)
-        cursor = await db.cursor()
-        await cursor.execute(
-            "SELECT * FROM notifs WHERE id=? AND nextPing>=?",
-            (userid, unix)
-        )
-        bruh = await cursor.fetchone()[0]
-        await db.commit()
-        await db.close()
-        return bruh
-
-    async def get_notifs(self, threshold):
-        unix = int(time.time())
-        db = await aiosqlite.connect(config.bank, timeout=10)
-        cursor = await db.cursor()
-        await cursor.execute(
-            f"SELECT * FROM notifs WHERE threshold>='{threshold}' AND nextPing<'{unix}'"
-        )
-        bruh = await cursor.fetchall()
-        await db.commit()
-        await db.close()
-        return bruh
+        async with aiosqlite.connect(config.bank, timeout=10) as db:
+            cursor = await db.cursor()
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            await cursor.execute(
+                'INSERT INTO main(name, uid, kills_as_inf, kills_as_sur, deaths_as_inf, deaths_as_sur, first_join, last_join, playtime, killstreak, slevel, ilevel, firstinfected, gamesplayed) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                (user, uid, 0, 0, 0, 0, current_time, current_time, 0, 0, 0, 0, 0, 0)
+            )
+            await self.discord_log(f"New account created for {user} with uid {uid}")
+            await db.commit()
 
     async def set_cooldown(self, userid):
         unix = int(time.time())
-        db = await aiosqlite.connect(config.bank, timeout=10)
-        cursor = await db.cursor()
-        await cursor.execute("SELECT cooldown FROM notifs WHERE id=?", (userid,))
-        hours = await cursor.fetchone()
-        hours = hours[0]
-        await cursor.execute(
-            "UPDATE notifs SET nextPing=? WHERE id=?",
-            (unix + (hours * 60 * 60), userid)
-        )
-        await db.commit()
-        await db.close()
+        async with aiosqlite.connect(config.bank, timeout=10) as db:
+            cursor = await db.cursor()
+            await cursor.execute("SELECT cooldown FROM notifs WHERE id=?", (userid,))
+            hours = await cursor.fetchone()
+            hours = hours[0]
+            await cursor.execute(
+                "UPDATE notifs SET nextPing=? WHERE id=?",
+                (unix + (hours * 60 * 60), userid)
+            )
+            await db.commit()
 
     async def log_firstinfected(self, name):
-        db = await aiosqlite.connect(config.bank, timeout=10)
-        cursor = await db.cursor()
-        await cursor.execute(
-            'UPDATE main SET firstinfected = firstinfected + 1 WHERE name=?',
-            (name,)
-        )
-        await db.commit()
-        await cursor.close()
-        await db.close()
+            async with aiosqlite.connect(config.bank, timeout=10) as db:
+                cursor = await db.cursor()
+                await cursor.execute(
+                    'UPDATE main SET firstinfected = firstinfected + 1 WHERE name=?',
+                    (name,)
+                )
+                await db.commit()
 
     async def get_element(self, element, user, uid):
         result_userBal = None
         while not result_userBal:
-            db = await aiosqlite.connect(config.bank, timeout=10)
-            cursor = await db.cursor()
+            async with aiosqlite.connect(config.bank, timeout=10) as db:
+                cursor = await db.cursor()
 
-            # Construct the query with the column name
-            query = f"SELECT {element} FROM main WHERE uid=?"
+                # Construct the query with the column name
+                query = f"SELECT {element} FROM main WHERE uid=?"
 
-            await cursor.execute(query, (uid,))
-            result_userID = await cursor.fetchone()
-
-            if not result_userID:
-                await self.new_account(user, uid)
-            else:
                 await cursor.execute(query, (uid,))
-                result_userBal = await cursor.fetchone()
-                await cursor.close()
-                await db.close()
+                result_userID = await cursor.fetchone()
 
-                return result_userBal[0] if result_userBal else None
+                if not result_userID:
+                    await self.new_account(user, uid)
+                else:
+                    await cursor.execute(query, (uid,))
+                    result_userBal = await cursor.fetchone()
+                    return result_userBal[0] if result_userBal else None
 
 
     async def log_killstreak(self, name, kills):
-        db = await aiosqlite.connect(config.bank, timeout=10)
-        cursor = await db.cursor()
-        await cursor.execute('SELECT killstreak FROM main WHERE name = ?', (name,))
-        real = await cursor.fetchone()
-        real = real[0]
-        if kills > real:
-            await cursor.execute(
-                'UPDATE main SET killstreak = ? WHERE name=?',
-                (kills, name)
-            )
-            await db.commit()
-        await cursor.close()
-        await db.close()
+        async with aiosqlite.connect(config.bank, timeout=10) as db:
+            cursor = await db.cursor()
+            await cursor.execute('SELECT killstreak FROM main WHERE name = ?', (name,))
+            real = await cursor.fetchone()
+            real = real[0]
+            if kills > real:
+                await cursor.execute(
+                    'UPDATE main SET killstreak = ? WHERE name=?',
+                    (kills, name)
+                )
+                await db.commit()
 
     async def update_element(self, element, user, new, uid):
-        db = await aiosqlite.connect(config.bank, timeout=10)
-        cursor = await db.cursor()
-        column_name = element  # Make sure this is safe and not directly from user input
-        sql_query = f'UPDATE main SET {column_name} = ? WHERE uid=?'
-        await cursor.execute(sql_query, (new, uid))
-        await db.commit()
-        await cursor.close()
-        await db.close()
+        async with aiosqlite.connect(config.bank, timeout=10) as db:
+            cursor = await db.cursor()
+            column_name = element  # Make sure this is safe and not directly from user input
+            sql_query = f'UPDATE main SET {column_name} = ? WHERE uid=?'
+            await cursor.execute(sql_query, (new, uid))
+            await db.commit()
 
     async def add_element(self, element, user, addition, uid):
-        db = await aiosqlite.connect(config.bank, timeout=10)
-        change = await self.get_element(element, user, uid)
-        cursor = await db.cursor()
-        column_name = element  # Make sure this is safe and not directly from user input
-        sql_query = f'UPDATE main SET {column_name} = ? WHERE uid=?'
-        await cursor.execute(sql_query, (int(change) + addition, uid))
-        await db.commit()
-        await cursor.close()
-        await db.close()
+        async with aiosqlite.connect(config.bank, timeout=10) as db:
+            change = await self.get_element(element, user, uid)
+            cursor = await db.cursor()
+            column_name = element  # Make sure this is safe and not directly from user input
+            sql_query = f'UPDATE main SET {column_name} = ? WHERE uid=?'
+            await cursor.execute(sql_query, (int(change) + addition, uid))
+            await db.commit()
 
     async def log_join(self, player, uid):
-        db = await aiosqlite.connect(config.bank, timeout=10)
-        cursor = await db.cursor()
-        await cursor.execute('SELECT "first_join" FROM main WHERE uid=?', (uid,))
-        result_userID = await cursor.fetchone()
-        if not result_userID:
-            await self.new_account(player, uid)
-        await self.update_element(
-            "last_join", player, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), uid
-        )
+        async with aiosqlite.connect(config.bank, timeout=10) as db:
+            cursor = await db.cursor()
+            await cursor.execute('SELECT "first_join" FROM main WHERE uid=?', (uid,))
+            result_userID = await cursor.fetchone()
+            if not result_userID:
+                await self.new_account(player, uid)
+            await self.update_element(
+                "last_join", player, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), uid
+            )
 
     async def discord_log(self, msg):
         channel = await self.client.fetch_channel(config.log_channel)

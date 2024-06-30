@@ -67,73 +67,72 @@ class Admin(commands.Cog):
             user = int(user)
         except ValueError:
             pass
-        db = await aiosqlite.connect(config.bank, timeout=10)
-        cursor = await db.cursor()
-        try:
-            if isinstance(user, str):
-                await cursor.execute("SELECT name FROM main WHERE name = ?", (user,))
-                fetched = await cursor.fetchone()
-            elif isinstance(user, int):
-                await cursor.execute("SELECT name FROM main WHERE uid = ?", (user,))
-                fetched = await cursor.fetchone()
-                uid = user
-            else:
-                await ctx.send("You should never see this message. \:)")  # type: ignore
-        except:
-            if isinstance(user, str):
+        async with aiosqlite.connect(config.bank, timeout=10) as db:
+            cursor = await db.cursor()
+            try:
+                if isinstance(user, str):
+                    await cursor.execute("SELECT name FROM main WHERE name = ?", (user,))
+                    fetched = await cursor.fetchone()
+                elif isinstance(user, int):
+                    await cursor.execute("SELECT name FROM main WHERE uid = ?", (user,))
+                    fetched = await cursor.fetchone()
+                    uid = user
+                else:
+                    await ctx.send("You should never see this message. \:)")  # type: ignore
+            except:
+                if isinstance(user, str):
+                    await closestMatch(user)
+                elif isinstance(user, int):
+                    await ctx.send("Could not find UID in database!")
+                return
+            if fetched is None and isinstance(user, str):
                 await closestMatch(user)
-            elif isinstance(user, int):
+                return
+            elif fetched is None and isinstance(user, int):
                 await ctx.send("Could not find UID in database!")
-            return
-        if fetched is None and isinstance(user, str):
-            await closestMatch(user)
-            return
-        elif fetched is None and isinstance(user, int):
-            await ctx.send("Could not find UID in database!")
-            return
-        fetched = fetched[0]
-        if isinstance(user, str):
-            await cursor.execute("SELECT uid FROM main WHERE name = ?", (user,))
-            uid = await cursor.fetchone()
-            if uid is None:
-                uid = user
-            else:
-                uid = uid[0]
-            await cursor.execute("SELECT last_join FROM main WHERE name = ?", (user,))
-            timestamp = await cursor.fetchone()
-            await cursor.execute("SELECT first_join FROM main WHERE name = ?", (user,))
-            first_join = await cursor.fetchone()
-            await cursor.execute("SELECT playtime FROM main WHERE name = ?", (user,))
-            playtime = await cursor.fetchone()
-        elif isinstance(user, int):
-            await cursor.execute("SELECT last_join FROM main WHERE uid = ?", (user,))
-            timestamp = await cursor.fetchone()
-            await cursor.execute("SELECT first_join FROM main WHERE uid = ?", (user,))
-            first_join = await cursor.fetchone()
-            await cursor.execute("SELECT playtime FROM main WHERE uid = ?", (user,))
-            playtime = await cursor.fetchone()
-            await cursor.execute("SELECT name FROM main WHERE uid = ?", (user,))
-            user = await cursor.fetchone()
-            user = user[0]
-        timestamp = timestamp[0]
-        first_join = first_join[0]
-        playtime = playtime[0]
-        banned = False
-        
-        # TODO: figure out how to check if user is banned, have server periodically POST information maybe?
-        # with open(
-        #     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\banlist.txt",
-        #     "r",
-        # ) as f:
-        #     file_lines = [line.rstrip() for line in f.readlines()]
-        #     for line in file_lines:
-        #         if str(uid) in line:
-        #             banned = True
-        await ctx.send(
-            f"`{user}`:\nUID: `{uid}`\nFirst seen: `{first_join}`\nLast seen: `{timestamp}`\nPlaytime: `{await utils.human_time_duration(playtime)}`\nBanned: `{banned}`"
-        )
-        await cursor.close()
-        await db.close()
+                return
+            fetched = fetched[0]
+            if isinstance(user, str):
+                await cursor.execute("SELECT uid FROM main WHERE name = ?", (user,))
+                uid = await cursor.fetchone()
+                if uid is None:
+                    uid = user
+                else:
+                    uid = uid[0]
+                await cursor.execute("SELECT last_join FROM main WHERE name = ?", (user,))
+                timestamp = await cursor.fetchone()
+                await cursor.execute("SELECT first_join FROM main WHERE name = ?", (user,))
+                first_join = await cursor.fetchone()
+                await cursor.execute("SELECT playtime FROM main WHERE name = ?", (user,))
+                playtime = await cursor.fetchone()
+            elif isinstance(user, int):
+                await cursor.execute("SELECT last_join FROM main WHERE uid = ?", (user,))
+                timestamp = await cursor.fetchone()
+                await cursor.execute("SELECT first_join FROM main WHERE uid = ?", (user,))
+                first_join = await cursor.fetchone()
+                await cursor.execute("SELECT playtime FROM main WHERE uid = ?", (user,))
+                playtime = await cursor.fetchone()
+                await cursor.execute("SELECT name FROM main WHERE uid = ?", (user,))
+                user = await cursor.fetchone()
+                user = user[0]
+            timestamp = timestamp[0]
+            first_join = first_join[0]
+            playtime = playtime[0]
+            banned = False
+            
+            # TODO: figure out how to check if user is banned, have server periodically POST information maybe?
+            # with open(
+            #     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\banlist.txt",
+            #     "r",
+            # ) as f:
+            #     file_lines = [line.rstrip() for line in f.readlines()]
+            #     for line in file_lines:
+            #         if str(uid) in line:
+            #             banned = True
+            await ctx.send(
+                f"`{user}`:\nUID: `{uid}`\nFirst seen: `{first_join}`\nLast seen: `{timestamp}`\nPlaytime: `{await utils.human_time_duration(playtime)}`\nBanned: `{banned}`"
+            )
+
         
     @commands.command()
     @utils.is_admin()
@@ -228,21 +227,19 @@ class Admin(commands.Cog):
     @commands.command(hidden=True)
     @commands.is_owner()
     async def audit(self, ctx):
-        db = await aiosqlite.connect(config.bank, timeout=10)
-        cursor = await db.cursor()
-        for uid in config.admin_uids:
-            await cursor.execute("SELECT name FROM main WHERE uid = ?", (uid,))
-            name = await cursor.fetchone()
-            name = name[0]
-            await cursor.execute("SELECT last_join FROM main WHERE uid = ?", (uid,))
-            last_join = await cursor.fetchone()
-            last_join = last_join[0]
-            await cursor.execute("SELECT playtime FROM main WHERE uid = ?", (uid,))
-            playtime = await cursor.fetchone()
-            playtime = await utils.human_time_duration(playtime[0])
-            await ctx.send(f"{name}:\nLast seen: `{last_join}`\nPlaytime: `{playtime}`")
-        await cursor.close()
-        await db.close()
+        async with aiosqlite.connect(config.bank, timeout=10) as db:
+            cursor = await db.cursor()
+            for uid in config.admin_uids:
+                await cursor.execute("SELECT name FROM main WHERE uid = ?", (uid,))
+                name = await cursor.fetchone()
+                name = name[0]
+                await cursor.execute("SELECT last_join FROM main WHERE uid = ?", (uid,))
+                last_join = await cursor.fetchone()
+                last_join = last_join[0]
+                await cursor.execute("SELECT playtime FROM main WHERE uid = ?", (uid,))
+                playtime = await cursor.fetchone()
+                playtime = await utils.human_time_duration(playtime[0])
+                await ctx.send(f"{name}:\nLast seen: `{last_join}`\nPlaytime: `{playtime}`")
         
     # TODO: make server periodically check a /whitelist file and update    
         
@@ -349,13 +346,11 @@ class Admin(commands.Cog):
     @commands.command()
     @utils.is_admin()
     async def forcelink(self, ctx, did, uid):
-        db = await aiosqlite.connect(config.bank, timeout=10)
-        cursor = await db.cursor()
-        await cursor.execute("INSERT INTO connection(discordID, titanfallID) VALUES(?, ?)", (did, uid))
-        await db.commit()
-        await cursor.close()
-        await db.close()
-        await ctx.send("ok done")
+        async with aiosqlite.connect(config.bank, timeout=10) as db:
+            cursor = await db.cursor()
+            await cursor.execute("INSERT INTO connection(discordID, titanfallID) VALUES(?, ?)", (did, uid))
+            await db.commit()
+            await ctx.send("ok done")
         
     # @commands.command()
     # @commands.is_owner()

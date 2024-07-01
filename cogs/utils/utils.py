@@ -87,3 +87,21 @@ async def get_uid_from_name(name: str = None) -> int:
         await cursor.execute("SELECT uid FROM main WHERE name = (?)", (name,))
         uid = await cursor.fetchone()
         return uid[0] if uid else None
+    
+async def is_valid_server(server: str = None) -> bool:
+    for s in config.servers:
+        if server.name == s.name:
+            return True
+    return False
+
+async def check_server_auth(server: str = None, auth: str = None) -> bool:
+    for s in config.servers:
+        if server.name == s.name:
+            return auth == s.auth
+    return False
+
+async def get_server(server):
+    for s in config.servers:
+        if server == s.name:
+            return s
+    return None

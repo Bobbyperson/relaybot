@@ -3,7 +3,7 @@ import time
 from discord.ext import commands
 import aiosqlite
 import config
-import random
+import secrets
 import cogs.utils.utils as utils # this is stupid
 import asyncio
 # import cogs.utils.crashes as crashes
@@ -26,7 +26,7 @@ class Stats(commands.Cog):
             await member.send("Welcome to the awesome titanfall server! I am a stat tracking bot you can use to see all of your kills, deaths, games played, etc, but you need to link your titanfall and discord accounts first. Run `,.link <your titanfall name>` in the server to get started! My prefix is `,.` and my commands can be seen with `,.help`.")
             # if self.client.whitelist != 5:
                 # await member.send("The server is currently being affected by a targeted attack, and thus is temporarily whitelist only. If you wish to be whitelisted, please contact an admin. Sorry for the inconvenience, and thank you for your patience")
-        except:
+        except discord.Forbidden:
             pass
         
     @commands.hybrid_command()
@@ -35,29 +35,33 @@ class Stats(commands.Cog):
         name = await utils.get_name_from_connection(ctx.author.id) if name is None else name
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
-            # Use parameterized queries
-            await cursor.execute("SELECT playtime FROM main WHERE name = ?", (name,))
-            playtime = await cursor.fetchone()
-            if playtime is None:
-                await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
-                return
-            playtime = playtime[0]
-            await ctx.send(f"{name}: {await utils.human_time_duration(playtime)}")
+            message = f"{name}'s playtime:\n"
+            for s in config.servers:
+                await cursor.execute(f"SELECT playtime FROM {s.name} WHERE name = ?", (name,))
+                playtime = await cursor.fetchone()
+                if playtime is None:
+                    await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
+                    return
+                playtime = playtime[0]
+                message += f"{s.name}: {await utils.human_time_duration(playtime)}\n"
+        await ctx.send(message)
 
 
     @commands.hybrid_command()
-    async def online(self, ctx):
+    async def online(self, ctx, server: str = None):
         """See who's online."""
+        if not server or not await utils.is_valid_server(server):
+            return await ctx.send("Invalid server.")
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
             message = "this is in BETA and might not be accurate! please check #server-stats for a 100% accurate player count.\n```\n"
-            playing = self.client.playing if self.client.playing > self.client.lazy_playing else self.client.lazy_playing
+            playing = self.client.playing[server] if self.client.playing[server] > self.client.lazy_playing[server] else self.client.lazy_playing[server]
             if len(playing) == 0:
                 message += "nobody```"
                 await ctx.send(message)
                 return
             for uid in playing:
-                await cursor.execute("SELECT name FROM main WHERE uid = ?", (uid[0],))
+                await cursor.execute(f"SELECT {server} FROM {server} WHERE uid = ?", (uid[0],))
                 result = await cursor.fetchone()
                 message += result[0] + "\n" if result is not None else "USER NOT FOUND" + "\n"
             message += f"```\nTotal: {len(playing)} players"
@@ -65,12 +69,14 @@ class Stats(commands.Cog):
 
 
     @commands.hybrid_command()
-    async def playtimeboard(self, ctx):
+    async def playtimeboard(self, ctx, server: str = None):
         """See who has the most playtime."""
+        if not server or not await utils.is_valid_server(server):
+            return await ctx.send("Invalid server.")
         amount = 10
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
-            await cursor.execute("SELECT * FROM main ORDER BY playtime DESC")
+            await cursor.execute(f"SELECT * FROM {server} ORDER BY playtime DESC")
             users = await cursor.fetchall()
             em = discord.Embed(title=f"Top {amount} Playtime", color=ctx.author.color)
             index = 0
@@ -161,25 +167,28 @@ class Stats(commands.Cog):
         
     @commands.command()
     @commands.cooldown(1, 1, commands.BucketType.user)
-    async def killnumber(self, ctx, number: int = 0):
-        if number < 1:
-            await ctx.send("Please provide a number greater than 0.")
-            return
-        if number < 151090:
-            await ctx.send("Unfortunately, we did not start logging individual kills until kill number 151090. Please try a number greater than 151090.")
-            return
+    async def killnumber(self, ctx, number: int = 0, server: str = None):
+        if server is None or not await utils.is_valid_server(server):
+            return await ctx.send("Please provide a valid server.")
+        if server == "infection":
+            if number < 1:
+                await ctx.send("Please provide a number greater than 0.")
+                return
+            if number < 151090:
+                await ctx.send("Unfortunately, we did not start logging individual kills until kill number 151090. Please try a number greater than 151090.")
+                return
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
-            await cursor.execute("SELECT sum(kills_as_inf) FROM main")
+            await cursor.execute(f"SELECT sum(kills_as_inf) FROM {server}")
             total_kills = await cursor.fetchone()
             total_kills = total_kills[0]
-            await cursor.execute("SELECT sum(kills_as_sur) FROM main")
+            await cursor.execute(f"SELECT sum(kills_as_sur) FROM {server}")
             survivor_kills = await cursor.fetchone()
             total_kills += survivor_kills[0]
-            await cursor.execute("SELECT COUNT(*) AS total_rows FROM killLog WHERE action <> 2 AND killer <> victim")
+            await cursor.execute(f"SELECT COUNT(*) AS total_rows FROM {server}_kill_log WHERE action <> 2 AND killer <> victim")
             total_killLog_kills = await cursor.fetchone()
             total_killLog_kills = total_killLog_kills[0]
-            await cursor.execute("SELECT COUNT(*) AS total_rows FROM killLog WHERE action = 2 OR killer = victim")
+            await cursor.execute(f"SELECT COUNT(*) AS total_rows FROM {server}_kill_log WHERE action = 2 OR killer = victim")
             total_suicides = await cursor.fetchone()
             total_suicides = total_suicides[0]
             missing_kills = total_kills - total_killLog_kills
@@ -187,15 +196,15 @@ class Stats(commands.Cog):
             if offset < 0:
                 await ctx.send("This kill number is not logged. Either it hasn't happened yet, or happened before we started logging individual kills.")
                 return
-            await cursor.execute(f"SELECT * FROM killLog WHERE action <> 2 AND killer <> victim ORDER BY num ASC LIMIT 1 OFFSET {offset}")
+            await cursor.execute(f"SELECT * FROM {server}_kill_log WHERE action <> 2 AND killer <> victim ORDER BY num ASC LIMIT 1 OFFSET {offset}")
             onemilkill = await cursor.fetchall()
             if onemilkill is not None:
                 onemilkill = onemilkill[0]
                 action = "killed" if onemilkill[2] == 0 else "infected"
-                await cursor.execute("SELECT name FROM main WHERE uid = ?", (onemilkill[1],))
+                await cursor.execute(f"SELECT name FROM {server} WHERE uid = ?", (onemilkill[1],))
                 fetched = await cursor.fetchone()
                 killer_name = fetched[0]
-                await cursor.execute("SELECT name FROM main WHERE uid = ?", (onemilkill[3],))
+                await cursor.execute(f"SELECT name FROM {server} WHERE uid = ?", (onemilkill[3],))
                 fetched = await cursor.fetchone()
                 victim_name = fetched[0]
                 timestamp = onemilkill[4]
@@ -205,39 +214,36 @@ class Stats(commands.Cog):
 
 
     @commands.hybrid_command()
-    async def kd(self, ctx, name: str = None):
+    async def kd(self, ctx, name: str = None, server = None):
         """Get a user's KD."""
         name = await utils.get_name_from_connection(ctx.author.id) if name is None else name
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
-            cursor = await db.cursor()
-            try:
-                # Use parameterized queries
-                await cursor.execute("SELECT kills_as_sur FROM main WHERE name = ?", (name,))
-                kills_as_sur = await cursor.fetchone()
-                kills_as_sur = kills_as_sur[0]
+        valid_servers = await utils.get_valid_server_names()
+        if server not in valid_servers:
+            return await ctx.send(f"Please specify a valid server. Valid servers are {', '.join(valid_servers)}")
+        try:
+            killsmilitia = await utils.get_row("killsmilitia", "name", name, server)
 
-                await cursor.execute("SELECT kills_as_inf FROM main WHERE name = ?", (name,))
-                kills_as_inf = await cursor.fetchone()
-                kills_as_inf = kills_as_inf[0]
+            killsimc = await utils.get_row("killsimc", "name", name, server)
 
-                await cursor.execute("SELECT deaths_as_inf FROM main WHERE name = ?", (name,))
-                deaths_as_inf = await cursor.fetchone()
-                deaths_as_inf = deaths_as_inf[0]
+            deathsimc = await utils.get_row("deathsimc", "name", name, server)
 
-                await cursor.execute("SELECT deaths_as_sur FROM main WHERE name = ?", (name,))
-                deaths_as_sur = await cursor.fetchone()
-                deaths_as_sur = deaths_as_sur[0]
+            deathsmilitia = await utils.get_row("deathsmilitia", "name", name, server)
 
-            except:
-                await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
-                return
+        except aiosqlite.OperationalError:
+            await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
+            return
 
-            # Handle zero deaths case
-            deaths_as_inf = deaths_as_inf if deaths_as_inf != 0 else 1
-            deaths_as_sur = deaths_as_sur if deaths_as_sur != 0 else 1
-
+        # Handle zero deaths case
+        deathsimc = deathsimc if deathsimc != 0 else 1
+        deathsmilitia = deathsmilitia if deathsmilitia != 0 else 1
+        
+        if server == "infection":
             await ctx.reply(
-                f"{name}:\nSurvivor: `{kills_as_sur/deaths_as_sur:.2f} ({kills_as_sur}:{deaths_as_sur})`\nInfected: `{kills_as_inf/deaths_as_inf:.2f} ({kills_as_inf}:{deaths_as_inf})`"
+                f"{name}:\nSurvivor: `{killsmilitia/deathsmilitia:.2f} ({killsmilitia}:{deathsmilitia})`\nInfected: `{killsimc/deathsimc:.2f} ({killsimc}:{deathsimc})`"
+            )
+        else:
+            await ctx.reply(
+                f"{name}: {(killsmilitia + killsimc)/(deathsmilitia + deathsimc):.2f} ({killsmilitia + killsimc}:{deathsmilitia + deathsimc})"
             )
 
     @commands.hybrid_command()
@@ -292,44 +298,57 @@ class Stats(commands.Cog):
 
 
     @commands.hybrid_command()
-    async def killboard(self, ctx, team: str = None):
+    async def killboard(self, ctx, server: str = None, team: str = None):
         """See who has the most kills on a team."""
-        if team != "survivor" and team != "infected":
+        if team != "survivor" and team != "infected" and server == "infection":
             await ctx.send("Error! Please specify team.")
             return
         showteam = team
         if team == "survivor":
-            team = "sur"
+            team = "militia"
         if team == "infected":
-            team = "inf"
+            team = "imc"
         amount = 10
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
-            await cursor.execute(f"SELECT * FROM main ORDER BY kills_as_{team} DESC")
+            if server == "infection":
+                await cursor.execute(f"SELECT * FROM {server} ORDER BY kills{team} DESC")
+            else:
+                await cursor.execute(f"SELECT * FROM {server} ORDER BY kills{team} DESC")
             users = await cursor.fetchall()
-            em = discord.Embed(
-                title=f"Top {amount} Kills as {showteam}", color=ctx.author.color
-            )
+            if server == "infection":
+                em = discord.Embed(
+                    title=f"Top {amount} Kills as {showteam}", color=ctx.author.color
+                )
+            else:
+                em = discord.Embed(
+                    title=f"Top {amount} Kills", color=ctx.author.color
+                )
             index = 0
             for user in users:
                 if index == amount:
                     break
                 index += 1
                 username = user[1]
-                if team == "inf":
-                    kills = user[3]
-                if team == "sur":
-                    kills = user[4]
+                if server == "infection":
+                    if team == "inf":
+                        kills = user[3]
+                    if team == "sur":
+                        kills = user[4]
+                else:
+                    kills = user[3] + user[4]
                 em.add_field(name=f"{index}. {username}", value=f"{kills}", inline=False)
             await ctx.send(embed=em)
 
     @commands.hybrid_command()
-    async def killstreakboard(self, ctx):
+    async def killstreakboard(self, ctx, server: str = None):
         """See who has the highest killstreak."""
+        if not server or not await utils.is_valid_server(server):
+            return await ctx.send("Error! Please specify server.")
         amount = 10
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
-            await cursor.execute("SELECT * FROM main ORDER BY killstreak DESC")
+            await cursor.execute(f"SELECT * FROM {server} ORDER BY killstreak DESC")
             users = await cursor.fetchall()
             em = discord.Embed(title=f"Top {amount} Killstreaks", color=ctx.author.color)
             index = 0
@@ -342,44 +361,46 @@ class Stats(commands.Cog):
                 em.add_field(name=f"{index}. {username}", value=f"{kills}", inline=False)
             await ctx.send(embed=em)
 
-
-    @commands.hybrid_command()
-    async def deathboard(self, ctx, team: str = None):
-        """See who has the most deaths on a team."""
-        if team.lower() != "survivor" and team.lower() != "infected":
-            await ctx.send("Error! Please specify team. `survivor` or `infected`")
-            return
-        team = team.lower()
-        showteam = team
-        if team == "survivor":
-            team = "sur"
-        elif team == "infected":
-            team = "inf"
-        amount = 10
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
-            cursor = await db.cursor()
-            await cursor.execute(f"SELECT * FROM main ORDER BY deaths_as_{team} DESC")
-            users = await cursor.fetchall()
-            em = discord.Embed(
-                title=f"Top {amount} Deaths as {showteam}", color=ctx.author.color
-            )
-            index = 0
-            for user in users:
-                if index == amount:
-                    break
-                index += 1
-                username = user[1]
-                if team == "inf":
-                    kills = user[5]
-                elif team == "sur":
-                    kills = user[6]
-                em.add_field(name=f"{index}. {username}", value=f"{kills}", inline=False)
-            await ctx.send(embed=em)
+    # rarely used, needs update
+    # @commands.hybrid_command()
+    # async def deathboard(self, ctx, team: str = None):
+    #     """See who has the most deaths on a team."""
+    #     if team.lower() != "survivor" and team.lower() != "infected":
+    #         await ctx.send("Error! Please specify team. `survivor` or `infected`")
+    #         return
+    #     team = team.lower()
+    #     showteam = team
+    #     if team == "survivor":
+    #         team = "sur"
+    #     elif team == "infected":
+    #         team = "inf"
+    #     amount = 10
+    #     async with aiosqlite.connect(config.bank, timeout=10) as db:
+    #         cursor = await db.cursor()
+    #         await cursor.execute(f"SELECT * FROM main ORDER BY deaths_as_{team} DESC")
+    #         users = await cursor.fetchall()
+    #         em = discord.Embed(
+    #             title=f"Top {amount} Deaths as {showteam}", color=ctx.author.color
+    #         )
+    #         index = 0
+    #         for user in users:
+    #             if index == amount:
+    #                 break
+    #             index += 1
+    #             username = user[1]
+    #             if team == "inf":
+    #                 kills = user[5]
+    #             elif team == "sur":
+    #                 kills = user[6]
+    #             em.add_field(name=f"{index}. {username}", value=f"{kills}", inline=False)
+    #         await ctx.send(embed=em)
 
 
     @commands.hybrid_command(aliases=["ks", "kys", "killstreak"])
-    async def highestkillstreak(self, ctx, name: str = None):
+    async def highestkillstreak(self, ctx, name: str = None, server: str = None):
         """See someone's highest killstreak."""
+        if not server or not await utils.is_valid_server(server):
+            return await ctx.send("Error! Please specify server.")
         name = await utils.get_name_from_connection(ctx.author.id) if name is None else name
         if name is None:
             await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
@@ -408,7 +429,7 @@ class Stats(commands.Cog):
             cursor = await db.cursor()
 
             # Use a parameterized query for the SELECT statements
-            await cursor.execute('SELECT "firstinfected" FROM main WHERE name=?', (name,))
+            await cursor.execute('SELECT "firstinfected" FROM infection WHERE name=?', (name,))
             killstreak = await cursor.fetchone()
             if killstreak is None:
                 await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
@@ -425,13 +446,16 @@ class Stats(commands.Cog):
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
             did = ctx.author.id
-            await cursor.execute("SELECT name FROM main WHERE name = ?", (name,))
-            name_exists = True if await cursor.fetchone() is not None else False
+            name_exists = False
+            for s in config.servers:
+                await cursor.execute(f"SELECT {s.name} FROM main WHERE name = ?", (name,))
+                name_exists = True if await cursor.fetchone() is not None else False
+                if name_exists:
+                    break
             if not name_exists:
-                await ctx.send("User not found. Names are case sensitive.")
-                return
+                return await ctx.send("User not found. Names are case sensitive.")
             # get uid
-            await cursor.execute("SELECT uid FROM main WHERE name = ?", (name,))
+            await cursor.execute(f"SELECT uid FROM {s.name} WHERE name = ?", (name,))
             uid = await cursor.fetchone()
             uid = uid[0] if uid is not None else None
             if uid is None:
@@ -449,16 +473,7 @@ class Stats(commands.Cog):
             if did_exists:
                 await ctx.send("This discord account is already linked to a titanfall account.")
                 return
-            online = False
-            playing = self.client.playing if self.client.playing > self.client.lazy_playing else self.client.lazy_playing
-            for thing in playing:
-                if str(uid) == thing[0]:
-                    online = True
-                    break
-            if not online:
-                await ctx.send("You don't appear to be on the server. Please join and run this command again!")
-                return
-            auth_code = random.randint(100000, 999999) # theres a fringe chance that someone will get the same code as someone else but i dont care
+            auth_code = secrets.randbits(20) # theres a fringe chance that someone will get the same code as someone else but i dont care
             try:
                 await ctx.author.send(f"Your code is: `{auth_code}`\nPlease paste it into the in-game titanfall chat without any spaces or other characters.")
             except discord.Forbidden:
@@ -478,8 +493,6 @@ class Stats(commands.Cog):
                 await cursor.execute("INSERT INTO connection(discordID, titanfallID) VALUES(?, ?)", (did, uid))
                 await ctx.reply("Successfully linked your titanfall and discord accounts!")
                 await db.commit()
-                await cursor.close()
-                await db.close()
         else:
             await ctx.reply("Code expired. Please try again.")
         del self.client.auth[auth_code]
@@ -532,9 +545,11 @@ class Stats(commands.Cog):
             await ctx.send(f"{name.name} is linked to {titan_name}.")
         
     @commands.hybrid_command()
-    async def gamesplayed(self, ctx, name: str = None):
+    async def gamesplayed(self, ctx, name: str = None, server: str = None):
         """See how many games someone has played."""
         name = await utils.get_name_from_connection(ctx.author.id) if name is None else name
+        if not server or not await utils.check_server(ctx, server):
+            return await ctx.send("Please specify a valid server.")
         if name is None:
             await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
             return
@@ -543,64 +558,68 @@ class Stats(commands.Cog):
             cursor = await db.cursor()
 
             # Use a parameterized query for the SELECT statements
-            await cursor.execute('SELECT "gamesplayed" FROM main WHERE name=?', (name,))
+            await cursor.execute(f'SELECT "gamesplayed" FROM {server} WHERE name=?', (name,))
             gamesplayed = await cursor.fetchone()
             if gamesplayed is None:
                 await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
                 return
             await ctx.reply(f"{name}: {gamesplayed[0]}")
-        
-    @commands.hybrid_command(aliases=["unlucky", "unluckiest", "fic"])
-    async def firstinfectedchance(self, ctx, name: str = None):
-        """See someone's propensity for being first infected."""
-        name = await utils.get_name_from_connection(ctx.author.id) if name is None else name
-        if name is None:
-            await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
-            return
+            
+    
+    # sucks
+    # @commands.hybrid_command(aliases=["unlucky", "unluckiest", "fic"])
+    # async def firstinfectedchance(self, ctx, name: str = None):
+    #     """See someone's propensity for being first infected."""
+    #     name = await utils.get_name_from_connection(ctx.author.id) if name is None else name
+    #     if name is None:
+    #         await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
+    #         return
 
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
-            cursor = await db.cursor()
+    #     async with aiosqlite.connect(config.bank, timeout=10) as db:
+    #         cursor = await db.cursor()
 
-            # Use a parameterized query for the SELECT statements
-            await cursor.execute('SELECT "firstinfected" FROM main WHERE name=?', (name,))
-            firstinfected = await cursor.fetchone()
-            firstinfected = firstinfected[0] if firstinfected is not None else None
-            await cursor.execute('SELECT "gamesplayed" FROM main WHERE name=?', (name,))
-            gamesplayed = await cursor.fetchone()
-            gamesplayed = gamesplayed[0] if gamesplayed is not None else None
-            if firstinfected is None or gamesplayed is None:
-                await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
-                return
-            gamesplayed = gamesplayed if gamesplayed != 0 else 1 # handle 0 games played
-            await ctx.reply(f"{name}: `{((firstinfected/gamesplayed)*100):.2f}% ({firstinfected}/{gamesplayed})`")
-        
-    @commands.hybrid_command(hidden=True)
-    async def profile(self, ctx, name: str = None):
-        """See someone's profile."""
-        name = await utils.get_name_from_connection(ctx.author.id) if name is None else name
-        if name is None:
-            await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
-            return
+    #         # Use a parameterized query for the SELECT statements
+    #         await cursor.execute('SELECT "firstinfected" FROM main WHERE name=?', (name,))
+    #         firstinfected = await cursor.fetchone()
+    #         firstinfected = firstinfected[0] if firstinfected is not None else None
+    #         await cursor.execute('SELECT "gamesplayed" FROM main WHERE name=?', (name,))
+    #         gamesplayed = await cursor.fetchone()
+    #         gamesplayed = gamesplayed[0] if gamesplayed is not None else None
+    #         if firstinfected is None or gamesplayed is None:
+    #             await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
+    #             return
+    #         gamesplayed = gamesplayed if gamesplayed != 0 else 1 # handle 0 games played
+    #         await ctx.reply(f"{name}: `{((firstinfected/gamesplayed)*100):.2f}% ({firstinfected}/{gamesplayed})`")
+    
+    
+    # needs heavy work & a glow-up tbh... get inspo from nocaro 
+#     @commands.hybrid_command(hidden=True)
+#     async def profile(self, ctx, name: str = None):
+#         """See someone's profile."""
+#         name = await utils.get_name_from_connection(ctx.author.id) if name is None else name
+#         if name is None:
+#             await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
+#             return
 
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
-            cursor = await db.cursor()
+#         async with aiosqlite.connect(config.bank, timeout=10) as db:
+#             cursor = await db.cursor()
 
-            # Use a parameterized query for the SELECT statements
-            await cursor.execute('SELECT * FROM main WHERE name=?', (name,))
-            profile = await cursor.fetchone()
-            if profile is None:
-                await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
-                return
-            await ctx.reply(f"""
-{profile[1]}:
-Survivor kills: {profile[4]}
-Survivor deaths: {profile[6]}
-Infected kills: {profile[3]}
-Infected deaths: {profile[5]}
-Highest Killstreak: {profile[10]}
-Times first infected: {profile[13]}
-Games played: {profile[14]}
-Playtime: {await utils.human_time_duration(profile[9])}""")
+#             # Use a parameterized query for the SELECT statements
+#             await cursor.execute('SELECT * FROM main WHERE name=?', (name,))
+#             profile = await cursor.fetchone()
+#             if profile is None:
+#                 await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
+#                 return
+#             await ctx.reply(f"""
+# {profile[1]}:
+# Survivor kills: {profile[4]}
+# Survivor deaths: {profile[6]}
+# Infected kills: {profile[3]}
+# Infected deaths: {profile[5]}
+# Highest Killstreak: {profile[10]}
+# Times first infected: {profile[13]}
+# Games played: {profile[14]}
+# Playtime: {await utils.human_time_duration(profile[9])}""")
         
     @commands.hybrid_command()
     async def amiwhitelisted(self, ctx, name: str = None):

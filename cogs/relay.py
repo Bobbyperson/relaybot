@@ -376,7 +376,6 @@ timestamp INT NOT NULL
     async def send_relay_kill(
         self, killer, victim, killer_team, victim_team, server_identifier
     ):
-        channel = self.client.get_channel(config.relay)
         if killer_team == 2 and victim_team == 2 and server_identifier == "infection":
             # team will be switched before titanfall can say someone actually died
             action = "**infected**"
@@ -385,12 +384,14 @@ timestamp INT NOT NULL
             action = "killed"
             await self.log_kill_db(killer, 0, victim)
         if killer == victim:
-            await channel.send(f"{killer} bid farewell, cruel world!")
             await self.log_kill_db(killer, 2, victim)
+            channel = self.client.get_channel(config.relay)
+            await channel.send(f"{killer} bid farewell, cruel world!")
         else:
             killer = discord.utils.escape_markdown(killer)
             victim = discord.utils.escape_markdown(victim)
             output = f"{killer} {action} {victim}."
+            channel = self.client.get_channel(config.relay)
             await channel.send(output)
 
     async def log_kill_db(self, killer, action, victim, server_identifier):

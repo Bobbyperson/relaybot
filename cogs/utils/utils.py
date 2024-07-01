@@ -105,3 +105,18 @@ async def get_server(server):
         if server == s.name:
             return s
     return None
+
+async def get_row(name, condition, value, table):
+    async with aiosqlite.connect(config.bank, timeout=10) as db:
+        cursor = await db.cursor()
+        await cursor.execute(f"SELECT {name} FROM {table} WHERE {condition} = (?)", (value,))
+        result = await cursor.fetchone()
+        return result[0] if result else None 
+
+async def update_row(name, new_value, condition, cvalue, table):
+    async with aiosqlite.connect(config.bank, timeout=10) as db:
+        await db.execute(f"UPDATE {table} SET {name} = ? WHERE {condition} = ?", (new_value, cvalue))
+        await db.commit()
+        
+async def get_valid_server_names() -> list:
+    return [s.name for s in config.servers]

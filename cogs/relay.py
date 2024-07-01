@@ -212,7 +212,7 @@ timestamp INT NOT NULL
                 "i could not convert the following line to json:\n" + data
             )
             await self.discord_log(f"{e}")
-            return
+            return web.Response(status=400, text="Bad JSON")
         try:  # how is json in python THIS BAD
             player = data["subject"]["name"]
             uid = data["subject"]["uid"]
@@ -228,13 +228,19 @@ timestamp INT NOT NULL
             print(
                 f"Warning! Invalid server identifier for {server_identifier}. Provided data was {data}. IP of request was {request.remote_addr}."
             )
-            return web.Response(status=401, text="Unauthorized")
+            return web.Response(status=401, text="Bad identifier")
         auth_header = request.headers.get("authentication")
         if not await utils.check_server_auth(server_identifier, auth_header):
             print(
                 f"Warning! Invalid auth header for {server_identifier}. Provided auth was {auth_header}. IP of request was {request.remote_addr}."
             )
-            return web.Response(status=401, text="Unauthorized")
+            return web.Response(status=401, text="Bad auth")
+        ip = request.remote_addr
+        if not await utils.check_server_ip(server_identifier, ip):
+            print(
+                f"Warning! Invalid ip for {server_identifier}. Provided ip was {ip}."
+            )
+            return web.Response(status=401, text="Bad IP")
         await self.register_server(server_identifier)
         match data["verb"]:
             case "sent":

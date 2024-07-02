@@ -386,9 +386,12 @@ timestamp INT NOT NULL
     async def send_relay_kill(
         self, killer, victim, killer_team, victim_team, server_identifier
     ):
-        if killer_team == 2 and victim_team == 2 and server_identifier == "infection":
+        if killer_team == 2 and victim_team == 2:
             # team will be switched before titanfall can say someone actually died
-            action = "**infected**"
+            if server_identifier == "infection":
+                action = "**infected**"
+            else:
+                action = "killed"
             await self.log_kill_db(killer, 1, victim)
         else:
             action = "killed"

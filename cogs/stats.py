@@ -247,59 +247,59 @@ class Stats(commands.Cog):
         await ctx.reply(message)
 
     @commands.hybrid_command()
-    async def killed(self, ctx, user1, user2, server = None):
+    async def killed(self, ctx, user1: str = None, user2: str = None):
         """See how many times two people have killed each other."""
         if not user1 or not user2:
             return await ctx.send("Please specify two users.")
-        if not server or await utils.get_valid_server_names() is None:
-            return await ctx.send("Please specify a valid server.")
+        message = ""
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
+            for server in config.servers:
+                await cursor.execute(f"SELECT uid FROM {server.name} WHERE name=?", (user1,))
+                killer = await cursor.fetchone()
+                killer = killer[0]
 
-            await cursor.execute(f"SELECT uid FROM {server} WHERE name=?", (user1,))
-            killer = await cursor.fetchone()
-            killer = killer[0]
+                await cursor.execute(f"SELECT uid FROM {server.name} WHERE name=?", (user2,))
+                victim = await cursor.fetchone()
+                victim = victim[0]
 
-            await cursor.execute(f"SELECT uid FROM {server} WHERE name=?", (user2,))
-            victim = await cursor.fetchone()
-            victim = victim[0]
+                if killer is None or victim is None:
+                    continue
 
-            if killer is None or victim is None:
-                await ctx.send("One or neither of these people exist!")
-                return
+                await cursor.execute(
+                    f"SELECT count(*) FROM {server}_kill_log WHERE killer=? AND victim=? AND action=0",
+                    (killer, victim),
+                )
+                user1KillsAsSurvivor = await cursor.fetchone()
+                user1KillsAsSurvivor = user1KillsAsSurvivor[0]
 
-            await cursor.execute(
-                "SELECT count(*) FROM killLog WHERE killer=? AND victim=? AND action=0",
-                (killer, victim),
-            )
-            user1KillsAsSurvivor = await cursor.fetchone()
-            user1KillsAsSurvivor = user1KillsAsSurvivor[0]
+                await cursor.execute(
+                    f"SELECT count(*) FROM {server}_kill_log WHERE killer=? AND victim=? AND action=1",
+                    (killer, victim),
+                )
+                user1KillsAsInfected = await cursor.fetchone()
+                user1KillsAsInfected = user1KillsAsInfected[0]
 
-            await cursor.execute(
-                "SELECT count(*) FROM killLog WHERE killer=? AND victim=? AND action=1",
-                (killer, victim),
-            )
-            user1KillsAsInfected = await cursor.fetchone()
-            user1KillsAsInfected = user1KillsAsInfected[0]
+                await cursor.execute(
+                    f"SELECT count(*) FROM {server}_kill_log WHERE killer=? AND victim=? AND action=0",
+                    (victim, killer),
+                )
+                user2KillsAsSurvivor = await cursor.fetchone()
+                user2KillsAsSurvivor = user2KillsAsSurvivor[0]
 
-            await cursor.execute(
-                "SELECT count(*) FROM killLog WHERE killer=? AND victim=? AND action=0",
-                (victim, killer),
-            )
-            user2KillsAsSurvivor = await cursor.fetchone()
-            user2KillsAsSurvivor = user2KillsAsSurvivor[0]
-
-            await cursor.execute(
-                "SELECT count(*) FROM killLog WHERE killer=? AND victim=? AND action=1",
-                (victim, killer),
-            )
-            user2KillsAsInfected = await cursor.fetchone()
-            user2KillsAsInfected = user2KillsAsInfected[0]
-
-            await ctx.send(
-                f"{user1} has killed {user2} {user1KillsAsSurvivor} times as a survivor.\n{user2} has killed {user1} {user2KillsAsSurvivor} times as a survivor.\n{user1} has killed {user2} {user1KillsAsInfected} times as an infected.\n{user2} has killed {user1} {user2KillsAsInfected} times as an infected."
-            )
-
+                await cursor.execute(
+                    f"SELECT count(*) FROM {server}_kill_log WHERE killer=? AND victim=? AND action=1",
+                    (victim, killer),
+                )
+                user2KillsAsInfected = await cursor.fetchone()
+                user2KillsAsInfected = user2KillsAsInfected[0]
+                if server.name == "infection":
+                    message += f"{user1} has killed {user2} {user1KillsAsSurvivor} times as a survivor.\n{user2} has killed {user1} {user2KillsAsSurvivor} times as a survivor.\n{user1} has killed {user2} {user1KillsAsInfected} times as an infected.\n{user2} has killed {user1} {user2KillsAsInfected} times as an infected."
+                else:
+                    message += f"{server.name}: {user1} has killed {user2} {user1KillsAsInfected + user1KillsAsSurvivor}\n{user2} has killed {user1} {user2KillsAsInfected + user2KillsAsSurvivor}"
+        if message == "":
+            message == "One or both of these users does not exist!"
+        await ctx.send(message)
 
     @commands.hybrid_command()
     async def killboard(self, ctx, server: str = None, team: str = None):
@@ -416,9 +416,11 @@ class Stats(commands.Cog):
                 await cursor.execute(f'SELECT "killstreak" FROM {server.name} WHERE name=?', (name,))
                 killstreak = await cursor.fetchone()
                 if killstreak is None:
-                    await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
-                    return
-                await ctx.reply(f"{name}: {killstreak[0]}")
+                    continue
+                message += f"{server.name}: {killstreak[0]}\n"
+        if message == f"{name}:\n":
+            return await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
+        await ctx.reply(message)
         
     @commands.hybrid_command()
     async def firstinfected(self, ctx, name: str = None):
@@ -563,7 +565,7 @@ class Stats(commands.Cog):
                 if gamesplayed is None:
                     continue
                 message += f"`{server.name}`: {gamesplayed[0]}\n"
-        if message == "":
+        if message == f"{name}:\n":
             message = "User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive."
         await ctx.reply(message)
             

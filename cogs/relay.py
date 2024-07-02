@@ -8,6 +8,8 @@ import asyncpg
 import requests
 import json
 import asyncio
+import sys
+import traceback
 from datetime import datetime
 import cogs.utils.utils as utils  # this is stupid
 
@@ -88,7 +90,7 @@ class Relay(commands.Cog):
 
     async def start_web_server(self):
         await self.runner.setup()
-        site = web.TCPSite(self.runner, "localhost", 2585)
+        site = web.TCPSite(self.runner, "0.0.0.0", 2585)
         await site.start()
 
     # events
@@ -165,9 +167,9 @@ class Relay(commands.Cog):
             await msg.edit(embed=embed)
 
     async def register_server(self, server_identifier):
-        async with aiosqlite.connect(config.relay) as db:
+        async with aiosqlite.connect(config.bank) as db:
             await db.execute(
-                f"""CREATE TABLE IF NOT EXISTS {server_identifier}
+                f"""CREATE TABLE IF NOT EXISTS {server_identifier}(
 num INTEGER PRIMARY KEY AUTOINCREMENT,
 name TEXT NOT NULL,
 uid INT NOT NULL,
@@ -175,20 +177,22 @@ killsimc INT NOT NULL,
 killsmilitia INT NOT NULL,
 deathsimc INT NOT NULL,
 deathsmilitia INT NOT NULL,
-firstjoin TEXT NOT NULL,
-lastjoin TEXT NOT NULL,
+first_join TEXT NOT NULL,
+last_join TEXT NOT NULL,
 playtime INT NOT NULL,
 killstreak INT NOT NULL,
 gamesplayed INT NOT NULL
+)
 """
             )
             await db.execute(
-                f"""CREATE TABLE IF NOT EXISTS {server_identifier}_kill_log
+                f"""CREATE TABLE IF NOT EXISTS {server_identifier}_kill_log(
 num INTEGER PRIMARY KEY AUTOINCREMENT,
 killer INT NOT NULL,
 action INT NOT NULL,
 victim INT NOT NULL,
 timestamp INT NOT NULL
+)
 """
             )
             await db.commit()
@@ -217,25 +221,31 @@ timestamp INT NOT NULL
             player = data["subject"]["name"]
             uid = data["subject"]["uid"]
             team = data["subject"]["teamId"]
-        except KeyError:
+        except:
             pass
         try:
             message = data["object"]["message"]
-        except KeyError:
+        except:
             pass
         server_identifier = data["server_identifier"]
+        print(server_identifier)
+        ip = request.headers.get('X-Forwarded-For')
+        if ip:
+            ip = ip.split(',')[0]
+        else:
+            ip = request.remote
+        print(ip)
         if not await utils.is_valid_server(server_identifier):
             print(
-                f"Warning! Invalid server identifier for {server_identifier}. Provided data was {data}. IP of request was {request.remote_addr}."
+                f"Warning! Invalid server identifier for {server_identifier}. Provided data was {data}. IP of request was {ip}."
             )
             return web.Response(status=401, text="Bad identifier")
         auth_header = request.headers.get("authentication")
         if not await utils.check_server_auth(server_identifier, auth_header):
             print(
-                f"Warning! Invalid auth header for {server_identifier}. Provided auth was {auth_header}. IP of request was {request.remote_addr}."
+                f"Warning! Invalid auth header for {server_identifier}. Provided auth was {auth_header}. IP of request was {ip}."
             )
             return web.Response(status=401, text="Bad auth")
-        ip = request.remote_addr
         if not await utils.check_server_ip(server_identifier, ip):
             print(
                 f"Warning! Invalid ip for {server_identifier}. Provided ip was {ip}."
@@ -319,7 +329,7 @@ timestamp INT NOT NULL
             ]
 
             # Using a copy to iterate
-            for uid in self.client.playing[:]:
+            for uid in self.client.playing[server_identifier][:]:
                 unix = int(time.time())
                 time_diff = unix - uid[1]
                 if len(self.client.lazy_playing) > 1:
@@ -455,10 +465,16 @@ timestamp INT NOT NULL
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            await cursor.execute(
-                f"INSERT INTO {server_identifier}(name, uid, killsimc, killsmilitia, deathsimc, deathsmilitia, first_join, last_join, playtime, killstreak, firstinfected, gamesplayed) values(?,?,?,?,?,?,?,?,?,?,?,?)",
-                (user, uid, 0, 0, 0, 0, current_time, current_time, 0, 0, 0, 0),
-            )
+            if server_identifier == "infection":
+                await cursor.execute(
+                    f"INSERT INTO {server_identifier}(name, uid, killsimc, killsmilitia, deathsimc, deathsmilitia, first_join, last_join, playtime, killstreak, gamesplayed, firstinfected) values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (user, uid, 0, 0, 0, 0, current_time, current_time, 0, 0, 0, 0),
+                )
+            else:
+                await cursor.execute(
+                    f"INSERT INTO {server_identifier}(name, uid, killsimc, killsmilitia, deathsimc, deathsmilitia, first_join, last_join, playtime, killstreak, gamesplayed) values(?,?,?,?,?,?,?,?,?,?,?)",
+                    (user, uid, 0, 0, 0, 0, current_time, current_time, 0, 0, 0),
+                )
             await self.discord_log(f"New account created for {user} with uid {uid} in {server_identifier}")
             await db.commit()
             
@@ -476,7 +492,7 @@ timestamp INT NOT NULL
             cursor = await db.cursor()
             await cursor.execute(f"SELECT killstreak FROM {server_identifier} WHERE name = ?", (name,))
             real = await cursor.fetchone()
-            real = real[0]
+            real = real[0] if real else 0
             if kills > real:
                 await cursor.execute(
                     f"UPDATE {server_identifier} SET killstreak = ? WHERE name=?", (kills, name)
@@ -489,7 +505,7 @@ timestamp INT NOT NULL
             await cursor.execute(f'SELECT "first_join" FROM {server_identifier} WHERE uid=?', (uid,))
             result_userID = await cursor.fetchone()
             if not result_userID:
-                await self.new_account(player, uid)
+                await self.new_account(player, uid, server_identifier)
             await cursor.execute(f'UPDATE {server_identifier} SET last_join = ? WHERE uid=?', (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), uid))
             await db.commit()
 
@@ -552,6 +568,54 @@ timestamp INT NOT NULL
                     f"{player} has been automatically banned.\nReason: Rule breaking language"
                 )
                 break
+            
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx, error):
+        if isinstance(error, commands.CommandOnCooldown):
+            await ctx.reply(
+                f"This command is on cooldown, you can use it "
+                f"<t:{int(time.time()) + int(error.retry_after) + 3}:R>"
+            )
+        elif isinstance(error, commands.MaxConcurrencyReached):
+            await ctx.reply(
+                "Too many people are using this command! Please try again later."
+            )
+        elif isinstance(error, commands.NSFWChannelRequired):
+            await ctx.reply("<:weirdchamp:1037242286439931974>")
+        elif isinstance(error, commands.CommandNotFound):
+            return
+        elif isinstance(error, commands.UserNotFound):
+            await ctx.reply(
+                "The specified user was not found. Did you type the name correctly? Try pinging them or pasting their ID."
+            )
+            ctx.command.reset_cooldown(ctx)
+        elif isinstance(error, commands.NotOwner):
+            return
+        elif isinstance(error, commands.UserNotFound):
+            await ctx.reply("The person you specified was not found! Try pinging them.")
+            ctx.command.reset_cooldown(ctx)
+        elif isinstance(error, commands.MemberNotFound):
+            await ctx.reply("The person you specified was not found! Try pinging them.")
+            ctx.command.reset_cooldown(ctx)
+        elif isinstance(error, commands.BadArgument):
+            ctx.command.reset_cooldown(ctx)
+            await ctx.reply("One of the arguments you specified was not valid.")
+        else:
+            ctx.command.reset_cooldown(ctx)
+            channel = await self.client.fetch_channel(1096272472204115968)
+            embed = discord.Embed(
+                title="An Error has occurred",
+                description=f"Error: \n `{error}`\nCommand: `{ctx.command}`",
+                timestamp=ctx.message.created_at,
+                color=242424,
+            )
+            await channel.send(embed=embed)
+            print(error)
+            traceback.print_exception(
+                type(error), error, error.__traceback__, file=sys.stderr
+            )
+            print("-" * 20)
+            await ctx.reply("An unexpected error occurred! Please try again.")
 
 
 async def setup(client):

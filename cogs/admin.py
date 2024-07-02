@@ -51,7 +51,7 @@ class Admin(commands.Cog):
                 good_list.append(shit[0])  # tuple to array
             closest_match = difflib.get_close_matches(name, good_list, n=4, cutoff=0.3)
             await ctx.send(
-                f"This player has never joined the server! Did you type the name incorrectly? The closest matches I found were `{closest_match}`."
+                f"This player has never joined {server}! Did you type the name incorrectly? The closest matches I found were `{closest_match}`."
             )
 
         if ctx.author.id not in config.admins:
@@ -82,13 +82,13 @@ class Admin(commands.Cog):
                         await closestMatch(user, s.name)
                     elif isinstance(user, int):
                         await ctx.send("Could not find UID in database!")
-                    return
+                    continue
                 if fetched is None and isinstance(user, str):
                     await closestMatch(user, s.name)
-                    return
+                    continue
                 elif fetched is None and isinstance(user, int):
                     await ctx.send("Could not find UID in database!")
-                    return
+                    continue
                 fetched = fetched[0]
                 if isinstance(user, str):
                     await cursor.execute(f"SELECT uid FROM {s.name} WHERE name = ?", (user,))

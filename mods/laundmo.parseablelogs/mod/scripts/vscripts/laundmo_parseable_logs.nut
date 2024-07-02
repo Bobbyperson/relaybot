@@ -1,5 +1,6 @@
 untyped
 global function serverLog
+global function log_custom
 
 struct {
     string secret
@@ -168,6 +169,19 @@ void function log_sv( string subject, string verb){
 		rMap("verb", verb),
         sMap("server_identifier", file.server_identifier)
 	]))
+}
+
+void function log_custom( string message, string args ){
+    print("[ParseableLog] " + jsonMapJoin([
+        rMap("custom", message),
+        rMap("args", args)
+    ]))
+
+    postRequest(jsonMapJoin([
+        rMap("custom", message),
+        rMap("args", args),
+        sMap("server_identifier", file.server_identifier)
+    ]))
 }
 
 // log_sv but with string maps

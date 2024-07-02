@@ -68,8 +68,9 @@ async def get_uid_from_connection(did):
 async def get_name_from_connection(did):
     async with aiosqlite.connect(config.bank, timeout=10) as db:
         cursor = await db.cursor()
+        uid = await get_uid_from_connection(did)
         for s in config.servers:
-            await cursor.execute(f"SELECT name FROM {s.name} WHERE discordID = (?)", (did,))
+            await cursor.execute(f"SELECT name FROM {s.name} WHERE uid = (?)", (uid,))
             name = await cursor.fetchone()
             if name:
                 return name[0]
@@ -94,14 +95,14 @@ async def get_uid_from_name(name: str = None) -> int:
     
 async def is_valid_server(server: str = None) -> bool:
     for s in config.servers:
-        if server.name == s.name:
+        if server == s.name:
             return True
     return False
 
 async def check_server_auth(server: str = None, auth: str = None) -> bool:
     for s in config.servers:
-        if server.name == s.name:
-            return auth == s.auth
+        if server == s.name:
+            return auth == s.key
     return False
 
 async def get_server(server):
@@ -124,3 +125,9 @@ async def update_row(name, new_value, condition, cvalue, table):
         
 async def get_valid_server_names() -> list:
     return [s.name for s in config.servers]
+
+async def check_server_ip(server: str = None, ip: str = None) -> bool:
+    for s in config.servers:
+        if server == s.name:
+            return ip == s.ip
+    return False

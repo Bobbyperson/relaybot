@@ -423,7 +423,7 @@ timestamp INT NOT NULL
             cursor = await db.cursor()
             changed = False
             for server in config.servers:
-                await cursor.execute(f"SELECT {server.name} FROM main WHERE uid = ?", (uid,))
+                await cursor.execute(f"SELECT name FROM {server.name} WHERE uid = ?", (uid,))
                 result = await cursor.fetchone()
                 if result[0] != name:
                     changed = True
@@ -541,14 +541,15 @@ timestamp INT NOT NULL
                 #     for line in file_lines:
                 #         if uid in line:
                 #             return
-                await utils.ban(player, uid, f"message containing: {word}")
+                for server in config.servers:
+                    await server.send_command(f"bban {uid}")
                 adminrelay = self.client.get_channel(config.admin_relay)
                 await adminrelay.send(
-                    f"{player} has been automatically banned due to a rule breaking message:\n{message}\nMatches pattern:`{word}`\nUID: `{uid}`\nPlease review: {sent.jump_url}"
+                    f"{player} has been automatically banned due to a rule breaking message:\n{message}\nMatches pattern:`{word}`\nUID: `{uid}`\nPlease review"
                 )
                 banlog = self.client.get_channel(config.ban_log)
                 await banlog.send(
-                    f"{player} has been automatically banned.\nReason: Rule breaking language\n{sent.jump_url}"
+                    f"{player} has been automatically banned.\nReason: Rule breaking language"
                 )
                 break
 

@@ -1,6 +1,5 @@
 import config
 import aiosqlite
-from rcon.source import rcon
 from discord.ext import commands
 
 # async def human_time_duration(seconds):
@@ -23,11 +22,11 @@ from discord.ext import commands
 async def human_time_duration(seconds: int) -> str:
     return f"{(seconds / 60 / 60):.1f} hours"
 
-async def ban(name, uid, reason, server_ip) -> None:
-    await rcon(
-        'ban', f'{uid}',
-        host='server_ip', port=7123, passwd='holyfuckloisimcummingahh'
-    )
+# async def ban(name, uid, reason, server_ip) -> None:
+#     await rcon(
+#         'ban', f'{uid}',
+#         host='server_ip', port=7123, passwd='holyfuckloisimcummingahh'
+#     )
     # await asyncio.sleep(3)
     # with open(
     #     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\reasons.txt",
@@ -47,11 +46,11 @@ async def ban(name, uid, reason, server_ip) -> None:
     #     f.write(f"{uid}\n")
 
 
-async def unban(uid, reason, server_ip) -> None:
-    await rcon(
-        'unban', f'{uid}',
-        host=server_ip, port=7123, passwd='holyfuckloisimcummingahh'
-    )
+# async def unban(uid, reason, server_ip) -> None:
+#     await rcon(
+#         'unban', f'{uid}',
+#         host=server_ip, port=7123, passwd='holyfuckloisimcummingahh'
+#     )
             
 def is_admin() -> bool:
     return commands.check(lambda ctx: ctx.author.id in config.admins)
@@ -69,10 +68,12 @@ async def get_uid_from_connection(did):
 async def get_name_from_connection(did):
     async with aiosqlite.connect(config.bank, timeout=10) as db:
         cursor = await db.cursor()
-        uid = await get_uid_from_connection(did)
-        await cursor.execute("SELECT name FROM main WHERE uid = (?)", (uid,))
-        name = await cursor.fetchone()
-        return name[0] if name else None
+        for s in config.servers:
+            await cursor.execute(f"SELECT name FROM {s.name} WHERE discordID = (?)", (did,))
+            name = await cursor.fetchone()
+            if name:
+                return name[0]
+        return None
 
 async def get_discord_id_user_from_connection(uid):
     async with aiosqlite.connect(config.bank, timeout=10) as db:
@@ -84,9 +85,12 @@ async def get_discord_id_user_from_connection(uid):
 async def get_uid_from_name(name: str = None) -> int:
     async with aiosqlite.connect(config.bank, timeout=10) as db:
         cursor = await db.cursor()
-        await cursor.execute("SELECT uid FROM main WHERE name = (?)", (name,))
-        uid = await cursor.fetchone()
-        return uid[0] if uid else None
+        for s in config.servers:
+            await cursor.execute(f"SELECT uid FROM {s.name} WHERE name = (?)", (name,))
+            uid = await cursor.fetchone()
+            if uid:
+                return uid[0]
+        return None
     
 async def is_valid_server(server: str = None) -> bool:
     for s in config.servers:

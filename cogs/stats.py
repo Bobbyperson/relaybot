@@ -61,7 +61,7 @@ class Stats(commands.Cog):
                 await ctx.send(message)
                 return
             for uid in playing:
-                await cursor.execute(f"SELECT {server} FROM {server} WHERE uid = ?", (uid[0],))
+                await cursor.execute(f"SELECT name FROM {server} WHERE uid = ?", (uid[0],))
                 result = await cursor.fetchone()
                 message += result[0] + "\n" if result is not None else "USER NOT FOUND" + "\n"
             message += f"```\nTotal: {len(playing)} players"
@@ -247,16 +247,20 @@ class Stats(commands.Cog):
             )
 
     @commands.hybrid_command()
-    async def killed(self, ctx, user1, user2):
+    async def killed(self, ctx, user1, user2, server = None):
         """See how many times two people have killed each other."""
+        if not user1 or not user2:
+            return await ctx.send("Please specify two users.")
+        if not server or await utils.get_valid_server_names() is None:
+            return await ctx.send("Please specify a valid server.")
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
 
-            await cursor.execute("SELECT uid FROM main WHERE name=?", (user1,))
+            await cursor.execute(f"SELECT uid FROM {server} WHERE name=?", (user1,))
             killer = await cursor.fetchone()
             killer = killer[0]
 
-            await cursor.execute("SELECT uid FROM main WHERE name=?", (user2,))
+            await cursor.execute(f"SELECT uid FROM {server} WHERE name=?", (user2,))
             victim = await cursor.fetchone()
             victim = victim[0]
 
@@ -410,7 +414,7 @@ class Stats(commands.Cog):
             cursor = await db.cursor()
 
             # Use a parameterized query for the SELECT statements
-            await cursor.execute('SELECT "killstreak" FROM main WHERE name=?', (name,))
+            await cursor.execute(f'SELECT "killstreak" FROM {server.name} WHERE name=?', (name,))
             killstreak = await cursor.fetchone()
             if killstreak is None:
                 await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
@@ -448,7 +452,7 @@ class Stats(commands.Cog):
             did = ctx.author.id
             name_exists = False
             for s in config.servers:
-                await cursor.execute(f"SELECT {s.name} FROM main WHERE name = ?", (name,))
+                await cursor.execute(f"SELECT name FROM {s.name} WHERE name = ?", (name,))
                 name_exists = True if await cursor.fetchone() is not None else False
                 if name_exists:
                     break
@@ -536,9 +540,7 @@ class Stats(commands.Cog):
             if uid is None:
                 await ctx.send("This discord account is not linked to a titanfall account.")
                 return
-            await cursor.execute("SELECT name FROM main WHERE uid = ?", (uid,))
-            titan_name = await cursor.fetchone()
-            titan_name = titan_name[0] if titan_name is not None else None
+            titan_name = await utils.get_name_from_connection(uid)
             if titan_name is None:
                 await ctx.send("Something catastrophic has happened. Ping bobby.")
                 return

@@ -1,14 +1,14 @@
+from server import Server
+
 TOKEN = ""
 ban_words = [r"f([aeiou*x])\1*g+([aeiou*x])\1*t", "nig+er"] # automatic ban words
 bad_words = ["nigg", "fag", "bundle of sticks", "tnd"] # admin warnings
-class Server: # this might suck
-    def __init__(self, name, relay, ip, key):
-        self.name = name
-        self.relay = relay
-        self.ip = ip
-        self.key = key
         
-servers = [Server("server1", 0, "127.0.0.1", "secretkey1"), Server("server2", 0, "127.0.0.1", "secretkey2"), Server("server3", 0, "127.0.0.1", "secretkey3")]   
+servers = [
+    Server("server1", 0, "127.0.0.1", "secretkey1", "rconpass1"), 
+    Server("server2", 0, "127.0.0.1", "secretkey2", "rconpass2"), 
+    Server("server3", 0, "127.0.0.1", "secretkey3", "rconpass3")
+]   
 
 admin_relay = 0
 ban_log = 0

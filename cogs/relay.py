@@ -229,9 +229,9 @@ timestamp INT NOT NULL
             pass
         server_identifier = data["server_identifier"]
         print(server_identifier)
-        ip = request.headers.get('X-Forwarded-For')
+        ip = request.headers.get("X-Forwarded-For")
         if ip:
-            ip = ip.split(',')[0]
+            ip = ip.split(",")[0]
         else:
             ip = request.remote
         print(ip)
@@ -247,56 +247,117 @@ timestamp INT NOT NULL
             )
             return web.Response(status=401, text="Bad auth")
         if not await utils.check_server_ip(server_identifier, ip):
-            print(
-                f"Warning! Invalid ip for {server_identifier}. Provided ip was {ip}."
-            )
+            print(f"Warning! Invalid ip for {server_identifier}. Provided ip was {ip}.")
             return web.Response(status=401, text="Bad IP")
         await self.register_server(server_identifier)
-        match data["verb"]:
-            case "sent":
-                # if line["object"]["team_chat"] == False:
-                await self.send_relay_msg(player, message, team, uid, server_identifier)
-                if self.client.auth != {}:
-                    try:
-                        auth = int(message)
-                    except ValueError:
-                        auth = 0
-                    if (
-                        auth in self.client.auth
-                        and self.client.auth[auth]["name"] == player
-                    ):
-                        self.client.auth[auth]["confirmed"] = True
-            case "winnerDetermined":
-                await self.send_relay_misc("**The round has ended.**", server_identifier)
-                await self.award_games_to_online(server_identifier)
-                await self.clear_playing(server_identifier)
-            case "waitingForPlayers":
-                await self.send_relay_misc("**The game is loading.**", server_identifier)
-            case "playing":
-                await self.send_relay_misc("**The game has started.**", server_identifier)
-            case "connected":
-                await self.send_relay_misc(f"**{player} just connected.**", server_identifier)
-                await self.log_join(player, uid, server_identifier)
-                await self.check_for_changed_name(uid, player, server_identifier)
-                await self.add_playing(uid, server_identifier)
-            case "respawned":
-                await self.add_playing(uid, server_identifier)  # sometimes connected will just not be sent
-            case "disconnected":
-                await self.send_relay_misc(f"**{player} just disconnected.**", server_identifier)
-                await self.remove_playing(uid, server_identifier)
-            case "killed":
-                victim = data["object"]["name"]
-                kteam = data["subject"]["teamId"]
-                iteam = data["object"]["teamId"]
-                await self.log_kill(data, server_identifier)
-                await self.send_relay_kill(player, victim, kteam, iteam, server_identifier)
-            case _:
-                print("unknown verb: " + data["verb"])
+        try:
+            custom = data["custom"]
+        except:
+            custom = False
+        if custom:
+            match custom:
+                case "killstreak":
+                    bits = data["args"].split("|")
+                    attacker = bits[0]
+                    kills = int(bits[1])
+                    if kills == 5:
+                        await self.send_relay_misc(
+                            f"**<< {attacker} is on a KILLING SPREE {kills} >>**", server_identifier
+                        )
+                    elif kills == 10:
+                        await self.send_relay_misc(
+                            f"**<< {attacker} is UNSTOPPABLE {kills} >>**", server_identifier
+                        )
+                    elif kills == 15:
+                        await self.send_relay_misc(
+                            f"**<< {attacker} is on a RAMPAGE {kills} >>**", server_identifier
+                        )
+                    elif kills == 20:
+                        await self.send_relay_misc(
+                            f"**<< {attacker} is GOD-LIKE {kills} >>**", server_identifier
+                        )
+                    elif kills % 5 == 0 and kills < 96:
+                        await self.send_relay_misc(
+                            f"**<< {attacker} is still GOD-LIKE {kills} >>**", server_identifier
+                        )
+                    elif kills % 5 == 0 and int(kills) > 99:
+                        await self.send_relay_misc(
+                            f"**<< {attacker} is FUCKING CHEATING {kills} >>**", server_identifier
+                        )
+                case "killend":
+                    bits = data["args"].split("|")
+                    attacker = bits[0]
+                    kills = int(bits[1])
+                    victim = bits[2]
+                    await self.log_killstreak(victim, int(kills), server_identifier)
+                    if kills > 9:
+                        await self.send_relay_misc(
+                            f"**<< {attacker} ended {victim}'s killstreak {kills} >>**"
+                        )
+                case _:
+                    print(f"Warning! Unknown custom message {custom}.")
+        else:
+            match data["verb"]:
+                case "sent":
+                    # if line["object"]["team_chat"] == False:
+                    await self.send_relay_msg(
+                        player, message, team, uid, server_identifier
+                    )
+                    if self.client.auth != {}:
+                        try:
+                            auth = int(message)
+                        except ValueError:
+                            auth = 0
+                        if (
+                            auth in self.client.auth
+                            and self.client.auth[auth]["name"] == player
+                        ):
+                            self.client.auth[auth]["confirmed"] = True
+                case "winnerDetermined":
+                    await self.send_relay_misc(
+                        "**The round has ended.**", server_identifier
+                    )
+                    await self.award_games_to_online(server_identifier)
+                    await self.clear_playing(server_identifier)
+                case "waitingForPlayers":
+                    await self.send_relay_misc(
+                        "**The game is loading.**", server_identifier
+                    )
+                case "playing":
+                    await self.send_relay_misc(
+                        "**The game has started.**", server_identifier
+                    )
+                case "connected":
+                    await self.send_relay_misc(
+                        f"**{player} just connected.**", server_identifier
+                    )
+                    await self.log_join(player, uid, server_identifier)
+                    await self.check_for_changed_name(uid, player)
+                    await self.add_playing(uid, server_identifier)
+                case "respawned":
+                    await self.add_playing(
+                        uid, server_identifier
+                    )  # sometimes connected will just not be sent
+                case "disconnected":
+                    await self.send_relay_misc(
+                        f"**{player} just disconnected.**", server_identifier
+                    )
+                    await self.remove_playing(uid, server_identifier)
+                case "killed":
+                    victim = data["object"]["name"]
+                    kteam = data["subject"]["teamId"]
+                    iteam = data["object"]["teamId"]
+                    await self.log_kill(data, server_identifier)
+                    await self.send_relay_kill(
+                        player, victim, kteam, iteam, server_identifier
+                    )
+                case _:
+                    print("unknown verb: " + data["verb"])
         return web.Response(status=200, text="OK")
 
     async def add_playing(self, player, server_identifier):
         unix = int(time.time())
-        if any(player == uid[0] for uid in self.client.playing):
+        if any(player == uid[0] for uid in self.client.playing[server_identifier]):
             # print(f"duplicate found! {player}")
             return
         self.client.playing[server_identifier].append([player, unix])
@@ -392,33 +453,39 @@ timestamp INT NOT NULL
                 action = "**infected**"
             else:
                 action = "killed"
-            await self.log_kill_db(killer, 1, victim)
+            await self.log_kill_db(killer, 1, victim, server_identifier)
         else:
             action = "killed"
-            await self.log_kill_db(killer, 0, victim)
+            await self.log_kill_db(killer, 0, victim, server_identifier)
         if killer == victim:
-            await self.log_kill_db(killer, 2, victim)
-            channel = self.client.get_channel(config.relay)
+            await self.log_kill_db(killer, 2, victim, server_identifier)
+            server = await utils.get_server(server_identifier)
+            channel = self.client.get_channel(server.relay)
             await channel.send(f"{killer} bid farewell, cruel world!")
         else:
             killer = discord.utils.escape_markdown(killer)
             victim = discord.utils.escape_markdown(victim)
             output = f"{killer} {action} {victim}."
-            channel = self.client.get_channel(config.relay)
+            server = await utils.get_server(server_identifier)
+            channel = self.client.get_channel(server.relay)
             await channel.send(output)
 
     async def log_kill_db(self, killer, action, victim, server_identifier):
         # 0 = s kills i, 1 = i kills s, 2, suicide
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
-            await cursor.execute(f"SELECT uid FROM {server_identifier} WHERE name=?", (killer,))
+            await cursor.execute(
+                f"SELECT uid FROM {server_identifier} WHERE name=?", (killer,)
+            )
             killerid = await cursor.fetchone()
             if killerid is None:
                 print(f"{killer} does not have a uid!!!")
                 await self.discord_log(f"{killer} does not have a uid!!!")
                 return
             killerid = killerid[0]
-            await cursor.execute(f"SELECT uid FROM {server_identifier} WHERE name=?", (victim,))
+            await cursor.execute(
+                f"SELECT uid FROM {server_identifier} WHERE name=?", (victim,)
+            )
             victimid = await cursor.fetchone()
             if victimid is None:
                 print(f"{victim} does not have a uid!!!")
@@ -436,13 +503,15 @@ timestamp INT NOT NULL
             cursor = await db.cursor()
             changed = False
             for server in config.servers:
-                await cursor.execute(f"SELECT name FROM {server.name} WHERE uid = ?", (uid,))
+                await cursor.execute(
+                    f"SELECT name FROM {server.name} WHERE uid = ?", (uid,)
+                )
                 result = await cursor.fetchone()
                 if result[0] != name:
                     changed = True
                     break
             if changed:
-                for server in config.server:
+                for server in config.servers:
                     await cursor.execute(
                         f"UPDATE {server.name} SET name = ? WHERE uid = ?", (name, uid)
                     )
@@ -478,9 +547,11 @@ timestamp INT NOT NULL
                     f"INSERT INTO {server_identifier}(name, uid, killsimc, killsmilitia, deathsimc, deathsmilitia, first_join, last_join, playtime, killstreak, gamesplayed) values(?,?,?,?,?,?,?,?,?,?,?)",
                     (user, uid, 0, 0, 0, 0, current_time, current_time, 0, 0, 0),
                 )
-            await self.discord_log(f"New account created for {user} with uid {uid} in {server_identifier}")
+            await self.discord_log(
+                f"New account created for {user} with uid {uid} in {server_identifier}"
+            )
             await db.commit()
-            
+
     async def log_firstinfected(self, name):
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
@@ -493,23 +564,31 @@ timestamp INT NOT NULL
     async def log_killstreak(self, name, kills, server_identifier):
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
-            await cursor.execute(f"SELECT killstreak FROM {server_identifier} WHERE name = ?", (name,))
+            await cursor.execute(
+                f"SELECT killstreak FROM {server_identifier} WHERE name = ?", (name,)
+            )
             real = await cursor.fetchone()
             real = real[0] if real else 0
             if kills > real:
                 await cursor.execute(
-                    f"UPDATE {server_identifier} SET killstreak = ? WHERE name=?", (kills, name)
+                    f"UPDATE {server_identifier} SET killstreak = ? WHERE name=?",
+                    (kills, name),
                 )
                 await db.commit()
 
     async def log_join(self, player, uid, server_identifier):
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
-            await cursor.execute(f'SELECT "first_join" FROM {server_identifier} WHERE uid=?', (uid,))
+            await cursor.execute(
+                f'SELECT "first_join" FROM {server_identifier} WHERE uid=?', (uid,)
+            )
             result_userID = await cursor.fetchone()
             if not result_userID:
                 await self.new_account(player, uid, server_identifier)
-            await cursor.execute(f'UPDATE {server_identifier} SET last_join = ? WHERE uid=?', (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), uid))
+            await cursor.execute(
+                f"UPDATE {server_identifier} SET last_join = ? WHERE uid=?",
+                (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), uid),
+            )
             await db.commit()
 
     async def discord_log(self, msg):
@@ -529,49 +608,69 @@ timestamp INT NOT NULL
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             if player == victim:
                 if team == 2:
-                    await db.execute(f"UPDATE {server_identifier} SET deathsimc = deathsimc + 1 WHERE uid=?", (uid,))
+                    await db.execute(
+                        f"UPDATE {server_identifier} SET deathsimc = deathsimc + 1 WHERE uid=?",
+                        (uid,),
+                    )
                 if team == 3:
-                    await db.execute(f"UPDATE {server_identifier} SET deathsmilitia = deathsmilitia + 1 WHERE uid=?", (uid,))
+                    await db.execute(
+                        f"UPDATE {server_identifier} SET deathsmilitia = deathsmilitia + 1 WHERE uid=?",
+                        (uid,),
+                    )
                 return
             elif team == 2:
-                await db.execute(f"UPDATE {server_identifier} SET killsimc = killsimc + 1 WHERE uid=?", (uid,))
-                await db.execute(f"UPDATE {server_identifier} SET deathsmilitia = deathsmilitia + 1 WHERE uid=?", (vuid,))
+                await db.execute(
+                    f"UPDATE {server_identifier} SET killsimc = killsimc + 1 WHERE uid=?",
+                    (uid,),
+                )
+                await db.execute(
+                    f"UPDATE {server_identifier} SET deathsmilitia = deathsmilitia + 1 WHERE uid=?",
+                    (vuid,),
+                )
             elif team == 3:
-                await db.execute(f"UPDATE {server_identifier} SET killsmilitia = killsmilitia + 1 WHERE uid=?", (uid,))
-                await db.execute(f"UPDATE {server_identifier} SET deathsimc = deathsimc + 1 WHERE uid=?", (vuid,))
+                await db.execute(
+                    f"UPDATE {server_identifier} SET killsmilitia = killsmilitia + 1 WHERE uid=?",
+                    (uid,),
+                )
+                await db.execute(
+                    f"UPDATE {server_identifier} SET deathsimc = deathsimc + 1 WHERE uid=?",
+                    (vuid,),
+                )
             await db.commit()
 
     async def check_for_bad(self, player, message, uid, sent):
-        for word in config.bad_words:
+        for word in config.bad_words + config.ban_words:
             if re.search(word, message, re.IGNORECASE):
                 adminrelay = self.client.get_channel(config.admin_relay)
                 await adminrelay.send(
                     f"Message from `{player}`: `{message}` matches pattern `{word}`\nUID: `{uid}`\nPlease review: {sent.jump_url}"
                 )
                 break
-        for word in config.ban_words:
-            # Search for the pattern in the text
-            if re.search(word, message, re.IGNORECASE):
-                # with open(
-                #     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\banlist.txt",
-                #     "r",
-                # ) as f:
-                #     file_lines = [line.rstrip() for line in f.readlines()]
-                #     for line in file_lines:
-                #         if uid in line:
-                #             return
-                for server in config.servers:
-                    await server.send_command(f"bban {uid}")
-                adminrelay = self.client.get_channel(config.admin_relay)
-                await adminrelay.send(
-                    f"{player} has been automatically banned due to a rule breaking message:\n{message}\nMatches pattern:`{word}`\nUID: `{uid}`\nPlease review"
-                )
-                banlog = self.client.get_channel(config.ban_log)
-                await banlog.send(
-                    f"{player} has been automatically banned.\nReason: Rule breaking language"
-                )
-                break
             
+        # TODO: FIX ME!!!
+        # for word in config.ban_words:
+        #     # Search for the pattern in the text
+        #     if re.search(word, message, re.IGNORECASE):
+        #         # with open(
+        #         #     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\banlist.txt",
+        #         #     "r",
+        #         # ) as f:
+        #         #     file_lines = [line.rstrip() for line in f.readlines()]
+        #         #     for line in file_lines:
+        #         #         if uid in line:
+        #         #             return
+        #         for server in config.servers:
+        #             await server.send_command(f"bban {uid}")
+        #         adminrelay = self.client.get_channel(config.admin_relay)
+        #         await adminrelay.send(
+        #             f"{player} has been automatically banned due to a rule breaking message:\n{message}\nMatches pattern:`{word}`\nUID: `{uid}`\nPlease review"
+        #         )
+        #         banlog = self.client.get_channel(config.ban_log)
+        #         await banlog.send(
+        #             f"{player} has been automatically banned.\nReason: Rule breaking language"
+        #         )
+        #         break
+
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
         if isinstance(error, commands.CommandOnCooldown):

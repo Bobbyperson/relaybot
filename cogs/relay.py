@@ -54,6 +54,7 @@ class Relay(commands.Cog):
         self.update_stats.start()
         self.app = web.Application()
         self.app.router.add_post("/post", self.recieve_relay_info)
+        self.app.router.add_get("/get", self.get_user_info)
         self.runner = web.AppRunner(self.app)
 
     def cog_unload(self):
@@ -92,6 +93,7 @@ class Relay(commands.Cog):
         await self.runner.setup()
         site = web.TCPSite(self.runner, "0.0.0.0", 2585)
         await site.start()
+        
 
     # events
     @tasks.loop(seconds=30)
@@ -196,6 +198,28 @@ timestamp INT NOT NULL
 """
             )
             await db.commit()
+            
+    async def get_user_info(self, request):
+        player = request.query.get("player")
+        if player is None:
+            return web.Response(status=400, text="No player")
+        try:
+            player = int(player)
+        except ValueError:
+            return web.Response(status=400, text="No player")
+        async with aiosqlite.connect(config.bank) as db:
+            cursor = await db.cursor()
+            await cursor.execute(
+                "SELECT * FROM pvp1 WHERE uid = ?", (player,)
+            )
+            result = await cursor.fetchone()
+            if result is None:
+                return web.Response(status=400, text="No player")
+            results = list(result)
+            kills = results[3] + results[4]
+            deaths = results[5] + results[6]
+            username = results[1]
+        return web.json_response(text=json.dumps({"user": username, "kills": kills, "deaths": deaths}))
 
     async def recieve_relay_info(self, request):
         data = await request.text()
@@ -507,6 +531,8 @@ timestamp INT NOT NULL
                     f"SELECT name FROM {server.name} WHERE uid = ?", (uid,)
                 )
                 result = await cursor.fetchone()
+                if not result:
+                    continue
                 if result[0] != name:
                     changed = True
                     break

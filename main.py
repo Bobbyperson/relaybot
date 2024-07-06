@@ -4,6 +4,8 @@ import asyncio
 from discord.ext import commands
 from pretty_help import PrettyHelp
 import config
+import sys
+import traceback
 
 intents = discord.Intents().all()
 client = commands.Bot(command_prefix=",.", intents=intents, help_command=PrettyHelp())
@@ -50,13 +52,21 @@ async def main():
             if filename.endswith(".py"):
                 await client.load_extension(f"cogs.{filename[:-3]}")
         await client.start(config.TOKEN)
+        
+async def send_error_to_channel(error_message):
+    channel = client.get_channel(config.log_channel)
+    await channel.send(error_message)
 
+def handle_exception(exc_type, exc_value, exc_traceback):
+    error_message = ''.join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+    client.loop.create_task(send_error_to_channel(error_message))
 
 if __name__ == "__main__":
     if not os.path.exists("database.sqlite"):
         with open("database.sqlite", "w") as f:
             pass
     discord.utils.setup_logging()
+    sys.excepthook = handle_exception
     try:
         asyncio.run(main())
     except Exception as e:

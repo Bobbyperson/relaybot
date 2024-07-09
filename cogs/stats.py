@@ -239,9 +239,7 @@ class Stats(commands.Cog):
             if server.name == "infection":
                 message += f"\nSurvivor: `{killsmilitia/deathsmilitia:.2f} ({killsmilitia}:{deathsmilitia})`\nInfected: `{killsimc/deathsimc:.2f} ({killsimc}:{deathsimc})`"
             else:
-                await ctx.reply(
-                    f"{(killsmilitia + killsimc)/(deathsmilitia + deathsimc):.2f} ({killsmilitia + killsimc}:{deathsmilitia + deathsimc})"
-                )
+                message += f"{server.name}: `{(killsmilitia + killsimc)/(deathsmilitia + deathsimc):.2f} ({killsmilitia + killsimc}:{deathsmilitia + deathsimc})`"
         if message == "":
             return await ctx.reply("User not found. Either you are not `,.link`ed or you made a typo. Names are case sensitive.")
         await ctx.reply(message)
@@ -265,38 +263,49 @@ class Stats(commands.Cog):
 
                 if killer is None or victim is None:
                     continue
-
-                await cursor.execute(
-                    f"SELECT count(*) FROM {server}_kill_log WHERE killer=? AND victim=? AND action=0",
-                    (killer, victim),
-                )
-                user1KillsAsSurvivor = await cursor.fetchone()
-                user1KillsAsSurvivor = user1KillsAsSurvivor[0]
-
-                await cursor.execute(
-                    f"SELECT count(*) FROM {server}_kill_log WHERE killer=? AND victim=? AND action=1",
-                    (killer, victim),
-                )
-                user1KillsAsInfected = await cursor.fetchone()
-                user1KillsAsInfected = user1KillsAsInfected[0]
-
-                await cursor.execute(
-                    f"SELECT count(*) FROM {server}_kill_log WHERE killer=? AND victim=? AND action=0",
-                    (victim, killer),
-                )
-                user2KillsAsSurvivor = await cursor.fetchone()
-                user2KillsAsSurvivor = user2KillsAsSurvivor[0]
-
-                await cursor.execute(
-                    f"SELECT count(*) FROM {server}_kill_log WHERE killer=? AND victim=? AND action=1",
-                    (victim, killer),
-                )
-                user2KillsAsInfected = await cursor.fetchone()
-                user2KillsAsInfected = user2KillsAsInfected[0]
                 if server.name == "infection":
-                    message += f"{user1} has killed {user2} {user1KillsAsSurvivor} times as a survivor.\n{user2} has killed {user1} {user2KillsAsSurvivor} times as a survivor.\n{user1} has killed {user2} {user1KillsAsInfected} times as an infected.\n{user2} has killed {user1} {user2KillsAsInfected} times as an infected."
+                    await cursor.execute(
+                        f"SELECT count(*) FROM {server.name}_kill_log WHERE killer=? AND victim=? AND action=0",
+                        (killer, victim),
+                    )
+                    user1KillsAsSurvivor = await cursor.fetchone()
+                    user1KillsAsSurvivor = user1KillsAsSurvivor[0]
+
+                    await cursor.execute(
+                        f"SELECT count(*) FROM {server.name}_kill_log WHERE killer=? AND victim=? AND action=1",
+                        (killer, victim),
+                    )
+                    user1KillsAsInfected = await cursor.fetchone()
+                    user1KillsAsInfected = user1KillsAsInfected[0]
+
+                    await cursor.execute(
+                        f"SELECT count(*) FROM {server.name}_kill_log WHERE killer=? AND victim=? AND action=0",
+                        (victim, killer),
+                    )
+                    user2KillsAsSurvivor = await cursor.fetchone()
+                    user2KillsAsSurvivor = user2KillsAsSurvivor[0]
+
+                    await cursor.execute(
+                        f"SELECT count(*) FROM {server.name}_kill_log WHERE killer=? AND victim=? AND action=1",
+                        (victim, killer),
+                    )
+                    user2KillsAsInfected = await cursor.fetchone()
+                    user2KillsAsInfected = user2KillsAsInfected[0]
+                    message += f"{user1} has killed {user2} {user1KillsAsSurvivor} times as a survivor.\n{user2} has killed {user1} {user2KillsAsSurvivor} times as a survivor.\n{user1} has killed {user2} {user1KillsAsInfected} times as an infected.\n{user2} has killed {user1} {user2KillsAsInfected} times as an infected.\n"
                 else:
-                    message += f"{server.name}: {user1} has killed {user2} {user1KillsAsInfected + user1KillsAsSurvivor}\n{user2} has killed {user1} {user2KillsAsInfected + user2KillsAsSurvivor}"
+                    await cursor.execute(
+                        f"SELECT count(*) FROM {server.name}_kill_log WHERE killer=? AND victim=?", (killer, victim)
+                    )
+                    killer_kills = await cursor.fetchone()
+                    killer_kills = killer_kills[0]
+                    
+                    await cursor.execute(
+                        f"SELECT count(*) FROM {server.name}_kill_log WHERE killer=? AND victim=?", (victim, killer)
+                    )
+                    victim_kills = await cursor.fetchone()
+                    victim_kills = victim_kills[0]
+                    
+                    message += f"{server.name}: {user1} has killed {user2} {killer_kills} times.\n{user2} has killed {user1} {victim_kills} times.\n"
         if message == "":
             message == "One or both of these users does not exist!"
         await ctx.send(message)
@@ -318,7 +327,7 @@ class Stats(commands.Cog):
             if server == "infection":
                 await cursor.execute(f"SELECT * FROM {server} ORDER BY kills{team} DESC")
             else:
-                await cursor.execute(f"SELECT * FROM {server} ORDER BY kills{team} DESC")
+                await cursor.execute(f"SELECT * FROM {server} ORDER BY (killsmilitia + killsimc) DESC")
             users = await cursor.fetchall()
             if server == "infection":
                 em = discord.Embed(

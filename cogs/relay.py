@@ -304,9 +304,13 @@ timestamp INT NOT NULL
                         await self.send_relay_misc(
                             f"**<< {attacker} is still GOD-LIKE {kills} >>**", server_identifier
                         )
-                    elif kills % 5 == 0 and int(kills) > 99:
+                    elif kills == 100:
                         await self.send_relay_misc(
                             f"**<< {attacker} is FUCKING CHEATING {kills} >>**", server_identifier
+                        )
+                    elif kills % 5 == 0 and int(kills) > 101:
+                        await self.send_relay_misc(
+                            f"**<< {attacker} is still FUCKING CHEATING {kills} >>**", server_identifier
                         )
                 case "killend":
                     bits = data["args"].split("|")
@@ -318,6 +322,9 @@ timestamp INT NOT NULL
                         await self.send_relay_misc(
                             f"**<< {attacker} ended {victim}'s killstreak {kills} >>**"
                         )
+                case "command":
+                    print(f"Command {data['args']}|{server_identifier}.")
+                    await self.big_brother(f"Command `{data['args']}|{server_identifier}`.")
                 case _:
                     print(f"Warning! Unknown custom message {custom}.")
         else:

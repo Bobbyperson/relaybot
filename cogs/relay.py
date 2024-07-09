@@ -317,10 +317,20 @@ timestamp INT NOT NULL
                     attacker = bits[0]
                     kills = int(bits[1])
                     victim = bits[2]
-                    await self.log_killstreak(victim, int(kills), server_identifier)
+                    if server_identifier != "infection":
+                        await self.log_killstreak(victim, int(kills), server_identifier)
                     if kills > 9:
                         await self.send_relay_misc(
-                            f"**<< {attacker} ended {victim}'s killstreak {kills} >>**"
+                            f"**<< {attacker} ended {victim}'s killstreak {kills} >>**", server_identifier
+                        )
+                case "killstreakwin":
+                    bits = data["args"].split("|")
+                    killer = bits[0]
+                    kills = int(bits[1])
+                    await self.log_killstreak(killer, int(kills), server_identifier)
+                    if kills > 9:
+                        await self.send_relay_misc(
+                            f"**<< {killer} has ended the round with {kills} kills >>**", server_identifier
                         )
                 case "command":
                     print(f"Command {data['args']}|{server_identifier}.")

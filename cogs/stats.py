@@ -239,7 +239,7 @@ class Stats(commands.Cog):
             if server.name == "infection":
                 message += f"\nSurvivor: `{killsmilitia/deathsmilitia:.2f} ({killsmilitia}:{deathsmilitia})`\nInfected: `{killsimc/deathsimc:.2f} ({killsimc}:{deathsimc})`"
             else:
-                message += f"{server.name}: `{(killsmilitia + killsimc)/(deathsmilitia + deathsimc):.2f} ({killsmilitia + killsimc}:{deathsmilitia + deathsimc})`"
+                message += f"\n{server.name}: `{(killsmilitia + killsimc)/(deathsmilitia + deathsimc):.2f} ({killsmilitia + killsimc}:{deathsmilitia + deathsimc})`"
         if message == "":
             return await ctx.reply("User not found. Either you are not `,.link`ed or you made a typo. Names are case sensitive.")
         await ctx.reply(message)

@@ -56,6 +56,28 @@ class Relay(commands.Cog):
         self.app.router.add_post("/post", self.recieve_relay_info)
         self.app.router.add_get("/get", self.get_user_info)
         self.runner = web.AppRunner(self.app)
+        self.message_queue = {}
+        for s in config.servers:
+            self.message_queue[s.name] = ""
+        self.ban_list = {}
+        for s in config.servers:
+            self.ban_list[s.name] = []
+            
+    async def add_to_message_queue(self, server, message):
+        self.message_queue[server] += message + "\n"
+        if len(self.message_queue[server]) > 1000:
+            server = await utils.get_server(server)
+            channel = self.client.get_channel(server.relay)
+            await channel.send(self.message_queue[server])
+            self.message_queue[server] = ""
+    
+    @tasks.loop(seconds=10)
+    async def post_relay(self):
+        for server in config.servers:
+            if self.message_queue[server.name] != "":
+                channel = self.client.get_channel(server.relay)
+                await channel.send(self.message_queue[server])
+                self.message_queue[server] = ""
 
     def cog_unload(self):
         self.update_stats.cancel()
@@ -207,19 +229,42 @@ timestamp INT NOT NULL
             player = int(player)
         except ValueError:
             return web.Response(status=400, text="No player")
+        kills = 0
+        deaths = 0
+        async with aiosqlite.connect(config.bank) as db:
+            cursor = await db.cursor()
+            for server in config.servers:
+                await cursor.execute(
+                    f"SELECT * FROM {server.name} WHERE uid = ?", (player,)
+                )
+                result = await cursor.fetchone()
+                if result is not None:
+                    results = list(result)
+                    kills += results[3] + results[4]
+                    deaths += results[5] + results[6]
+                    username = results[1]
+        return web.json_response(text=json.dumps({"user": username, "kills": kills, "deaths": deaths}))
+    
+    async def get_stats(self, request):
+        player = request.query.get("player")
+        server = request.query.get("server")
+        if player is None:
+            return web.Response(status=400, text="No player")
+        player = int(player)
+        kills = 0
+        deaths = 1
         async with aiosqlite.connect(config.bank) as db:
             cursor = await db.cursor()
             await cursor.execute(
-                "SELECT * FROM pvp1 WHERE uid = ?", (player,)
+                f"SELECT * FROM {server} WHERE name = ?", (player,)
             )
-            result = await cursor.fetchone()
-            if result is None:
-                return web.Response(status=400, text="No player")
-            results = list(result)
+            results = await cursor.fetchone()
             kills = results[3] + results[4]
             deaths = results[5] + results[6]
-            username = results[1]
-        return web.json_response(text=json.dumps({"user": username, "kills": kills, "deaths": deaths}))
+            playtime = results[9]
+            killstreak = results[10]
+            username = player
+            return web.json_response(text=json.dumps({"user": username, "kills": kills, "deaths": deaths, "playtime": playtime, "killstreak": killstreak}))
 
     async def recieve_relay_info(self, request):
         data = await request.text()
@@ -335,6 +380,9 @@ timestamp INT NOT NULL
                 case "command":
                     print(f"Command {data['args']}|{server_identifier}.")
                     await self.big_brother(f"Command `{data['args']}|{server_identifier}`.")
+                case "banlist":
+                    bans = data["args"].split("\n")
+                    self.ban_list = bans
                 case _:
                     print(f"Warning! Unknown custom message {custom}.")
         else:

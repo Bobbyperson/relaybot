@@ -65,7 +65,7 @@ async def get_uid_from_connection(did):
         uid = await cursor.fetchone()
         return uid[0] if uid else None
 
-async def get_name_from_connection(did):
+async def get_name_from_connection(did) -> str:
     async with aiosqlite.connect(config.bank, timeout=10) as db:
         cursor = await db.cursor()
         uid = await get_uid_from_connection(did)

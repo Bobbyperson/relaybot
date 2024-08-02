@@ -116,19 +116,8 @@ class Admin(commands.Cog):
                 timestamp = timestamp[0]
                 first_join = first_join[0]
                 playtime = playtime[0]
-                
-                # TODO: figure out how to check if user is banned, have titanfall server periodically POST information maybe?
-                # banned = False
-                # with open(
-                #     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\banlist.txt",
-                #     "r",
-                # ) as f:
-                #     file_lines = [line.rstrip() for line in f.readlines()]
-                #     for line in file_lines:
-                #         if str(uid) in line:
-                #             banned = True
                 await ctx.send(
-                    f"`{s.name}:\n{user}`:\nUID: `{uid}`\nFirst seen: `{first_join}`\nLast seen: `{timestamp}`\nPlaytime: `{await utils.human_time_duration(playtime)}`\nBanned: TODO: Fix me :)"
+                    f"`{s.name}:\n{user}`:\nUID: `{uid}`\nFirst seen: `{first_join}`\nLast seen: `{timestamp}`\nPlaytime: `{await utils.human_time_duration(playtime)}`\nBanned: `{True if uid in self.ban_list[s.name] else False}`"
                 )
 
         

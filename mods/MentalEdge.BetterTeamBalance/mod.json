@@ -1,0 +1,133 @@
+{
+	"Name": "MentalEdge.BetterTeamBalance",
+	"Description": "Team balancing and shuffling, done smortly.",
+	"LoadPriority": 8,
+	"RequiredOnClient": false,
+	"Version": "3.2.3",
+	"Dependencies": {
+		"FSCC_ENABLED": "Fifty.ServerChatCommands [FSCC]",
+		"FSA_ENABLED": "Fifty.ServerAdmin [FSA]"
+	},
+
+	"ConVars": [
+		{
+			"Name": "btb_tone",
+			"DefaultValue": "0",
+			"HelpString": "Whether BTB should use the tone API to get player stats so it can have an idea of how good someone is right off the bat."
+		},
+		{
+			"Name": "btb_tone_url",
+			"DefaultValue": "https://tone.sleepycat.date",
+			"HelpString": "URL of tone API to use."
+		},
+		{
+			"Name": "btb_party",
+			"DefaultValue": "1",
+			"HelpString": "Enable player formed parties. This feature requires FSU."
+		},
+		{
+			"Name": "btb_party_highlight",
+			"DefaultValue": "1",
+			"HelpString": "Enable party highlighting, allowing party members to more easily recognize each other through walls."
+		},
+		{
+			"Name": "btb_nemesis",
+			"DefaultValue": "1",
+			"HelpString": "Enable player selected nemeses. This feature requires FSU."
+		},
+		{
+			"Name": "btb_recent_balancing",
+			"DefaultValue": "1",
+			"HelpString": "Allow BTB to change the team of a player, until they have been on the server for a minute. This allows BTB to adjust the teams a bit, as players join. This aims to result in better teams in the first game on a server, or a game where the playercount increases a lot. To really work well, the tone API should be enabled as well."
+		},
+		{
+			"Name": "btb_difference_max",
+			"DefaultValue": "1",
+			"HelpString": "The allowed difference between teams, above which a player will be moved over. Set to zero to disable team size auto-balancing."
+		},
+		{
+			"Name": "btb_wait_time",
+			"DefaultValue": "2",
+			"HelpString": "Duration to wait in multiples of ten seconds for new players to join the deficient team before balancing by moving players over. Set to zero to autobalance immediately. The wait is halved by every additional player of difference between the teams."
+		},
+		{
+			"Name": "btb_shuffle",
+			"DefaultValue": "1",
+			"HelpString": "Set to one to enable team shuffle between matches."
+		},
+		{
+			"Name": "btb_grace_time",
+			"DefaultValue": "6",
+			"HelpString": "Duration in multiples of 10 seconds. Length of the grace period at the start of a match where further on-the-fly team changes are still allowed, if teamcomp changes due to leaving/joining players occur after initial shuffle."
+		},
+		{
+			"Name": "btb_suggestion_limit",
+			"DefaultValue": "1.5",
+			"HelpString": "The relative score difference treshold, if the scores stay above this difference, a rebalance will eventually be suggested in chat. Set to zero to disable the suggestion message. This feature requires FSU."
+		},
+		{
+			"Name": "btb_stomp_limit",
+			"DefaultValue": "0.0",
+			"HelpString": "The relative score difference above which the teams will eventually be automatically balanced even without approval by vote. Provided the imbalance persists/grows over some time and the match seems to be snowballing. Set to zero to disable forced rebalance."
+		},
+		{
+			"Name": "btb_active_limit",
+			"DefaultValue": "0.0",
+			"HelpString": "Insidious/Active balance treshold. Above this score difference, the teams will be balanced by swapping two suitable players between them at a time. (A strong player to the losing side, a weak one to the winning side.) Set to zero to disable. Only occurs if there is an actual team strength difference, will not interfere with evenly matched teams even if one is winning."
+		},
+		{
+			"Name": "btb_vote_fraction",
+			"DefaultValue": "0.45",
+			"HelpString": "Fraction of players needed to vote for a rebalance. This feature requires FSU."
+		},
+		{
+			"Name": "btb_vote_duration",
+			"DefaultValue": "180",
+			"HelpString": "Duration of the vote to balance teams, in seconds. This feature requires FSU."
+		},
+		{
+			"Name": "btb_afk_threshold",
+			"DefaultValue": "8",
+			"HelpString": "Number of players needed on the server for it to start kicking afk players, below this playercount, afk players will be ignored. Set to zero to disable AFK kicking."
+		},
+		{
+			"Name": "btb_afk_time",
+			"DefaultValue": "70",
+			"HelpString": "The amount of time in seconds a player can be afk before getting kicked. They will get a chat message and RUI pop-up warning at half of this."
+		},
+		{
+			"Name": "uid_list",
+			"DefaultValue": "",
+			"HelpString": "Used to save player details between matches. Leave as is."
+		},
+		{
+			"Name": "rank_list",
+			"DefaultValue": "",
+			"HelpString": "Used to save player details between matches. Leave as is."
+		},
+		{
+			"Name": "party_list",
+			"DefaultValue": "",
+			"HelpString": "Used to save player details between matches. Leave as is."
+		},
+		{
+			"Name": "nemesis_list",
+			"DefaultValue": "",
+			"HelpString": "Used to save player details between matches. Leave as is."
+		}
+	],
+
+	"Scripts": [
+		{
+			"Path": "teambalance.nut",
+			"RunOn": "( SERVER ) && MP",
+			"ServerCallback": {
+				"After": "BTBInit"
+			}
+		},
+		{
+			"Path": "tonefetcher.nut",
+			"RunOn": "( SERVER ) && MP"
+		}
+	]
+}

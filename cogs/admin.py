@@ -116,8 +116,9 @@ class Admin(commands.Cog):
                 timestamp = timestamp[0]
                 first_join = first_join[0]
                 playtime = playtime[0]
+                banned = True if str(uid) in self.client.ban_list[s.name] else False
                 await ctx.send(
-                    f"`{s.name}:\n{user}`:\nUID: `{uid}`\nFirst seen: `{first_join}`\nLast seen: `{timestamp}`\nPlaytime: `{await utils.human_time_duration(playtime)}`\nBanned: `{True if uid in self.ban_list[s.name] else False}`"
+                    f"`{s.name}:\n{user}`:\nUID: `{uid}`\nFirst seen: `{first_join}`\nLast seen: `{timestamp}`\nPlaytime: `{await utils.human_time_duration(playtime)}`\nBanned: `{banned}`"
                 )
 
         

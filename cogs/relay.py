@@ -59,9 +59,9 @@ class Relay(commands.Cog):
         self.message_queue = {}
         for s in config.servers:
             self.message_queue[s.name] = ""
-        self.ban_list = {}
+        self.client.ban_list = {}
         for s in config.servers:
-            self.ban_list[s.name] = []
+            self.client.ban_list[s.name] = []
             
     async def add_to_message_queue(self, server, message):
         self.message_queue[server] += message + "\n"
@@ -277,6 +277,7 @@ timestamp INT NOT NULL
             else:
                 done = True
         try:
+            data = data.replace("\n", "|")
             data = json.loads(data)  # convert to fucking json
         except Exception as e:
             print("i could not convert the following line to json:")
@@ -381,8 +382,8 @@ timestamp INT NOT NULL
                     print(f"Command {data['args']}|{server_identifier}.")
                     await self.big_brother(f"Command `{data['args']}|{server_identifier}`.")
                 case "banlist":
-                    bans = data["args"].split("\n")
-                    self.ban_list = bans
+                    bans = data["args"].split("|")
+                    self.client.ban_list[server_identifier] = bans
                 case _:
                     print(f"Warning! Unknown custom message {custom}.")
         else:

@@ -124,19 +124,22 @@ class Admin(commands.Cog):
         
     @commands.command()
     @utils.is_admin()
-    async def addban(self, ctx, server: str = None, uid: str = None):
+    async def addban(self, ctx, uid: str = None):
         if ctx.author.id not in config.admins:
             return await ctx.reply("naw")
         if not uid:
             return await ctx.reply("Please specify a uid!")
-        if not server: 
-            return await ctx.reply("Please specify a server!")
         async with ctx.typing():
-            server = await utils.get_server(server)
-            await server.send_command(f"bban {uid}")
-            await ctx.reply(
-                f"`{uid}` has successfully been banned"
-            )
+            for server in config.servers:
+                try:
+                    await server.send_command(f"cbbanuid {uid}")
+                    await ctx.reply(
+                        f"`{uid}` has successfully been banned"
+                    )
+                except:
+                    await ctx.reply(
+                        f"Could not ban `{uid}` on `{server.name}`!\nPlease join that server and manually run `bbanuid {uid}`"
+                    )
 
 
     @commands.command()

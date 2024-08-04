@@ -173,13 +173,13 @@ void function log_sv( string subject, string verb){
 
 void function log_custom( string message, string args ){
     print("[ParseableLog] " + jsonMapJoin([
-        rMap("custom", message),
-        rMap("args", args)
+        sMap("custom", message),
+        sMap("args", args)
     ]))
 
     postRequest(jsonMapJoin([
-        rMap("custom", message),
-        rMap("args", args),
+        sMap("custom", message),
+        sMap("args", args),
         sMap("server_identifier", file.server_identifier)
     ]))
 }

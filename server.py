@@ -9,4 +9,4 @@ class Server:
         self.rcon_password = rcon_password
         
     async def send_command (self, command):
-        await rcon(command, host="https://" + self.ip, port=7123, passwd=self.rcon_password)
+        await rcon(command, host=self.ip, port=7123, passwd=self.rcon_password, frag_threshold=0)

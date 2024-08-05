@@ -134,7 +134,7 @@ class Admin(commands.Cog):
                 try:
                     await server.send_command(f"cbbanuid {uid}")
                     await ctx.reply(
-                        f"`{uid}` has successfully been banned"
+                        f"`{uid}` has successfully been banned on `{server.name}`"
                     )
                 except:
                     await ctx.reply(
@@ -144,17 +144,24 @@ class Admin(commands.Cog):
 
     @commands.command()
     @utils.is_admin()
-    async def removeban(self, ctx, uid: str = "", reason: str = "manual"):
+    async def removeban(self, ctx, uid: str = ""):
         if ctx.author.id not in config.admins:
             await ctx.reply("naw")
             return
         if uid == "":
             await ctx.reply("Please specify a uid!")
             return
-        await utils.unban(uid, reason)
-        if reason == "manual":
-            reason = "not specified"
-        await ctx.reply(f"`{uid}` has been successfully unbanned for `{reason}`.")
+        async with ctx.typing():
+            for server in config.servers:
+                try:
+                    await server.send_command(f"cbunbanuid {uid}")
+                    await ctx.reply(
+                        f"`{uid}` has successfully been unbanned on `{server.name}`"
+                    )
+                except:
+                    await ctx.reply(
+                        f"Could not unban `{uid}` on `{server.name}`!\nPlease join that server and manually run `bunbanuid {uid}`"
+                    )
         
     @commands.command(aliases=["rcon"])
     @utils.is_admin()

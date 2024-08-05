@@ -344,9 +344,9 @@ class Stats(commands.Cog):
                 index += 1
                 username = user[1]
                 if server == "infection":
-                    if team == "inf":
+                    if team == "imc":
                         kills = user[3]
-                    if team == "sur":
+                    if team == "militia":
                         kills = user[4]
                 else:
                     kills = user[3] + user[4]
@@ -452,11 +452,10 @@ class Stats(commands.Cog):
 
     @commands.hybrid_command()
     @commands.cooldown(1, 1, commands.BucketType.user)
-    async def link(self, ctx, name: str = None):
+    async def link(self, ctx, name: str = ""):
         """Link your titanfall and discord"""
-        if name is None:
-            await ctx.reply("Please provide a titanfall name!")
-            return
+        if name == "":
+            await ctx.reply("Please specify your in game name.")
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
             did = ctx.author.id

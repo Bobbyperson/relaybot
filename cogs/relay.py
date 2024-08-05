@@ -54,7 +54,13 @@ class Relay(commands.Cog):
         self.update_stats.start()
         self.app = web.Application()
         self.app.router.add_post("/post", self.recieve_relay_info)
-        self.app.router.add_get("/get", self.get_user_info)
+        self.app.router.add_get("/get", self.tone_info)
+        self.app.router.add_post("/leaderboard", self.get_leaderboard)
+        self.app.router.add_get("/leaderboard-info", self.get_leaderboard_info)
+        self.app.router.add_route('OPTIONS', '/leaderboard', self.handle_options)
+        self.app.router.add_route('OPTIONS', '/leaderboard-info', self.handle_options)
+        self.app.router.add_route('OPTIONS', '/get', self.handle_options)
+        self.app.router.add_route('OPTIONS', '/post', self.handle_options)
         self.runner = web.AppRunner(self.app)
         self.message_queue = {}
         for s in config.servers:
@@ -90,7 +96,128 @@ class Relay(commands.Cog):
 
     async def send_test_message(self, request):
         await self.client.get_channel(745410408482865267).send("test")
-
+        
+    async def get_leaderboard(self, request):
+        corsheaders = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+        }
+        try:
+            data = await request.json()
+        except:
+            return web.Response(status=400, text="bad json dumbass", headers=corsheaders)
+        server = data["server"]
+        server = await utils.get_server(server)
+        if server is None:
+            return web.Response(status=404, text="server not found", headers=corsheaders)
+        page = data["page"]
+        if not isinstance(page, int):
+            return web.Response(status=400, text="page must be an integer", headers=corsheaders)
+        if page < 0:
+            return web.Response(status=400, text="page must be greater than 0", headers=corsheaders)
+        if server.name == "infection":
+            valid_stats = ["survivor kills", "survivor deaths", "infected kills", "infected deaths", "playtime", "killstreak"]
+        else:
+            valid_stats = ["kills", "playtime", "deaths", "killstreak"]
+        stat = data["stat"]
+        if stat not in valid_stats:
+            return web.Response(status=400, text="invalid stat", headers=corsheaders)
+        async with aiosqlite.connect(config.bank) as db:
+            if stat == "kills":
+                async with db.execute(f"SELECT name, killsimc, killsmilitia FROM {server.name} ORDER BY killsimc + killsmilitia DESC LIMIT 10 OFFSET 10*{page-1}") as cursor:
+                    fetched = await cursor.fetchall()
+                    result = {
+                        "results": []
+                    }
+                    for row in fetched:
+                        result["results"].append({"name": row[0], "stat": row[1] + row[2]})
+            elif stat == "deaths":
+                async with db.execute(f"SELECT name, deathsimc, deathsmilitia FROM {server.name} ORDER BY deathsimc + deathsmilitia DESC LIMIT 10 OFFSET 10*{page-1}") as cursor:
+                    fetched = await cursor.fetchall()
+                    result = {
+                        "results": []
+                    }
+                    for row in fetched:
+                        result["results"].append({"name": row[0], "stat": row[1] + row[2]})
+            elif stat == "survivor kills":
+                async with db.execute(f"SELECT name, killsmilitia FROM {server.name} ORDER BY killsmilitia DESC LIMIT 10 OFFSET 10*{page-1}") as cursor:
+                    fetched = await cursor.fetchall()
+                    result = {
+                        "results": []
+                    }
+                    for row in fetched:
+                        result["results"].append({"name": row[0], "stat": row[1]})
+            elif stat == "survivor deaths":
+                async with db.execute(f"SELECT name, deathsmilitia FROM {server.name} ORDER BY deathsmilitia DESC LIMIT 10 OFFSET 10*{page-1}") as cursor:
+                    fetched = await cursor.fetchall()
+                    result = {
+                        "results": []
+                    }
+                    for row in fetched:
+                        result["results"].append({"name": row[0], "stat": row[1]})
+            elif stat == "infected kills":
+                async with db.execute(f"SELECT name, killsimc FROM {server.name} ORDER BY killsimc DESC LIMIT 10 OFFSET 10*{page-1}") as cursor:
+                    fetched = await cursor.fetchall()
+                    result = {
+                        "results": []
+                    }
+                    for row in fetched:
+                        result["results"].append({"name": row[0], "stat": row[1]})
+            elif stat == "infected deaths":
+                async with db.execute(f"SELECT name, deathsimc FROM {server.name} ORDER BY deathsimc DESC LIMIT 10 OFFSET 10*{page-1}") as cursor:
+                    fetched = await cursor.fetchall()
+                    result = {
+                        "results": []
+                    }
+                    for row in fetched:
+                        result["results"].append({"name": row[0], "stat": row[1]})
+            elif stat == "playtime":
+                async with db.execute(f"SELECT name, playtime FROM {server.name} ORDER BY playtime DESC LIMIT 10 OFFSET 10*{page-1}") as cursor:
+                    fetched = await cursor.fetchall()
+                    result = {
+                        "results": []
+                    }
+                    for row in fetched:
+                        result["results"].append({"name": row[0], "stat": await utils.human_time_duration(row[1])})
+            else:
+                async with db.execute(f"SELECT name, {stat} FROM {server.name} ORDER BY {stat} DESC LIMIT 10 OFFSET 10*{page-1}") as cursor:
+                    fetched = await cursor.fetchall()
+                    result = {
+                        "results": []
+                    }
+                    for row in fetched:
+                        result["results"].append({"name": row[0], "stat": row[1]})
+        return web.json_response(text=json.dumps(result), status=200, headers=corsheaders)
+    
+    async def get_leaderboard_info(self, request):
+        corsheaders = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+        }
+        result = {
+            "servers": {}
+        }
+        async with aiosqlite.connect(config.bank) as db:
+            # get amount of rows in all servers
+            for server in config.servers:
+                async with db.execute(f"SELECT COUNT(*) FROM {server.name}") as cursor:
+                    response = await cursor.fetchone()
+                    if server.name == "infection":
+                        result["servers"][server.name] = {"rows": response[0], "stats": ["survivor kills", "infected kills", "survivor deaths", "infected deaths", "playtime", "killstreak"]}
+                    else:
+                        result["servers"][server.name] = {"rows": response[0], "stats": ["kills", "deaths", "playtime", "killstreak"]}
+        return web.json_response(text=json.dumps(result), status=200, headers=corsheaders)
+    
+    async def handle_options(self, request):
+        # do nothing, just respond with OK
+        return web.Response(text="Options received", headers={
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type'
+        })
+        
     @commands.Cog.listener()
     async def on_message(self, message):
         if message.author.bot:
@@ -221,7 +348,7 @@ timestamp INT NOT NULL
             )
             await db.commit()
             
-    async def get_user_info(self, request):
+    async def tone_info(self, request):
         player = request.query.get("player")
         if player is None:
             return web.Response(status=400, text="No player")
@@ -234,6 +361,8 @@ timestamp INT NOT NULL
         async with aiosqlite.connect(config.bank) as db:
             cursor = await db.cursor()
             for server in config.servers:
+                if server.name == "infection":
+                    continue
                 await cursor.execute(
                     f"SELECT * FROM {server.name} WHERE uid = ?", (player,)
                 )
@@ -298,13 +427,11 @@ timestamp INT NOT NULL
         except:
             pass
         server_identifier = data["server_identifier"]
-        print(server_identifier)
         ip = request.headers.get("X-Forwarded-For")
         if ip:
             ip = ip.split(",")[0]
         else:
             ip = request.remote
-        print(ip)
         if not await utils.is_valid_server(server_identifier):
             print(
                 f"Warning! Invalid server identifier for {server_identifier}. Provided data was {data}. IP of request was {ip}."

@@ -1,3 +1,6 @@
+# Relaybot
+This is a multi-server one-way Discord->Northstar relay and stat tracking bot. This bot relies on several custom mods to work.
+
 ### TODO:
 - [ ] Reimplement whitelist
 - [x] Account Linking (needs testing)

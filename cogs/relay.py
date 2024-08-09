@@ -57,10 +57,12 @@ class Relay(commands.Cog):
         self.app.router.add_get("/get", self.tone_info)
         self.app.router.add_post("/leaderboard", self.get_leaderboard)
         self.app.router.add_get("/leaderboard-info", self.get_leaderboard_info)
+        self.app.router.add_get("/is-whitelisted", self.is_whitelisted)
         self.app.router.add_route('OPTIONS', '/leaderboard', self.handle_options)
         self.app.router.add_route('OPTIONS', '/leaderboard-info', self.handle_options)
         self.app.router.add_route('OPTIONS', '/get', self.handle_options)
         self.app.router.add_route('OPTIONS', '/post', self.handle_options)
+        self.app.router.add_route('OPTIONS', '/is-whitelisted', self.handle_options)
         self.runner = web.AppRunner(self.app)
         self.message_queue = {}
         for s in config.servers:
@@ -210,6 +212,20 @@ class Relay(commands.Cog):
                         result["servers"][server.name] = {"rows": response[0], "stats": ["kills", "deaths", "playtime", "killstreak"]}
         return web.json_response(text=json.dumps(result), status=200, headers=corsheaders)
     
+    async def is_whitelisted(self, request):
+        # get uid from request
+        uid = request.match_info.get('uid')
+
+        # check if uid is whitelisted
+        async with aiosqlite.connect(config.whitelist) as db:
+            async with db.execute("SELECT uid FROM whitelist") as cursor:
+                fetched = await cursor.fetchall()
+                for row in fetched:
+                    if row[0] == uid:
+                        return web.json_response(text={"whitelisted": True}, status=200)
+
+        return web.json_response(text={"whitelisted": False}, status=200)
+    
     async def handle_options(self, request):
         # do nothing, just respond with OK
         return web.Response(text="Options received", headers={
@@ -346,6 +362,12 @@ timestamp INT NOT NULL
 )
 """
             )
+            await db.execute(
+                """CREATE TABLE IF NOT EXISTS whitelist(
+num INTEGER PRIMARY KEY AUTOINCREMENT,
+uid INT NOT NULL
+)
+""")
             await db.commit()
             
     async def tone_info(self, request):

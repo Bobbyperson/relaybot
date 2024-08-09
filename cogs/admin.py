@@ -2,13 +2,14 @@ import time
 from discord.ext import commands
 import config
 import difflib
-import cogs.utils.utils as utils # this is stupid
+import cogs.utils.utils as utils  # this is stupid
 import aiosqlite
 import asyncio
 
 
 class Admin(commands.Cog):
     """Admin only commands."""
+
     def __init__(self, client):
         self.client = client
 
@@ -16,7 +17,7 @@ class Admin(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         print("Admin ready")
-        
+
     @commands.command(hidden=True)
     @commands.is_owner()
     async def sync(self, ctx):
@@ -39,10 +40,12 @@ class Admin(commands.Cog):
             f"API Latency: `{round(duration)}ms`\n"
             f"Websocket Latency: `{round(self.client.latency * 1000)}ms`"
         )
+
     @commands.command()
     @utils.is_admin()
     async def lookup(self, ctx, user):
         """Lookup a user in the database."""
+
         async def closestMatch(name, server):
             await cursor.execute(f"SELECT name FROM {server}")
             users = await cursor.fetchall()
@@ -69,10 +72,14 @@ class Admin(commands.Cog):
             for s in config.servers:
                 try:
                     if isinstance(user, str):
-                        await cursor.execute(f"SELECT name FROM {s.name} WHERE name = ?", (user,))
+                        await cursor.execute(
+                            f"SELECT name FROM {s.name} WHERE name = ?", (user,)
+                        )
                         fetched = await cursor.fetchone()
                     elif isinstance(user, int):
-                        await cursor.execute(f"SELECT name FROM {s.name} WHERE uid = ?", (user,))
+                        await cursor.execute(
+                            f"SELECT name FROM {s.name} WHERE uid = ?", (user,)
+                        )
                         fetched = await cursor.fetchone()
                         uid = user
                     else:
@@ -91,26 +98,42 @@ class Admin(commands.Cog):
                     continue
                 fetched = fetched[0]
                 if isinstance(user, str):
-                    await cursor.execute(f"SELECT uid FROM {s.name} WHERE name = ?", (user,))
+                    await cursor.execute(
+                        f"SELECT uid FROM {s.name} WHERE name = ?", (user,)
+                    )
                     uid = await cursor.fetchone()
                     if uid is None:
                         uid = user
                     else:
                         uid = uid[0]
-                    await cursor.execute(f"SELECT last_join FROM {s.name} WHERE name = ?", (user,))
+                    await cursor.execute(
+                        f"SELECT last_join FROM {s.name} WHERE name = ?", (user,)
+                    )
                     timestamp = await cursor.fetchone()
-                    await cursor.execute(f"SELECT first_join FROM {s.name} WHERE name = ?", (user,))
+                    await cursor.execute(
+                        f"SELECT first_join FROM {s.name} WHERE name = ?", (user,)
+                    )
                     first_join = await cursor.fetchone()
-                    await cursor.execute(f"SELECT playtime FROM {s.name} WHERE name = ?", (user,))
+                    await cursor.execute(
+                        f"SELECT playtime FROM {s.name} WHERE name = ?", (user,)
+                    )
                     playtime = await cursor.fetchone()
                 elif isinstance(user, int):
-                    await cursor.execute(f"SELECT last_join FROM {s.name} WHERE uid = ?", (user,))
+                    await cursor.execute(
+                        f"SELECT last_join FROM {s.name} WHERE uid = ?", (user,)
+                    )
                     timestamp = await cursor.fetchone()
-                    await cursor.execute(f"SELECT first_join FROM {s.name} WHERE uid = ?", (user,))
+                    await cursor.execute(
+                        f"SELECT first_join FROM {s.name} WHERE uid = ?", (user,)
+                    )
                     first_join = await cursor.fetchone()
-                    await cursor.execute(f"SELECT playtime FROM {s.name} WHERE uid = ?", (user,))
+                    await cursor.execute(
+                        f"SELECT playtime FROM {s.name} WHERE uid = ?", (user,)
+                    )
                     playtime = await cursor.fetchone()
-                    await cursor.execute(f"SELECT name FROM {s.name} WHERE uid = ?", (user,))
+                    await cursor.execute(
+                        f"SELECT name FROM {s.name} WHERE uid = ?", (user,)
+                    )
                     user = await cursor.fetchone()
                     user = user[0]
                 timestamp = timestamp[0]
@@ -121,7 +144,6 @@ class Admin(commands.Cog):
                     f"`{s.name}:\n{user}`:\nUID: `{uid}`\nFirst seen: `{first_join}`\nLast seen: `{timestamp}`\nPlaytime: `{await utils.human_time_duration(playtime)}`\nBanned: `{banned}`"
                 )
 
-        
     @commands.command()
     @utils.is_admin()
     async def addban(self, ctx, uid: str = None):
@@ -140,7 +162,6 @@ class Admin(commands.Cog):
                     await ctx.reply(
                         f"Could not ban `{uid}` on `{server.name}`!\nPlease join that server and manually run `bbanuid {uid}`"
                     )
-
 
     @commands.command()
     @utils.is_admin()
@@ -162,7 +183,7 @@ class Admin(commands.Cog):
                     await ctx.reply(
                         f"Could not unban `{uid}` on `{server.name}`!\nPlease join that server and manually run `bunbanuid {uid}`"
                     )
-        
+
     @commands.command(aliases=["rcon"])
     @utils.is_admin()
     async def parse(self, ctx, server: str = None, *args):
@@ -172,9 +193,10 @@ class Admin(commands.Cog):
         await s.send_command(" ".join(args))
         await ctx.reply("ok done")
         channel = await self.client.fetch_channel(config.bigbrother)
-        await channel.send(f"`{ctx.author.name}` just ran `{' '.join(args)}` thru the bot")
-        
-        
+        await channel.send(
+            f"`{ctx.author.name}` just ran `{' '.join(args)}` thru the bot"
+        )
+
     @commands.command(aliases=["spl"], hidden=True)
     @commands.is_owner()
     async def sql(self, ctx, command: str = None):
@@ -218,7 +240,7 @@ class Admin(commands.Cog):
         except Exception as e:
             print(e)
             await ctx.send(f"Error: {str(e)}")
-    
+
     @commands.command(hidden=True)
     @commands.is_owner()
     async def audit(self, ctx):
@@ -226,19 +248,27 @@ class Admin(commands.Cog):
             cursor = await db.cursor()
             for s in config.servers:
                 for uid in config.admin_uids:
-                    await cursor.execute(f"SELECT name FROM {s.name} WHERE uid = ?", (uid,))
+                    await cursor.execute(
+                        f"SELECT name FROM {s.name} WHERE uid = ?", (uid,)
+                    )
                     name = await cursor.fetchone()
                     name = name[0]
-                    await cursor.execute(f"SELECT last_join FROM {s.name} WHERE uid = ?", (uid,))
+                    await cursor.execute(
+                        f"SELECT last_join FROM {s.name} WHERE uid = ?", (uid,)
+                    )
                     last_join = await cursor.fetchone()
                     last_join = last_join[0]
-                    await cursor.execute(f"SELECT playtime FROM {s.name} WHERE uid = ?", (uid,))
+                    await cursor.execute(
+                        f"SELECT playtime FROM {s.name} WHERE uid = ?", (uid,)
+                    )
                     playtime = await cursor.fetchone()
                     playtime = await utils.human_time_duration(playtime[0])
-                    await ctx.send(f"{name}:\nLast seen: `{last_join}`\nPlaytime: `{playtime}`")
-        
-    # TODO: make server periodically check a /whitelist file and update    
-        
+                    await ctx.send(
+                        f"{name}:\nLast seen: `{last_join}`\nPlaytime: `{playtime}`"
+                    )
+
+    # TODO: make server periodically check a /whitelist file and update
+
     # @commands.command(aliases=["defcon"])
     # @utils.is_admin()
     # async def whitelistmode(self, ctx, mode: int = None):
@@ -316,9 +346,7 @@ class Admin(commands.Cog):
     #         lines = f.readlines()
     #     await asyncio.sleep(1)
     #     await ctx.send(f"Whitelist now contains `{len(lines)}` users.\nReminder: You may use `,.whitelistadd (uid)` and ``,.whitelistremove (uid)` to manually add or remove users from the whitelist.")
-            
-            
-            
+
     # @commands.command(aliases=["whitelist"])
     # @utils.is_admin()
     # async def whitelistadd(self, ctx, uid):
@@ -326,7 +354,7 @@ class Admin(commands.Cog):
     #     with open(whitelist_file, "a+") as f:
     #         f.write(f"{uid}\n")
     #     await ctx.send(f"`{uid}` has been added to the whitelist.")
-        
+
     # @commands.command(aliases=["unwhitelist"])
     # @utils.is_admin()
     # async def whitelistremove(self, ctx, uid):
@@ -338,21 +366,24 @@ class Admin(commands.Cog):
     #             if line != f"{uid}\n":
     #                 f.write(line)
     #     await ctx.send(f"`{uid}` has been removed from the whitelist.")
-        
+
     @commands.command()
     @utils.is_admin()
     async def forcelink(self, ctx, did, uid):
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
-            await cursor.execute("INSERT INTO connection(discordID, titanfallID) VALUES(?, ?)", (did, uid))
+            await cursor.execute(
+                "INSERT INTO connection(discordID, titanfallID) VALUES(?, ?)",
+                (did, uid),
+            )
             await db.commit()
             await ctx.send("ok done")
-        
+
     # @commands.command()
     # @commands.is_owner()
     # async def parkour(self, ctx):
     #     return
-    
+
     # @commands.group(invoke_without_command=True)
     # @commands.has_permissions(manage_messages=True)
     # async def automod(self, ctx):
@@ -364,6 +395,7 @@ class Admin(commands.Cog):
     # @automod.command(name="create")
     # async def automod_create(self, ctx):
     #     return
+
 
 async def setup(client):
     await client.add_cog(Admin(client))

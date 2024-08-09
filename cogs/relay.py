@@ -58,11 +58,11 @@ class Relay(commands.Cog):
         self.app.router.add_post("/leaderboard", self.get_leaderboard)
         self.app.router.add_get("/leaderboard-info", self.get_leaderboard_info)
         self.app.router.add_get("/is-whitelisted", self.is_whitelisted)
-        self.app.router.add_route('OPTIONS', '/leaderboard', self.handle_options)
-        self.app.router.add_route('OPTIONS', '/leaderboard-info', self.handle_options)
-        self.app.router.add_route('OPTIONS', '/get', self.handle_options)
-        self.app.router.add_route('OPTIONS', '/post', self.handle_options)
-        self.app.router.add_route('OPTIONS', '/is-whitelisted', self.handle_options)
+        self.app.router.add_route("OPTIONS", "/leaderboard", self.handle_options)
+        self.app.router.add_route("OPTIONS", "/leaderboard-info", self.handle_options)
+        self.app.router.add_route("OPTIONS", "/get", self.handle_options)
+        self.app.router.add_route("OPTIONS", "/post", self.handle_options)
+        self.app.router.add_route("OPTIONS", "/is-whitelisted", self.handle_options)
         self.runner = web.AppRunner(self.app)
         self.message_queue = {}
         for s in config.servers:
@@ -70,7 +70,7 @@ class Relay(commands.Cog):
         self.client.ban_list = {}
         for s in config.servers:
             self.client.ban_list[s.name] = []
-            
+
     async def add_to_message_queue(self, server, message):
         self.message_queue[server] += message + "\n"
         if len(self.message_queue[server]) > 1000:
@@ -78,7 +78,7 @@ class Relay(commands.Cog):
             channel = self.client.get_channel(server.relay)
             await channel.send(self.message_queue[server])
             self.message_queue[server] = ""
-    
+
     @tasks.loop(seconds=10)
     async def post_relay(self):
         for server in config.servers:
@@ -98,28 +98,43 @@ class Relay(commands.Cog):
 
     async def send_test_message(self, request):
         await self.client.get_channel(745410408482865267).send("test")
-        
+
     async def get_leaderboard(self, request):
         corsheaders = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type'
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
         }
         try:
             data = await request.json()
         except:
-            return web.Response(status=400, text="bad json dumbass", headers=corsheaders)
+            return web.Response(
+                status=400, text="bad json dumbass", headers=corsheaders
+            )
         server = data["server"]
         server = await utils.get_server(server)
         if server is None:
-            return web.Response(status=404, text="server not found", headers=corsheaders)
+            return web.Response(
+                status=404, text="server not found", headers=corsheaders
+            )
         page = data["page"]
         if not isinstance(page, int):
-            return web.Response(status=400, text="page must be an integer", headers=corsheaders)
+            return web.Response(
+                status=400, text="page must be an integer", headers=corsheaders
+            )
         if page < 0:
-            return web.Response(status=400, text="page must be greater than 0", headers=corsheaders)
+            return web.Response(
+                status=400, text="page must be greater than 0", headers=corsheaders
+            )
         if server.name == "infection":
-            valid_stats = ["survivor kills", "survivor deaths", "infected kills", "infected deaths", "playtime", "killstreak"]
+            valid_stats = [
+                "survivor kills",
+                "survivor deaths",
+                "infected kills",
+                "infected deaths",
+                "playtime",
+                "killstreak",
+            ]
         else:
             valid_stats = ["kills", "playtime", "deaths", "killstreak"]
         stat = data["stat"]
@@ -127,94 +142,118 @@ class Relay(commands.Cog):
             return web.Response(status=400, text="invalid stat", headers=corsheaders)
         async with aiosqlite.connect(config.bank) as db:
             if stat == "kills":
-                async with db.execute(f"SELECT name, killsimc, killsmilitia FROM {server.name} ORDER BY killsimc + killsmilitia DESC LIMIT 10 OFFSET 10*{page-1}") as cursor:
+                async with db.execute(
+                    f"SELECT name, killsimc, killsmilitia FROM {server.name} ORDER BY killsimc + killsmilitia DESC LIMIT 10 OFFSET 10*{page-1}"
+                ) as cursor:
                     fetched = await cursor.fetchall()
-                    result = {
-                        "results": []
-                    }
+                    result = {"results": []}
                     for row in fetched:
-                        result["results"].append({"name": row[0], "stat": row[1] + row[2]})
+                        result["results"].append(
+                            {"name": row[0], "stat": row[1] + row[2]}
+                        )
             elif stat == "deaths":
-                async with db.execute(f"SELECT name, deathsimc, deathsmilitia FROM {server.name} ORDER BY deathsimc + deathsmilitia DESC LIMIT 10 OFFSET 10*{page-1}") as cursor:
+                async with db.execute(
+                    f"SELECT name, deathsimc, deathsmilitia FROM {server.name} ORDER BY deathsimc + deathsmilitia DESC LIMIT 10 OFFSET 10*{page-1}"
+                ) as cursor:
                     fetched = await cursor.fetchall()
-                    result = {
-                        "results": []
-                    }
+                    result = {"results": []}
                     for row in fetched:
-                        result["results"].append({"name": row[0], "stat": row[1] + row[2]})
+                        result["results"].append(
+                            {"name": row[0], "stat": row[1] + row[2]}
+                        )
             elif stat == "survivor kills":
-                async with db.execute(f"SELECT name, killsmilitia FROM {server.name} ORDER BY killsmilitia DESC LIMIT 10 OFFSET 10*{page-1}") as cursor:
+                async with db.execute(
+                    f"SELECT name, killsmilitia FROM {server.name} ORDER BY killsmilitia DESC LIMIT 10 OFFSET 10*{page-1}"
+                ) as cursor:
                     fetched = await cursor.fetchall()
-                    result = {
-                        "results": []
-                    }
+                    result = {"results": []}
                     for row in fetched:
                         result["results"].append({"name": row[0], "stat": row[1]})
             elif stat == "survivor deaths":
-                async with db.execute(f"SELECT name, deathsmilitia FROM {server.name} ORDER BY deathsmilitia DESC LIMIT 10 OFFSET 10*{page-1}") as cursor:
+                async with db.execute(
+                    f"SELECT name, deathsmilitia FROM {server.name} ORDER BY deathsmilitia DESC LIMIT 10 OFFSET 10*{page-1}"
+                ) as cursor:
                     fetched = await cursor.fetchall()
-                    result = {
-                        "results": []
-                    }
+                    result = {"results": []}
                     for row in fetched:
                         result["results"].append({"name": row[0], "stat": row[1]})
             elif stat == "infected kills":
-                async with db.execute(f"SELECT name, killsimc FROM {server.name} ORDER BY killsimc DESC LIMIT 10 OFFSET 10*{page-1}") as cursor:
+                async with db.execute(
+                    f"SELECT name, killsimc FROM {server.name} ORDER BY killsimc DESC LIMIT 10 OFFSET 10*{page-1}"
+                ) as cursor:
                     fetched = await cursor.fetchall()
-                    result = {
-                        "results": []
-                    }
+                    result = {"results": []}
                     for row in fetched:
                         result["results"].append({"name": row[0], "stat": row[1]})
             elif stat == "infected deaths":
-                async with db.execute(f"SELECT name, deathsimc FROM {server.name} ORDER BY deathsimc DESC LIMIT 10 OFFSET 10*{page-1}") as cursor:
+                async with db.execute(
+                    f"SELECT name, deathsimc FROM {server.name} ORDER BY deathsimc DESC LIMIT 10 OFFSET 10*{page-1}"
+                ) as cursor:
                     fetched = await cursor.fetchall()
-                    result = {
-                        "results": []
-                    }
+                    result = {"results": []}
                     for row in fetched:
                         result["results"].append({"name": row[0], "stat": row[1]})
             elif stat == "playtime":
-                async with db.execute(f"SELECT name, playtime FROM {server.name} ORDER BY playtime DESC LIMIT 10 OFFSET 10*{page-1}") as cursor:
+                async with db.execute(
+                    f"SELECT name, playtime FROM {server.name} ORDER BY playtime DESC LIMIT 10 OFFSET 10*{page-1}"
+                ) as cursor:
                     fetched = await cursor.fetchall()
-                    result = {
-                        "results": []
-                    }
+                    result = {"results": []}
                     for row in fetched:
-                        result["results"].append({"name": row[0], "stat": await utils.human_time_duration(row[1])})
+                        result["results"].append(
+                            {
+                                "name": row[0],
+                                "stat": await utils.human_time_duration(row[1]),
+                            }
+                        )
             else:
-                async with db.execute(f"SELECT name, {stat} FROM {server.name} ORDER BY {stat} DESC LIMIT 10 OFFSET 10*{page-1}") as cursor:
+                async with db.execute(
+                    f"SELECT name, {stat} FROM {server.name} ORDER BY {stat} DESC LIMIT 10 OFFSET 10*{page-1}"
+                ) as cursor:
                     fetched = await cursor.fetchall()
-                    result = {
-                        "results": []
-                    }
+                    result = {"results": []}
                     for row in fetched:
                         result["results"].append({"name": row[0], "stat": row[1]})
-        return web.json_response(text=json.dumps(result), status=200, headers=corsheaders)
-    
+        return web.json_response(
+            text=json.dumps(result), status=200, headers=corsheaders
+        )
+
     async def get_leaderboard_info(self, request):
         corsheaders = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type'
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
         }
-        result = {
-            "servers": {}
-        }
+        result = {"servers": {}}
         async with aiosqlite.connect(config.bank) as db:
             # get amount of rows in all servers
             for server in config.servers:
                 async with db.execute(f"SELECT COUNT(*) FROM {server.name}") as cursor:
                     response = await cursor.fetchone()
                     if server.name == "infection":
-                        result["servers"][server.name] = {"rows": response[0], "stats": ["survivor kills", "infected kills", "survivor deaths", "infected deaths", "playtime", "killstreak"]}
+                        result["servers"][server.name] = {
+                            "rows": response[0],
+                            "stats": [
+                                "survivor kills",
+                                "infected kills",
+                                "survivor deaths",
+                                "infected deaths",
+                                "playtime",
+                                "killstreak",
+                            ],
+                        }
                     else:
-                        result["servers"][server.name] = {"rows": response[0], "stats": ["kills", "deaths", "playtime", "killstreak"]}
-        return web.json_response(text=json.dumps(result), status=200, headers=corsheaders)
-    
+                        result["servers"][server.name] = {
+                            "rows": response[0],
+                            "stats": ["kills", "deaths", "playtime", "killstreak"],
+                        }
+        return web.json_response(
+            text=json.dumps(result), status=200, headers=corsheaders
+        )
+
     async def is_whitelisted(self, request):
         # get uid from request
-        uid = request.match_info.get('uid')
+        uid = request.match_info.get("uid")
 
         # check if uid is whitelisted
         async with aiosqlite.connect(config.whitelist) as db:
@@ -225,15 +264,18 @@ class Relay(commands.Cog):
                         return web.json_response(text={"whitelisted": True}, status=200)
 
         return web.json_response(text={"whitelisted": False}, status=200)
-    
+
     async def handle_options(self, request):
         # do nothing, just respond with OK
-        return web.Response(text="Options received", headers={
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type'
-        })
-        
+        return web.Response(
+            text="Options received",
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type",
+            },
+        )
+
     @commands.Cog.listener()
     async def on_message(self, message):
         if message.author.bot:
@@ -258,7 +300,6 @@ class Relay(commands.Cog):
         await self.runner.setup()
         site = web.TCPSite(self.runner, "0.0.0.0", 2585)
         await site.start()
-        
 
     # events
     @tasks.loop(seconds=30)
@@ -367,9 +408,10 @@ timestamp INT NOT NULL
 num INTEGER PRIMARY KEY AUTOINCREMENT,
 uid INT NOT NULL
 )
-""")
+"""
+            )
             await db.commit()
-            
+
     async def tone_info(self, request):
         player = request.query.get("player")
         if player is None:
@@ -394,8 +436,10 @@ uid INT NOT NULL
                     kills += results[3] + results[4]
                     deaths += results[5] + results[6]
                     username = results[1]
-        return web.json_response(text=json.dumps({"user": username, "kills": kills, "deaths": deaths}))
-    
+        return web.json_response(
+            text=json.dumps({"user": username, "kills": kills, "deaths": deaths})
+        )
+
     async def get_stats(self, request):
         player = request.query.get("player")
         server = request.query.get("server")
@@ -406,16 +450,24 @@ uid INT NOT NULL
         deaths = 1
         async with aiosqlite.connect(config.bank) as db:
             cursor = await db.cursor()
-            await cursor.execute(
-                f"SELECT * FROM {server} WHERE name = ?", (player,)
-            )
+            await cursor.execute(f"SELECT * FROM {server} WHERE name = ?", (player,))
             results = await cursor.fetchone()
             kills = results[3] + results[4]
             deaths = results[5] + results[6]
             playtime = results[9]
             killstreak = results[10]
             username = player
-            return web.json_response(text=json.dumps({"user": username, "kills": kills, "deaths": deaths, "playtime": playtime, "killstreak": killstreak}))
+            return web.json_response(
+                text=json.dumps(
+                    {
+                        "user": username,
+                        "kills": kills,
+                        "deaths": deaths,
+                        "playtime": playtime,
+                        "killstreak": killstreak,
+                    }
+                )
+            )
 
     async def recieve_relay_info(self, request):
         data = await request.text()
@@ -481,31 +533,38 @@ uid INT NOT NULL
                     kills = int(bits[1])
                     if kills == 5:
                         await self.send_relay_misc(
-                            f"**<< {attacker} is on a KILLING SPREE {kills} >>**", server_identifier
+                            f"**<< {attacker} is on a KILLING SPREE {kills} >>**",
+                            server_identifier,
                         )
                     elif kills == 10:
                         await self.send_relay_misc(
-                            f"**<< {attacker} is UNSTOPPABLE {kills} >>**", server_identifier
+                            f"**<< {attacker} is UNSTOPPABLE {kills} >>**",
+                            server_identifier,
                         )
                     elif kills == 15:
                         await self.send_relay_misc(
-                            f"**<< {attacker} is on a RAMPAGE {kills} >>**", server_identifier
+                            f"**<< {attacker} is on a RAMPAGE {kills} >>**",
+                            server_identifier,
                         )
                     elif kills == 20:
                         await self.send_relay_misc(
-                            f"**<< {attacker} is GOD-LIKE {kills} >>**", server_identifier
+                            f"**<< {attacker} is GOD-LIKE {kills} >>**",
+                            server_identifier,
                         )
                     elif kills % 5 == 0 and kills < 96:
                         await self.send_relay_misc(
-                            f"**<< {attacker} is still GOD-LIKE {kills} >>**", server_identifier
+                            f"**<< {attacker} is still GOD-LIKE {kills} >>**",
+                            server_identifier,
                         )
                     elif kills == 100:
                         await self.send_relay_misc(
-                            f"**<< {attacker} is FUCKING CHEATING {kills} >>**", server_identifier
+                            f"**<< {attacker} is FUCKING CHEATING {kills} >>**",
+                            server_identifier,
                         )
                     elif kills % 5 == 0 and int(kills) > 101:
                         await self.send_relay_misc(
-                            f"**<< {attacker} is still FUCKING CHEATING {kills} >>**", server_identifier
+                            f"**<< {attacker} is still FUCKING CHEATING {kills} >>**",
+                            server_identifier,
                         )
                 case "killend":
                     bits = data["args"].split("|")
@@ -516,7 +575,8 @@ uid INT NOT NULL
                         await self.log_killstreak(victim, int(kills), server_identifier)
                     if kills > 9:
                         await self.send_relay_misc(
-                            f"**<< {attacker} ended {victim}'s killstreak {kills} >>**", server_identifier
+                            f"**<< {attacker} ended {victim}'s killstreak {kills} >>**",
+                            server_identifier,
                         )
                 case "killstreakwin":
                     bits = data["args"].split("|")
@@ -525,11 +585,14 @@ uid INT NOT NULL
                     await self.log_killstreak(killer, int(kills), server_identifier)
                     if kills > 9:
                         await self.send_relay_misc(
-                            f"**<< {killer} has ended the round with {kills} kills >>**", server_identifier
+                            f"**<< {killer} has ended the round with {kills} kills >>**",
+                            server_identifier,
                         )
                 case "command":
                     print(f"Command {data['args']}|{server_identifier}.")
-                    await self.big_brother(f"Command `{data['args']}|{server_identifier}`.")
+                    await self.big_brother(
+                        f"Command `{data['args']}|{server_identifier}`."
+                    )
                 case "banlist":
                     bans = data["args"].split("|")
                     self.client.ban_list[server_identifier] = bans
@@ -887,7 +950,7 @@ uid INT NOT NULL
                     f"Message from `{player}`: `{message}` matches pattern `{word}`\nUID: `{uid}`\nPlease review: {sent.jump_url}"
                 )
                 break
-            
+
         # TODO: FIX ME!!!
         # for word in config.ban_words:
         #     # Search for the pattern in the text

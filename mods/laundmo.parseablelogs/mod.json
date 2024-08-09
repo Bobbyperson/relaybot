@@ -1,0 +1,34 @@
+{
+	"Name": "laundmo.ParseableLog",
+	"Description": "Parse-able JSON log of ingame events.",
+	"LoadPriority": 1,
+	"RequiredOnClient": false,
+	"Version": "0.2.0",
+    "ConVars": [
+        {
+			"Name": "parsable_player_interval",
+			"DefaultValue": "0"
+		},
+		{
+			"Name": "api_secret",
+			"DefaultValue": "secret_token_change_me"
+		},
+		{
+			"Name": "api_url",
+			"DefaultValue": "https://your_api_url"
+		},
+		{
+			"Name": "server_identifier",
+			"DefaultValue": "server_identifier_change_me"
+		}
+	],
+	"Scripts": [
+		{
+			"Path": "laundmo_parseable_logs.nut",
+			"RunOn": "SERVER",
+			"ServerCallback": {
+				"After": "serverLog"
+			}		
+		}
+	]
+}

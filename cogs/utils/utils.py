@@ -1,8 +1,5 @@
-import discord
 import config
 import aiosqlite
-import asyncio
-from rcon.source import rcon
 from discord.ext import commands
 
 # async def human_time_duration(seconds):
@@ -25,55 +22,35 @@ from discord.ext import commands
 async def human_time_duration(seconds: int) -> str:
     return f"{(seconds / 60 / 60):.1f} hours"
 
-async def ban(name, uid, reason) -> None:
-    await rcon(
-        'ban', f'{uid}',
-        host='127.0.0.1', port=7123, passwd='holyfuckloisimcummingahh'
-    )
-    await asyncio.sleep(3)
-    with open(
-        "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\reasons.txt",
-        "a+",
-    ) as f:
-        f.write(f"{uid} // {name} reason: {reason}\n")
-    with open(
-        "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\banlist.txt",
-        "r",
-    ) as f:
-        if str(uid) in f.readlines():
-            return
-    with open(
-        "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\banlist.txt",
-        "a+",
-    ) as f:
-        f.write(f"{uid}\n")
+# async def ban(name, uid, reason, server_ip) -> None:
+#     await rcon(
+#         'ban', f'{uid}',
+#         host='server_ip', port=7123, passwd='holyfuckloisimcummingahh'
+#     )
+    # await asyncio.sleep(3)
+    # with open(
+    #     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\reasons.txt",
+    #     "a+",
+    # ) as f:
+    #     f.write(f"{uid} // {name} reason: {reason}\n")
+    # with open(
+    #     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\banlist.txt",
+    #     "r",
+    # ) as f:
+    #     if str(uid) in f.readlines():
+    #         return
+    # with open(
+    #     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\banlist.txt",
+    #     "a+",
+    # ) as f:
+    #     f.write(f"{uid}\n")
 
 
-async def unban(uid, reason) -> None:
-    found = False
-    with open(
-        "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\banlist.txt",
-        "r",
-    ) as f:
-        lines = [line.rstrip() for line in f.readlines()]
-        for i, line in enumerate(lines):
-            if line == uid:
-                lines.pop(i)
-                found = True
-                break
-    if found:
-        with open(
-            "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\banlist.txt",
-            "w",
-        ) as g:
-            for i, line in enumerate(lines):
-                lines[i] = lines[i] + "\n"
-            g.writelines(lines)
-        with open(
-            "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\reasons.txt",
-            "a+",
-        ) as h:
-            h.write(f"UNBANNED: {uid} // reason: {reason}\n")
+# async def unban(uid, reason, server_ip) -> None:
+#     await rcon(
+#         'unban', f'{uid}',
+#         host=server_ip, port=7123, passwd='holyfuckloisimcummingahh'
+#     )
             
 def is_admin() -> bool:
     return commands.check(lambda ctx: ctx.author.id in config.admins)
@@ -82,30 +59,75 @@ async def commafy(num: int) -> str:
     return format(num, ",d")
 
 async def get_uid_from_connection(did):
-    db = await aiosqlite.connect(config.bank, timeout=10)
-    cursor = await db.cursor()
-    await cursor.execute("SELECT titanfallID FROM connection WHERE discordID = (?)", (did,))
-    uid = await cursor.fetchone()
-    return uid[0] if uid else None
+    async with aiosqlite.connect(config.bank, timeout=10) as db:
+        cursor = await db.cursor()
+        await cursor.execute("SELECT titanfallID FROM connection WHERE discordID = (?)", (did,))
+        uid = await cursor.fetchone()
+        return uid[0] if uid else None
 
-async def get_name_from_connection(did):
-    db = await aiosqlite.connect(config.bank, timeout=10)
-    cursor = await db.cursor()
-    uid = await get_uid_from_connection(did)
-    await cursor.execute("SELECT name FROM main WHERE uid = (?)", (uid,))
-    name = await cursor.fetchone()
-    return name[0] if name else None
+async def get_name_from_connection(did) -> str:
+    async with aiosqlite.connect(config.bank, timeout=10) as db:
+        cursor = await db.cursor()
+        uid = await get_uid_from_connection(did)
+        for s in config.servers:
+            await cursor.execute(f"SELECT name FROM {s.name} WHERE uid = (?)", (uid,))
+            name = await cursor.fetchone()
+            if name:
+                return name[0]
+        return None
 
 async def get_discord_id_user_from_connection(uid):
-    db = await aiosqlite.connect(config.bank, timeout=10)
-    cursor = await db.cursor()
-    await cursor.execute("SELECT discordID FROM connection WHERE titanfallID = (?)", (uid,))
-    did = await cursor.fetchone()
-    return did[0] if did else None
+    async with aiosqlite.connect(config.bank, timeout=10) as db:
+        cursor = await db.cursor()
+        await cursor.execute("SELECT discordID FROM connection WHERE titanfallID = (?)", (uid,))
+        did = await cursor.fetchone()
+        return did[0] if did else None
 
 async def get_uid_from_name(name: str = None) -> int:
-    db = await aiosqlite.connect(config.bank, timeout=10)
-    cursor = await db.cursor()
-    await cursor.execute("SELECT uid FROM main WHERE name = (?)", (name,))
-    uid = await cursor.fetchone()
-    return uid[0] if uid else None
+    async with aiosqlite.connect(config.bank, timeout=10) as db:
+        cursor = await db.cursor()
+        for s in config.servers:
+            await cursor.execute(f"SELECT uid FROM {s.name} WHERE name = (?)", (name,))
+            uid = await cursor.fetchone()
+            if uid:
+                return uid[0]
+        return None
+    
+async def is_valid_server(server: str = None) -> bool:
+    for s in config.servers:
+        if server == s.name:
+            return True
+    return False
+
+async def check_server_auth(server: str = None, auth: str = None) -> bool:
+    for s in config.servers:
+        if server == s.name:
+            return auth == s.key
+    return False
+
+async def get_server(server):
+    for s in config.servers:
+        if server == s.name:
+            return s
+    return None
+
+async def get_row(name, condition, value, table):
+    async with aiosqlite.connect(config.bank, timeout=10) as db:
+        cursor = await db.cursor()
+        await cursor.execute(f"SELECT {name} FROM {table} WHERE {condition} = (?)", (value,))
+        result = await cursor.fetchone()
+        return result[0] if result else None 
+
+async def update_row(name, new_value, condition, cvalue, table):
+    async with aiosqlite.connect(config.bank, timeout=10) as db:
+        await db.execute(f"UPDATE {table} SET {name} = ? WHERE {condition} = ?", (new_value, cvalue))
+        await db.commit()
+        
+async def get_valid_server_names() -> list:
+    return [s.name for s in config.servers]
+
+async def check_server_ip(server: str = None, ip: str = None) -> bool:
+    for s in config.servers:
+        if server == s.name:
+            return ip == s.ip
+    return False

@@ -322,21 +322,20 @@ class Relay(commands.Cog):
                 servers = await response.json()
 
         query_results = []
-        highest = 0
+        total_players = 0
+
+        for server in servers:
+            total_players += server["playerCount"]
+
         for term in config.query:
             for server in servers:
-                if server["playerCount"] > highest:
-                    highest = server["playerCount"]
                 if term in server["name"]:
                     query_results.append(server)
 
         if query_results:
-            if highest == query_results[0]["playerCount"]:
-                sdescription = "We currently have the most players on any server!!!!!"
-            else:
-                sdescription = "Server is up!"
+            sdescription = f"Total Northstar Players: {total_players}"
         else:
-            sdescription = "Server is down! :("
+            sdescription = "All servers down. Uh oh."
 
         embed = discord.Embed(
             title="Server Stats",

@@ -58,6 +58,7 @@ class Relay(commands.Cog):
         self.app.router.add_post("/leaderboard", self.get_leaderboard)
         self.app.router.add_get("/leaderboard-info", self.get_leaderboard_info)
         self.app.router.add_get("/is-whitelisted", self.is_whitelisted)
+        self.app.router.add_get("/stats", self.get_stats)
         self.app.router.add_route("OPTIONS", "/leaderboard", self.handle_options)
         self.app.router.add_route("OPTIONS", "/leaderboard-info", self.handle_options)
         self.app.router.add_route("OPTIONS", "/get", self.handle_options)

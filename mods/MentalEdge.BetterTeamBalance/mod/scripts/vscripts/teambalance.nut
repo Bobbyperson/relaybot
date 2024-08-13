@@ -105,11 +105,18 @@ void function BTBInit(){
         FSCC_RegisterCommand( "nemesis", command )
 
     command.m_UsageUser = "switch"
-    command.m_Description = "%H%switch %Toh my god fine you can have a swith command"
+    command.m_Description = "%H%switch %Toh my god fine you can have a switch command"
     command.m_Group = "BTB"
     command.m_Abbreviations = [ "s", "sw" ]
     command.Callback = BTB_Switch
     FSCC_RegisterCommand( "switch", command )
+
+    command.m_UsageUser = "stats"
+    command.m_Description = "%H%stats %Tcheck your stats for this server"
+    command.m_Group = "ATS"
+    command.m_Abbreviations = [ "stat" ]
+    command.Callback = BTB_Stats
+    FSCC_RegisterCommand( "stats", command )
 
     print("[BTB] FSU is installed! Running BetterTeamBalance with chat command features enabled.")
 
@@ -1709,4 +1716,49 @@ void function BTB_Switch( entity player, array < string > args ){
         SetTeam( player, TEAM_MILITIA )
     }
     FSU_PrivateChatMessage( player, "%EYour team has been switched to whichever team had less players." )
+}
+
+void function BTB_Stats( entity player, array < string > args ){
+    HttpRequest request = { ... }
+    request.method = HttpRequestMethod.GET
+    request.url = toneurl + "/get?player=" + player.GetUID() + "&server=v3x"
+
+    void functionref( HttpRequestResponse ) OnSuccess = void function ( HttpRequestResponse response )
+    {
+        try{
+            table decoded
+            foreach( uid, tab in DecodeJSON(response.body) )
+                decoded = expect table(tab)
+
+            if(response.statusCode == 200 && decoded.len() != 0 ){
+                string user = expect string(decoded["username"])
+                int kills = expect int(decoded["kills"])
+                int deaths = expect int(decoded["deaths"])
+                int playtime = expect int(decoded["playtime"])
+                float kd = kills / deaths
+                float playtimeHours = playtime / 60.0 / 60.0
+                int formattedPlaytime = playtimeHours.tointeger()
+                int killstreak = expect int(decoded["killstreak"])
+                FSU_PrivateChatMessage( player, "\nKills: " + kills + "\nDeaths: " + deaths + "\nPlaytime: " + formattedPlaytime + " hours\nK/D: " + kd + "\nKillstreak: " + killstreak )
+                toneKDs[user] <- kd
+            }else{
+                FSU_PrivateChatMessage( player, "Failed to get stats, the tracker might be down. Sorry." )
+                print("[BTB][Tone API] Tone API unavailable, or does not have stats for this player")
+                print("[BTB][Tone API] " + response.body )
+            }
+        }catch(exception){
+            FSU_PrivateChatMessage( player, "Failed to get stats, the tracker might be down. Sorry." )
+            print("[BTB][Tone API] Failed to decode Tone API response")
+            return
+        }
+    }
+
+    void functionref( HttpRequestFailure ) OnFailure = void function ( HttpRequestFailure failure )
+    {
+        FSU_PrivateChatMessage( player, "Failed to get stats, the tracker might be down. Sorry." )
+        print("[BTB][Tone API] Tone API unavailable, or does not have stats for this player")
+        print("[BTB][Tone API] " + failure.errorMessage )
+    }
+
+    NSHttpRequest(request, OnSuccess, OnFailure)
 }

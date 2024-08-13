@@ -581,9 +581,8 @@ class Stats(commands.Cog):
                     "This discord account is already linked to a titanfall account."
                 )
                 return
-            auth_code = secrets.randbits(
-                20
-            )  # theres a fringe chance that someone will get the same code as someone else but i dont care
+            auth_code = secrets.randbits(20)
+            # theres a fringe chance that someone will get the same code as someone else but i dont care
             try:
                 await ctx.author.send(
                     f"Your code is: `{auth_code}`\nPlease paste it into the in-game titanfall chat without any spaces or other characters."

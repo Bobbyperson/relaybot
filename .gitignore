@@ -5,5 +5,4 @@ __pycache__
 .vscode
 config.py
 .stignore
-tournament.py
 parkour.py

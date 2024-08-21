@@ -287,9 +287,9 @@ class Stats(commands.Cog):
             deathsmilitia = deathsmilitia if deathsmilitia != 0 else 1
 
             if server.name == "infection":
-                message += f"\nSurvivor: `{killsmilitia/deathsmilitia:.2f} ({killsmilitia}:{deathsmilitia})`\nInfected: `{killsimc/deathsimc:.2f} ({killsimc}:{deathsimc})`"
+                message += f"\nSurvivor: `{killsmilitia / deathsmilitia:.2f} ({killsmilitia}:{deathsmilitia})`\nInfected: `{killsimc / deathsimc:.2f} ({killsimc}:{deathsimc})`"
             else:
-                message += f"\n{server.name}: `{(killsmilitia + killsimc)/(deathsmilitia + deathsimc):.2f} ({killsmilitia + killsimc}:{deathsmilitia + deathsimc})`"
+                message += f"\n{server.name}: `{(killsmilitia + killsimc) / (deathsmilitia + deathsimc):.2f} ({killsmilitia + killsimc}:{deathsmilitia + deathsimc})`"
         if message == "":
             return await ctx.reply(
                 "User not found. Either you are not `,.link`ed or you made a typo. Names are case sensitive."
@@ -768,34 +768,34 @@ class Stats(commands.Cog):
     @commands.hybrid_command()
     async def amiwhitelisted(self, ctx, name: str = None):
         return await ctx.send("The whitelist has been deprecated for now.")
-        if self.client.whitelist == 5:
-            await ctx.send(
-                "The whitelist does not appear to be on at this time. You should be able to join the server.\n**Remember: to ensure you're whitelisted, please `,.link` your account.**"
-            )
-            return
-        name = (
-            await utils.get_name_from_connection(ctx.author.id)
-            if name is None
-            else name
-        )
-        if name is None:
-            await ctx.send(
-                "User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive."
-            )
-            return
-        uid = await utils.get_uid_from_name(name)
-        with open(
-            "C:\Program Files (x86)\Steam\steamapps\common\Titanfall2\R2Northstar\save_data\Whitelist\whitelist.txt",
-            "r",
-        ) as f:
-            if str(uid) in f.readlines():
-                await ctx.send("You are whitelisted!")
-                return
-            else:
-                await ctx.send(
-                    "You are not whitelisted. Please contact an admin to get whitelisted."
-                )
-                return
+        # if self.client.whitelist == 5:
+        #     await ctx.send(
+        #         "The whitelist does not appear to be on at this time. You should be able to join the server.\n**Remember: to ensure you're whitelisted, please `,.link` your account.**"
+        #     )
+        #     return
+        # name = (
+        #     await utils.get_name_from_connection(ctx.author.id)
+        #     if name is None
+        #     else name
+        # )
+        # if name is None:
+        #     await ctx.send(
+        #         "User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive."
+        #     )
+        #     return
+        # uid = await utils.get_uid_from_name(name)
+        # with open(
+        #     "C:\Program Files (x86)\Steam\steamapps\common\Titanfall2\R2Northstar\save_data\Whitelist\whitelist.txt",
+        #     "r",
+        # ) as f:
+        #     if str(uid) in f.readlines():
+        #         await ctx.send("You are whitelisted!")
+        #         return
+        #     else:
+        #         await ctx.send(
+        #             "You are not whitelisted. Please contact an admin to get whitelisted."
+        #         )
+        #         return
 
 
 async def setup(client):

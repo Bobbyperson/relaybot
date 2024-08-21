@@ -108,7 +108,7 @@ class Relay(commands.Cog):
         }
         try:
             data = await request.json()
-        except:
+        except json.decoder.JSONDecodeError:
             return web.Response(
                 status=400, text="bad json dumbass", headers=corsheaders
             )

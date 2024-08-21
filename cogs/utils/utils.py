@@ -154,3 +154,13 @@ async def check_server_ip(server: str = None, ip: str = None) -> bool:
         if server == s.name:
             return ip == s.ip
     return False
+
+
+async def is_linked(did) -> bool:
+    async with aiosqlite.connect(config.bank, timeout=10) as db:
+        cursor = await db.cursor()
+        await cursor.execute(
+            "SELECT discordID FROM connection WHERE discordID = (?)", (did,)
+        )
+        uid = await cursor.fetchone()
+        return bool(uid)

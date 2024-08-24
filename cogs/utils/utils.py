@@ -110,6 +110,9 @@ async def is_valid_server(server: str = None) -> bool:
     for s in config.servers:
         if server == s.name:
             return True
+    for s in config.tournament_servers:
+        if server == s.name:
+            return True
     return False
 
 
@@ -164,3 +167,10 @@ async def is_linked(did) -> bool:
         )
         uid = await cursor.fetchone()
         return bool(uid)
+
+
+async def is_tournament_server(server: str = None) -> bool:
+    for s in config.tournament_servers:
+        if server == s.name:
+            return True
+    return False

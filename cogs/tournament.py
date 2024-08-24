@@ -4,6 +4,8 @@ import requests
 import cogs.utils.utils as utils
 import json
 import aiosqlite
+import random
+import asyncio
 
 
 api_key = config.challonge_api
@@ -44,8 +46,22 @@ tf2_grenadiers = {
     "Cold-War": "mp_weapon_pulse_lmg",
 }
 
+valid_maps = {
+    "Coliseum": "mp_coliseum",
+    "Pillars": "mp_coliseum_pillars",
+    "Deck": "mp_lf_deck",
+    "Traffic": "mp_lf_traffic",
+    "Stacks": "mp_lf_stacks",
+    "Township": "mp_lf_township",
+    "UMA": "mp_lf_uma",
+}
+
 
 class Tournament(commands.Cog):
+
+    def __init__(self, client):
+        self.client = client
+        self.client.tournament_players = {}
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -138,7 +154,7 @@ class Tournament(commands.Cog):
 
             for _, value in custom_field_response.items():
                 # we only care about the first value
-                return value
+                return value.strip()
 
         return None
 
@@ -159,6 +175,20 @@ class Tournament(commands.Cog):
                 tournament_id, data["participant"]["player2_id"]
             )
         return None
+
+    async def ask_map(self, ctx, user, maps):
+        try:
+            msg = await self.client.wait_for(
+                "message",
+                check=lambda message: message.author == user
+                and message.channel == ctx.channel
+                and message.content in maps,
+                timeout=30.0,
+            )
+        except asyncio.TimeoutError:
+            return None
+
+        return msg.content
 
     @commands.command()
     @commands.is_owner()
@@ -230,7 +260,17 @@ class Tournament(commands.Cog):
 
         # TODO: check if server already reserved (maybe see if currently occupied?)
 
-        await ctx.send("All checks passed! Reserving server...")
+        maps = list(valid_maps.keys())
+
+        await ctx.send("All checks passed! Now we need to select the first map.")
+
+        map_message = await ctx.send(maps.join(", "))
+
+        if random.randint(0, 1) == 0:
+            await ctx.send(
+                f"{ctx.author.mention} please pick one map you do NOT want to play:"
+            )
+
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute("DELETE FROM whitelist")
@@ -238,6 +278,10 @@ class Tournament(commands.Cog):
             await cursor.execute(f"INSERT INTO whitelist(uid) values({author_uid})")
             await db.commit()
         await ctx.send("Done! A server has been reserved.")
+        self.client.tournament_players = {
+            author_uid: {"kills": 0, "wins": 0},
+            opponent_uid: {"kills": 0, "wins": 0},
+        }
 
 
 async def setup(client):

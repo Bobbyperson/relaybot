@@ -17,6 +17,10 @@ servers = [
     Server("server3", 0, "127.0.0.1", "secretkey3", "rconpass3"),
 ]
 
+tournament_servers = [
+    Server("tournament1", 0, "127.0.0.1", "secretkey1", "rconpass1"),
+]
+
 admin_relay = 0
 ban_log = 0
 channel_id = 0  # dedicated stats channel id

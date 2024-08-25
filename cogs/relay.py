@@ -943,22 +943,22 @@ uid INT NOT NULL
             await db.commit()
 
     async def check_for_bad(self, player, message, uid, sent):
-        # for word in config.ban_words:
-        #     # Search for the pattern in the text
-        #     if re.search(word, message, re.IGNORECASE):
-        #         for server in config.servers:
-        #             await server.send_command(f"cbbanuid {uid}")
-        #         adminrelay = self.client.get_channel(config.admin_relay)
-        #         await adminrelay.send(
-        #             f"{player} has been automatically banned due to a rule breaking message:\n{message}\nMatches pattern:`{word}`\nUID: `{uid}`\nPlease review"
-        #         )
-        #         banlog = self.client.get_channel(config.ban_log)
-        #         await banlog.send(
-        #             f"{player} has been automatically banned.\nReason: Rule breaking language\nContext: {sent.jump_url}"
-        #         )
-        #         return
+        for word in config.ban_words:
+            # Search for the pattern in the text
+            if re.search(word, message, re.IGNORECASE):
+                for server in config.servers:
+                    await server.send_command(f"cbbanuid {uid}")
+                adminrelay = self.client.get_channel(config.admin_relay)
+                await adminrelay.send(
+                    f"{player} has been automatically banned due to a rule breaking message:\n{message}\nMatches pattern:`{word}`\nUID: `{uid}`\nPlease review"
+                )
+                banlog = self.client.get_channel(config.ban_log)
+                await banlog.send(
+                    f"{player} has been automatically banned.\nReason: Rule breaking language\nContext: {sent.jump_url}"
+                )
+                return
 
-        for word in config.bad_words + config.ban_words:
+        for word in config.bad_words:
             if re.search(word, message, re.IGNORECASE):
                 adminrelay = self.client.get_channel(config.admin_relay)
                 await adminrelay.send(

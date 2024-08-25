@@ -731,7 +731,7 @@ uid INT NOT NULL
                 team = "I"
             else:
                 team = "?"
-            if message == "!hardmode":
+            if message[0] == "!":
                 return
         else:
             team = "M" if team == 3 else "I"
@@ -751,28 +751,31 @@ uid INT NOT NULL
     async def send_relay_kill(
         self, killer, victim, killer_team, victim_team, server_identifier
     ):
-        if killer_team == 2 and victim_team == 2:
-            # team will be switched before titanfall can say someone actually died
-            if server_identifier == "infection":
-                action = "**infected**"
-            else:
-                action = "killed"
+        if server_identifier == "infection" and killer_team == 2 and killer != victim:
             await self.log_kill_db(killer, 1, victim, server_identifier)
-        else:
-            action = "killed"
-            await self.log_kill_db(killer, 0, victim, server_identifier)
+
+        # if killer_team == 2 and victim_team == 2:
+        #     # team will be switched before titanfall can say someone actually died
+        #     if server_identifier == "infection":
+        #         action = "**infected**"
+        #     else:
+        #         action = "killed"
+        # else:
+        # action = "killed"
         if killer == victim:
             await self.log_kill_db(killer, 2, victim, server_identifier)
-            server = await utils.get_server(server_identifier)
-            channel = self.client.get_channel(server.relay)
-            await channel.send(f"{killer} bid farewell, cruel world!")
+            # server = await utils.get_server(server_identifier)
+            # channel = self.client.get_channel(server.relay)
+            # await channel.send(f"{killer} bid farewell, cruel world!")
         else:
-            killer = discord.utils.escape_markdown(killer)
-            victim = discord.utils.escape_markdown(victim)
-            output = f"{killer} {action} {victim}."
-            server = await utils.get_server(server_identifier)
-            channel = self.client.get_channel(server.relay)
-            await channel.send(output)
+            await self.log_kill_db(killer, 0, victim, server_identifier)
+        # else:
+        #     killer = discord.utils.escape_markdown(killer)
+        #     victim = discord.utils.escape_markdown(victim)
+        # output = f"{killer} {action} {victim}."
+        # server = await utils.get_server(server_identifier)
+        # channel = self.client.get_channel(server.relay)
+        # await channel.send(output)
 
     async def log_kill_db(self, killer, action, victim, server_identifier):
         # 0 = s kills i, 1 = i kills s, 2, suicide

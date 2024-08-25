@@ -436,6 +436,8 @@ uid INT NOT NULL
                     kills += results[3] + results[4]
                     deaths += results[5] + results[6]
                     username = results[1]
+                else:
+                    return web.Response(status=404, text="Player not found")
         return web.json_response(
             text=json.dumps({"user": username, "kills": kills, "deaths": deaths})
         )

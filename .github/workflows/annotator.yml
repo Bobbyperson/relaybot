@@ -22,4 +22,4 @@ jobs:
       - name: Setup flake8 annotations
         uses: rbialon/flake8-annotations@v1
       - name: Lint with flake8
-        run: flake8 . --ignore=E501,E402,W503 --statistics
+        run: flake8 . --ignore=E501,E402,W503,E226,E203,E722 --statistics

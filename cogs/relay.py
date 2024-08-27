@@ -522,6 +522,9 @@ uid INT NOT NULL
         if not await utils.check_server_ip(server_identifier, ip):
             print(f"Warning! Invalid ip for {server_identifier}. Provided ip was {ip}.")
             return web.Response(status=401, text="Bad IP")
+        if await utils.is_tournament_server(server_identifier):
+            await self.handle_tournament(data, server_identifier)
+            return
         await self.register_server(server_identifier)
         try:
             custom = data["custom"]
@@ -658,6 +661,16 @@ uid INT NOT NULL
                 case _:
                     print("unknown verb: " + data["verb"])
         return web.Response(status=200, text="OK")
+
+    async def handle_tournament(self, data, server_identifier):
+        if data["verb"] == "killed":
+            killer_uid = data["object"]["uid"]
+        else:
+            return
+
+        for key in self.client.tournament_players.keys():
+            if key == killer_uid:
+                self.client.tournament_players[key]["kills"] += 1
 
     async def add_playing(self, player, server_identifier):
         unix = int(time.time())

@@ -127,6 +127,9 @@ async def get_server(server):
     for s in config.servers:
         if server == s.name:
             return s
+    for s in config.tournament_servers:
+        if server == s.name:
+            return s
     return None
 
 

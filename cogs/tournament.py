@@ -8,6 +8,14 @@ import random
 import asyncio
 
 
+class Player:
+    def __init__(self, uid, discord_id, discord, position):
+        self.uid = uid
+        self.discord_id = discord_id
+        self.discord = discord
+        self.position = position
+
+
 api_key = config.challonge_api
 
 tf2_assault_rifles = {
@@ -62,27 +70,29 @@ class Tournament(commands.Cog):
     def __init__(self, client):
         self.client = client
         self.client.tournament_players = {}
+        self.client.reserved = False
 
     @commands.Cog.listener()
     async def on_ready(self):
         print("Tournament ready")
 
-    # async def get_tournament_id(self):
-    # result = requests.get(
-    #     f"https://Bobbyperson:{api_key}@api.challonge.com/v1/tournaments.json"
-    # )
-    # print(result)
-    # print(result.text)
+    async def get_tournament_id(self):
+        headers = {
+            "User-Agent": "FuckYouCloudflare/1.0",
+        }
+        result = requests.get(
+            f"https://api.challonge.com/v1/tournaments.json?api_key={api_key}",
+            headers=headers,
+        )
 
-    # if result.status_code == 200:
-    #     data = result.json()[0]
-    #     print(data)
-    #     return data
-    # return None
+        if result.status_code == 200:
+            data = result.json()[0]
+            return data
+        return None
 
     async def get_participants(self, tournament_id):
         headers = {
-            "User-Agent": "FuckYouCloudflare/1.0",  # or any other user-agent you like
+            "User-Agent": "FuckYouCloudflare/1.0",
         }
         result = requests.get(
             f"https://api.challonge.com/v1/tournaments/{tournament_id}/participants.json?api_key={api_key}",
@@ -96,7 +106,7 @@ class Tournament(commands.Cog):
 
     async def get_participant(self, tournament_id, participant_id):
         headers = {
-            "User-Agent": "FuckYouCloudflare/1.0",  # or any other user-agent you like
+            "User-Agent": "FuckYouCloudflare/1.0",
         }
         result = requests.get(
             f"https://api.challonge.com/v1/tournaments/{tournament_id}/participants/{participant_id}.json?api_key={api_key}",
@@ -110,7 +120,7 @@ class Tournament(commands.Cog):
 
     async def get_matches(self, tournament_id):
         headers = {
-            "User-Agent": "FuckYouCloudflare/1.0",  # or any other user-agent you like
+            "User-Agent": "FuckYouCloudflare/1.0",
         }
         result = requests.get(
             f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches.json?api_key={api_key}",
@@ -138,7 +148,7 @@ class Tournament(commands.Cog):
 
     async def get_participant_discord_id(self, tournament_id, participant_id):
         headers = {
-            "User-Agent": "FuckYouCloudflare/1.0",  # or any other user-agent you like
+            "User-Agent": "FuckYouCloudflare/1.0",
         }
         result = requests.get(
             f"https://api.challonge.com/v1/tournaments/{tournament_id}/participants/{participant_id}.json?api_key={api_key}",
@@ -160,20 +170,18 @@ class Tournament(commands.Cog):
 
     async def get_participants_in_match(self, tournament_id, match_id):
         headers = {
-            "User-Agent": "FuckYouCloudflare/1.0",  # or any other user-agent you like
+            "User-Agent": "FuckYouCloudflare/1.0",
         }
         result = requests.get(
-            f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches/{match_id}/participants.json?api_key={api_key}",
+            f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches/{match_id}.json?api_key={api_key}",
             headers=headers,
         )
 
         if result.status_code == 200:
             data = result.json()
             return await self.get_participant(
-                tournament_id, data["participant"]["player1_id"]
-            ), await self.get_participant(
-                tournament_id, data["participant"]["player2_id"]
-            )
+                tournament_id, data["match"]["player1_id"]
+            ), await self.get_participant(tournament_id, data["match"]["player2_id"])
         return None
 
     async def ask_map(self, ctx, user, maps):
@@ -190,12 +198,66 @@ class Tournament(commands.Cog):
 
         return msg.content
 
+    async def mark_match_as_underway(self, tournament_id, match_id):
+        headers = {
+            "User-Agent": "FuckYouCloudflare/1.0",
+        }
+        result = requests.post(
+            f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches/{match_id}/mark_as_underway.json?api_key={api_key}",
+            headers=headers,
+        )
+
+        if result.status_code == 200:
+            return True
+        return False
+
+    async def update_match(self, tournament_id, match_id, score):
+        headers = {
+            "User-Agent": "FuckYouCloudflare/1.0",
+        }
+        result = requests.put(
+            f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches/{match_id}.json?api_key={api_key}",
+            headers=headers,
+            data={f"match[scores_csv] = {score}"},
+        )
+
+        if result.status_code == 200:
+            return True
+        return False
+
+    async def set_match_winner(self, tournament_id, match_id, winner_id):
+        headers = {
+            "User-Agent": "FuckYouCloudflare/1.0",
+        }
+        result = requests.put(
+            f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches/{match_id}.json?api_key={api_key}",
+            headers=headers,
+            data={f"match[winner_id] = {winner_id}"},
+        )
+
+        if result.status_code == 200:
+            return True
+        return False
+
     @commands.command()
     @commands.is_owner()
     async def reserve(self, ctx):
+        async def cleanup():
+            self.client.reserved = False
+            self.client.tournament_players = {}
+            async with aiosqlite.connect(config.bank, timeout=10) as db:
+                cursor = await db.cursor()
+                await cursor.execute("DELETE FROM whitelist")
+                await db.commit()
+
         if not await utils.is_linked(ctx.author.id):
             return await ctx.send(
-                "Your titanfall and discord accounts are not linked. Please join any of our servers and run the command `,.link` (besides the 1v1 server). Then run this command again."
+                "Your titanfall and discord accounts are not linked. Please join any of our servers and run the command `,.link (in-game name)` (besides the 1v1 server). Then run this command again."
+            )
+
+        if self.client.reserved:
+            return await ctx.send(
+                "It looks like someone is currently playing their match. Please try again after they have finished."
             )
 
         author_uid = await utils.get_uid_from_connection(ctx.author.id)
@@ -250,26 +312,68 @@ class Tournament(commands.Cog):
                 "Your opponent did not supply their discord id when signing up. Please ping them and ask them to edit their sign-in. Ping Bobby if needed."
             )
 
-        opponent_uid = await utils.get_uid_from_name(opponent_discord_id)
+        opponent_uid = await utils.get_uid_from_connection(opponent_discord_id)
+
+        opponent = await self.client.fetch_user(opponent_discord_id)
 
         if not opponent_uid:
-            opponent = await self.client.fetch_user(opponent_discord_id)
             return await ctx.send(
-                f"Your opponent is not linked! {opponent.mention} please join any of our servers and run the command `.link` (besides the 1v1 server). Then run this command again."
+                f"Your opponent is not linked! {opponent.mention} please join any of our servers and run the command `,.link (in-game name)` (besides the 1v1 server). Then run this command again."
             )
 
-        # TODO: check if server already reserved (maybe see if currently occupied?)
+        self.client.reserved = True
 
         maps = list(valid_maps.keys())
 
         await ctx.send("All checks passed! Now we need to select the first map.")
 
-        map_message = await ctx.send(maps.join(", "))
+        map_message = await ctx.send(", ".join(maps))
 
         if random.randint(0, 1) == 0:
+            first = ctx.author
+            # second = opponent
+            second = ctx.author  # ! TEMP
+        else:
+            # first = opponent
+            first = ctx.author  # ! TEMP
+            second = ctx.author
+
+        await ctx.send(
+            f"{first.mention} please pick two maps you do **NOT** want to play. Please type the name of the map you want to remove exactly as it is shown:"
+        )
+        remove_map1 = await self.ask_map(ctx, first, maps)
+        if remove_map1 in maps:
+            maps.remove(remove_map1)
+            await map_message.edit(content=", ".join(maps))
+        else:
+            await cleanup()
             await ctx.send(
-                f"{ctx.author.mention} please pick one map you do NOT want to play:"
+                "You did not pick a valid map in time! Please run this command again."
             )
+            return
+        remove_map2 = await self.ask_map(ctx, first, maps)
+        if remove_map2 in maps:
+            maps.remove(remove_map2)
+            await map_message.edit(content=", ".join(maps))
+        else:
+            await cleanup()
+            await ctx.send(
+                "You did not pick a valid map in time! Please run this command again."
+            )
+            return
+        await ctx.send(f"{second.mention} please pick the map you **WANT** to play:")
+        chosen_map = await self.ask_map(ctx, second, maps)
+        if chosen_map in maps:
+            maps.remove(chosen_map)
+            await map_message.edit(content=", ".join(maps))
+        else:
+            await cleanup()
+            await ctx.send(
+                "You did not pick a valid map in time! Please run this command again."
+            )
+            return
+        server = await utils.get_server("1v1")
+        await server.send_command(f"map {valid_maps[chosen_map]}")
 
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
@@ -277,11 +381,52 @@ class Tournament(commands.Cog):
             await cursor.execute(f"INSERT INTO whitelist(uid) values({opponent_uid})")
             await cursor.execute(f"INSERT INTO whitelist(uid) values({author_uid})")
             await db.commit()
-        await ctx.send("Done! A server has been reserved.")
+        await ctx.send(
+            "Done! Round 1 starting now! Please join the awesome 1v1 server. Please be aware that you will have to come back to this channel after this match."
+        )
         self.client.tournament_players = {
             author_uid: {"kills": 0, "wins": 0},
             opponent_uid: {"kills": 0, "wins": 0},
         }
+
+        temp = self.client.tournament_players
+
+        while True:
+            await asyncio.sleep(1)
+            if self.client.tournament_players != temp:
+                pass
+
+            if (
+                self.client.tournament_players[author_uid]["wins"] == 1
+                or self.client.tournament_players[opponent_uid]["wins"] == 1
+            ):
+                break
+
+    @commands.command()
+    @commands.is_owner()
+    async def reset(self, ctx):
+        self.client.reserved = False
+        self.client.tournament_players = {}
+        async with aiosqlite.connect(config.bank, timeout=10) as db:
+            cursor = await db.cursor()
+            await cursor.execute("DELETE FROM whitelist")
+            await db.commit()
+        await ctx.send("Done!")
+
+
+# @commands.Cog.listener()
+# async def on_command_error(self, ctx, error):
+#     # check if command is reserve command
+#     if ctx.command.name == "reserve":
+#         await ctx.send(
+#             "It looks like the reserve command errored out! Resetting the server."
+#         )
+#         self.client.reserved = False
+#         self.client.tournament_players = {}
+#         async with aiosqlite.connect(config.bank, timeout=10) as db:
+#             cursor = await db.cursor()
+#             await cursor.execute("DELETE FROM whitelist")
+#             await db.commit()
 
 
 async def setup(client):

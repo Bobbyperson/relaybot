@@ -9,9 +9,10 @@ import asyncio
 
 
 class Player:
-    def __init__(self, uid, discord_id, discord, position):
+    def __init__(self, uid, discord_id, participant_id, discord, position):
         self.uid = uid
         self.discord_id = discord_id
+        self.participant_id = participant_id
         self.discord = discord
         self.position = position
 
@@ -260,13 +261,19 @@ class Tournament(commands.Cog):
                 "It looks like someone is currently playing their match. Please try again after they have finished."
             )
 
-        author_uid = await utils.get_uid_from_connection(ctx.author.id)
+        author = Player(
+            await utils.get_uid_from_connection(ctx.author.id),
+            ctx.author.id,
+            None,
+            ctx.author,
+            None,
+        )
+
+        opponent = Player(None, None, None, None, None)
 
         tournament_id = "jlkdx0i4"
 
         participants = await self.get_participants(tournament_id)
-
-        author_participant_id = None
 
         for participant in participants:
             discord_id = await self.get_participant_discord_id(
@@ -276,10 +283,10 @@ class Tournament(commands.Cog):
                 discord_id == str(ctx.author.id)
                 or discord_id == ctx.author.name.lower()
             ):
-                author_participant_id = participant["participant"]["id"]
+                author.participant_id = participant["participant"]["id"]
                 break
 
-        if not author_participant_id:
+        if not author.participant_id:
             return await ctx.send(
                 "Either you are not in the tournament, or you did not supply your discord id when signing up. Please edit your sign-in or ping Bobby."
             )
@@ -287,36 +294,35 @@ class Tournament(commands.Cog):
         await ctx.send("Found user. Checking for open match...")
 
         next_match = await self.get_participant_next_match(
-            tournament_id, author_participant_id
+            tournament_id, author.participant_id
         )
-
-        opponent_discord_id = None
-        opponent_uid = None
 
         if not next_match:
             return await ctx.send(
                 "No match found! If you believe this is an error please ping bobby."
             )
         await ctx.send("Match found! Checking for opponent...")
-        for participant in await self.get_participants_in_match(
-            tournament_id, next_match
+        for i, participant in enumerate(
+            await self.get_participants_in_match(tournament_id, next_match)
         ):
-            if participant["participant"]["id"] != author_participant_id:
-                opponent_discord_id = await self.get_participant_discord_id(
+            if participant["participant"]["id"] != author.participant_id:
+                opponent.discord_id = await self.get_participant_discord_id(
                     tournament_id, participant["participant"]["id"]
                 )
-                break
+                opponent.position = i
+            else:
+                author.position = i
 
-        if not opponent_discord_id:
+        if not opponent.discord_id:
             return await ctx.send(
                 "Your opponent did not supply their discord id when signing up. Please ping them and ask them to edit their sign-in. Ping Bobby if needed."
             )
 
-        opponent_uid = await utils.get_uid_from_connection(opponent_discord_id)
+        opponent.uid = await utils.get_uid_from_connection(opponent.discord_id)
 
-        opponent = await self.client.fetch_user(opponent_discord_id)
+        opponent.discord = await self.client.fetch_user(opponent.discord_id)
 
-        if not opponent_uid:
+        if not opponent.uid:
             return await ctx.send(
                 f"Your opponent is not linked! {opponent.mention} please join any of our servers and run the command `,.link (in-game name)` (besides the 1v1 server). Then run this command again."
             )
@@ -373,20 +379,24 @@ class Tournament(commands.Cog):
             )
             return
         server = await utils.get_server("1v1")
-        await server.send_command(f"map {valid_maps[chosen_map]}")
+        try:
+            await server.send_command(f"map {valid_maps[chosen_map]}")
+        except:
+            await ctx.send("Couldn't set map. Is the server online? Ping bobby.")
+            return
 
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute("DELETE FROM whitelist")
-            await cursor.execute(f"INSERT INTO whitelist(uid) values({opponent_uid})")
-            await cursor.execute(f"INSERT INTO whitelist(uid) values({author_uid})")
+            await cursor.execute(f"INSERT INTO whitelist(uid) values({opponent.uid})")
+            await cursor.execute(f"INSERT INTO whitelist(uid) values({author.uid})")
             await db.commit()
         await ctx.send(
             "Done! Round 1 starting now! Please join the awesome 1v1 server. Please be aware that you will have to come back to this channel after this match."
         )
         self.client.tournament_players = {
-            author_uid: {"kills": 0, "wins": 0},
-            opponent_uid: {"kills": 0, "wins": 0},
+            author.uid: {"kills": 0, "wins": 0},
+            opponent.uid: {"kills": 0, "wins": 0},
         }
 
         temp = self.client.tournament_players
@@ -394,12 +404,36 @@ class Tournament(commands.Cog):
         while True:
             await asyncio.sleep(1)
             if self.client.tournament_players != temp:
-                pass
+                author_kills = self.client.tournament_players[author.uid]["kills"]
+                opponent_kills = self.client.tournament_players[opponent.uid]["kills"]
 
-            if (
-                self.client.tournament_players[author_uid]["wins"] == 1
-                or self.client.tournament_players[opponent_uid]["wins"] == 1
-            ):
+                if author.position == 0:
+                    await self.update_match(
+                        tournament_id,
+                        next_match,
+                        f"{author_kills}-{opponent_kills},{opponent_kills}-{author_kills}",
+                    )
+                else:
+                    await self.update_match(
+                        tournament_id,
+                        next_match,
+                        f"{opponent_kills}-{author_kills},{author_kills}-{opponent_kills}",
+                    )
+
+                temp = self.client.tournament_players
+
+            if self.client.tournament_players[author.uid]["wins"] == 1:
+                await self.set_match_winner(
+                    tournament_id, next_match, author.participant_id
+                )
+                await ctx.send(f"{author.discord.mention} has won the first round!")
+                break
+
+            if self.client.tournament_players[opponent.uid]["wins"] == 1:
+                await self.set_match_winner(
+                    tournament_id, next_match, opponent.participant_id
+                )
+                await ctx.send(f"{opponent.discord.mention} has won the first round!")
                 break
 
     @commands.command()

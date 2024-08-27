@@ -83,7 +83,7 @@ class Admin(commands.Cog):
                         fetched = await cursor.fetchone()
                         uid = user
                     else:
-                        await ctx.send("You should never see this message. \:)")
+                        await ctx.send("You should never see this message. :)")
                 except aiosqlite.OperationalError:
                     if isinstance(user, str):
                         await closestMatch(user, s.name)
@@ -158,7 +158,12 @@ class Admin(commands.Cog):
                     await ctx.reply(
                         f"`{uid}` has successfully been banned on `{server.name}`"
                     )
-                except:
+                except (
+                    ConnectionRefusedError,
+                    ConnectionResetError,
+                    ConnectionError,
+                    ConnectionAbortedError,
+                ):
                     await ctx.reply(
                         f"Could not ban `{uid}` on `{server.name}`!\nPlease join that server and manually run `bbanuid {uid}`"
                     )
@@ -179,7 +184,12 @@ class Admin(commands.Cog):
                     await ctx.reply(
                         f"`{uid}` has successfully been unbanned on `{server.name}`"
                     )
-                except:
+                except (
+                    ConnectionRefusedError,
+                    ConnectionResetError,
+                    ConnectionError,
+                    ConnectionAbortedError,
+                ):
                     await ctx.reply(
                         f"Could not unban `{uid}` on `{server.name}`!\nPlease join that server and manually run `bunbanuid {uid}`"
                     )

@@ -381,7 +381,12 @@ class Tournament(commands.Cog):
         server = await utils.get_server("1v1")
         try:
             await server.send_command(f"map {valid_maps[chosen_map]}")
-        except:
+        except (
+            ConnectionRefusedError,
+            ConnectionResetError,
+            ConnectionError,
+            ConnectionAbortedError,
+        ):
             await ctx.send("Couldn't set map. Is the server online? Ping bobby.")
             return
 

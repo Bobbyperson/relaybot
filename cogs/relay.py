@@ -496,11 +496,11 @@ uid INT NOT NULL
             player = data["subject"]["name"]
             uid = data["subject"]["uid"]
             team = data["subject"]["teamId"]
-        except:
+        except (KeyError, TypeError):
             pass
         try:
             message = data["object"]["message"]
-        except:
+        except (KeyError, TypeError):
             pass
         server_identifier = data["server_identifier"]
         ip = request.headers.get("X-Forwarded-For")
@@ -528,7 +528,7 @@ uid INT NOT NULL
         await self.register_server(server_identifier)
         try:
             custom = data["custom"]
-        except:
+        except (KeyError, TypeError):
             custom = False
         if custom:
             match custom:

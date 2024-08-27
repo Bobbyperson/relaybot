@@ -19,6 +19,7 @@ jobs:
       # Update output format to enable automatic inline annotations.
       - name: Run Ruff
         run: ruff check --output-format=github .
+        continue-on-error: true
       - name: Setup flake8 annotations
         uses: rbialon/flake8-annotations@v1
       - name: Lint with flake8

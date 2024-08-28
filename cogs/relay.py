@@ -59,11 +59,14 @@ class Relay(commands.Cog):
         self.app.router.add_get("/leaderboard-info", self.get_leaderboard_info)
         self.app.router.add_get("/is-whitelisted", self.is_whitelisted)
         self.app.router.add_get("/stats", self.get_stats)
+        self.app.router.add_get("/tournament-loadout", self.get_tournament_loadout)
         self.app.router.add_route("OPTIONS", "/leaderboard", self.handle_options)
         self.app.router.add_route("OPTIONS", "/leaderboard-info", self.handle_options)
         self.app.router.add_route("OPTIONS", "/get", self.handle_options)
         self.app.router.add_route("OPTIONS", "/post", self.handle_options)
         self.app.router.add_route("OPTIONS", "/is-whitelisted", self.handle_options)
+        self.app.router.add_route("OPTIONS", "/stats", self.handle_options)
+        self.app.router.add_route("OPTIONS", "/tournament-loadout", self.handle_options)
         self.runner = web.AppRunner(self.app)
         self.message_queue = {}
         for s in config.servers:
@@ -71,6 +74,36 @@ class Relay(commands.Cog):
         self.client.ban_list = {}
         for s in config.servers:
             self.client.ban_list[s.name] = []
+        self.client.tournament_loadout = {}
+
+    async def get_tournament_loadout(self, request):
+        return web.Response(
+            text=json.dumps(
+                {
+                    "loadout": {
+                        "weapon3": "",
+                        "special": "mp_ability_heal",
+                        "secondary_mod1": "",
+                        "primary": "mp_weapon_shotgun_pistol",
+                        "secondary": "mp_weapon_doubletake",
+                        "melee": "melee_pilot_emptyhanded",
+                        "primary_attachment": "",
+                        "primary_mod2": "",
+                        "primary_mod3": "",
+                        "passive1": "pas_fast_health_regen",
+                        "weapon3_mod3": "",
+                        "ordnance": "mp_weapon_frag_drone",
+                        "weapon3_mod1": "",
+                        "weapon3_mod2": "",
+                        "primary_mod1": "",
+                        "secondary_mod2": "",
+                        "passive2": "pas_wallhang",
+                        "secondary_mod3": "",
+                    }
+                }
+            )
+        )
+        # return web.Response(text=json.dumps(self.client.tournament_loadout))
 
     async def add_to_message_queue(self, server, message):
         self.message_queue[server] += message + "\n"

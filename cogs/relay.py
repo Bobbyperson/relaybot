@@ -290,14 +290,16 @@ class Relay(commands.Cog):
         uid = request.match_info.get("uid")
 
         # check if uid is whitelisted
-        async with aiosqlite.connect(config.whitelist) as db:
+        async with aiosqlite.connect(config.bank) as db:
             async with db.execute("SELECT uid FROM whitelist") as cursor:
                 fetched = await cursor.fetchall()
                 for row in fetched:
                     if row[0] == uid:
-                        return web.json_response(text={"whitelisted": True}, status=200)
+                        return web.json_response(
+                            text=json.dumps({"whitelisted": True}), status=200
+                        )
 
-        return web.json_response(text={"whitelisted": False}, status=200)
+        return web.json_response(text=json.dumps({"whitelisted": False}), status=200)
 
     async def handle_options(self, request):
         # do nothing, just respond with OK
@@ -697,13 +699,20 @@ uid INT NOT NULL
 
     async def handle_tournament(self, data, server_identifier):
         if data["verb"] == "killed":
-            killer_uid = data["object"]["uid"]
+            killer_uid = data["subject"]["uid"]
+            print(f"killer uid: {killer_uid}")
         else:
+            print("unknown tournament verb: " + data["verb"])
             return
 
-        for key in self.client.tournament_players.keys():
-            if key == killer_uid:
+        print(self.client.tournament_players)
+
+        for key, _ in self.client.tournament_players.items():
+            print(key)
+            if str(key) == str(killer_uid):
+                print("found killer, adding to kill count")
                 self.client.tournament_players[key]["kills"] += 1
+                print(self.client.tournament_players[key]["kills"])
 
     async def add_playing(self, player, server_identifier):
         unix = int(time.time())

@@ -120,6 +120,9 @@ async def check_server_auth(server: str = None, auth: str = None) -> bool:
     for s in config.servers:
         if server == s.name:
             return auth == s.key
+    for s in config.tournament_servers:
+        if server == s.name:
+            return auth == s.key
     return False
 
 
@@ -157,6 +160,9 @@ async def get_valid_server_names() -> list:
 
 async def check_server_ip(server: str = None, ip: str = None) -> bool:
     for s in config.servers:
+        if server == s.name:
+            return ip == s.ip
+    for s in config.tournament_servers:
         if server == s.name:
             return ip == s.ip
     return False

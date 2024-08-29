@@ -279,6 +279,14 @@ class Stats(commands.Cog):
                     "deathsmilitia", "name", name, server.name
                 )
 
+                if (
+                    killsmilitia is None
+                    or killsimc is None
+                    or deathsimc is None
+                    or deathsmilitia is None
+                ):
+                    continue
+
             except aiosqlite.OperationalError:
                 continue
 

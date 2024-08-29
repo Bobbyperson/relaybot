@@ -190,7 +190,7 @@ class Tournament(commands.Cog):
                 check=lambda message: message.author == user
                 and message.channel == ctx.channel
                 and message.content in maps,
-                timeout=30.0,
+                timeout=300.0,
             )
         except asyncio.TimeoutError:
             return None
@@ -299,7 +299,7 @@ class Tournament(commands.Cog):
 
         if not next_match:
             return await ctx.send(
-                "No match found! If you believe this is an error please ping bobby."
+                "No match found! Do you currently have an open match? If you believe this is an error please ping bobby."
             )
         await ctx.send("Match found! Checking for opponent...")
         for i, participant in enumerate(
@@ -510,6 +510,9 @@ class Tournament(commands.Cog):
             "Done! Round 2 starting now! Please join the `awesome 1v1 server`. Please be aware that you will have to come back to this channel after this match."
         )
 
+        self.client.tournament_players[author.uid]["kills"] = 0
+        self.client.tournament_players[opponent.uid]["kills"] = 0
+
         temp = deepcopy(self.client.tournament_players)
 
         while True:
@@ -566,12 +569,16 @@ class Tournament(commands.Cog):
             temp = deepcopy(self.client.tournament_players)
 
         if self.client.tournament_players[author.uid]["wins"] > 1:
-            await self.set_match_winner(tournament_id, next_match, author.uid)
+            await self.set_match_winner(
+                tournament_id, next_match, author.participant_id
+            )
             await ctx.send(f"Match has been won 2-0 by {author.discord.mention}!!!")
             return await cleanup()
 
         if self.client.tournament_players[opponent.uid]["wins"] > 1:
-            await self.set_match_winner(tournament_id, next_match, opponent.uid)
+            await self.set_match_winner(
+                tournament_id, next_match, opponent.participant_id
+            )
             await ctx.send(f"Match has been won 2-0 by {opponent.discord.mention}!!!")
             return await cleanup()
 
@@ -583,23 +590,6 @@ class Tournament(commands.Cog):
         await ctx.send(
             f"{round_winner.discord.mention} wins the round! Now entering a tiebreaker!!!"
         )
-        remove_map4 = await self.ask_map(ctx, round_winner.discord, maps)
-        map_message = await ctx.send(", ".join(maps))
-        await ctx.send(
-            f"{round_winner.discord.mention} please pick **ONE** map you do **NOT** want to play. Please type the name of the map you want to remove exactly as it is shown:"
-        )
-        if remove_map4 in maps:
-            maps.remove(remove_map4)
-            await map_message.edit(content=", ".join(maps))
-        else:
-            await cleanup()
-            await ctx.send(
-                "You did not pick a valid map in 5 minutes! You have now forfeited."
-            )
-            await self.set_match_winner(
-                tournament_id, next_match, round_loser.participant_id
-            )
-            return
         await ctx.send(
             f"{round_loser.discord.mention} please pick the map you **WANT** to play:"
         )
@@ -626,6 +616,12 @@ class Tournament(commands.Cog):
         await ctx.send(
             "Done! Final round starting now! Please join the `awesome 1v1 server`. This is the tiebreaker!"
         )
+
+        self.client.tournament_players[author.uid]["kills"] = 0
+        self.client.tournament_players[opponent.uid]["kills"] = 0
+
+        temp = deepcopy(self.client.tournament_players)
+
         while True:
             await asyncio.sleep(1)
             author_kills = self.client.tournament_players[author.uid]["kills"]
@@ -684,10 +680,14 @@ class Tournament(commands.Cog):
             > self.client.tournament_players[opponent.uid]["wins"]
         ):
             await ctx.send(f"{author.discord.mention} wins the match! Congrats!")
-            await self.set_match_winner(tournament_id, next_match, author.uid)
+            await self.set_match_winner(
+                tournament_id, next_match, author.participant_id
+            )
         else:
             await ctx.send(f"{opponent.discord.mention} wins the match! Congrats!")
-            await self.set_match_winner(tournament_id, next_match, opponent.uid)
+            await self.set_match_winner(
+                tournament_id, next_match, opponent.participant_id
+            )
 
     @commands.command()
     @commands.is_owner()

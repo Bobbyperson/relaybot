@@ -6,6 +6,7 @@ import json
 import aiosqlite
 import random
 import asyncio
+from copy import deepcopy
 
 
 class Player:
@@ -407,7 +408,7 @@ class Tournament(commands.Cog):
 
         await self.mark_match_as_underway(tournament_id, next_match)
 
-        temp = self.client.tournament_players.copy()
+        temp = deepcopy(self.client.tournament_players)
 
         round_winner = None
         round_loser = None
@@ -418,8 +419,6 @@ class Tournament(commands.Cog):
             opponent_kills = self.client.tournament_players[opponent.uid]["kills"]
             author_wins = self.client.tournament_players[author.uid]["wins"]
             opponent_wins = self.client.tournament_players[opponent.uid]["wins"]
-
-            temp = self.client.tournament_players.copy()
 
             if author_kills > 2:
                 self.client.tournament_players[author.uid]["wins"] += 1
@@ -460,6 +459,7 @@ class Tournament(commands.Cog):
                         f"{opponent_wins}-{author_wins},{author_wins}-{opponent_wins}",
                     )
                 break
+            temp = deepcopy(self.client.tournament_players)
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute("DELETE FROM whitelist")
@@ -510,7 +510,7 @@ class Tournament(commands.Cog):
             "Done! Round 2 starting now! Please join the `awesome 1v1 server`. Please be aware that you will have to come back to this channel after this match."
         )
 
-        temp = self.client.tournament_players.copy()
+        temp = deepcopy(self.client.tournament_players)
 
         while True:
             await asyncio.sleep(1)
@@ -518,8 +518,6 @@ class Tournament(commands.Cog):
             opponent_kills = self.client.tournament_players[opponent.uid]["kills"]
             author_wins = self.client.tournament_players[author.uid]["wins"]
             opponent_wins = self.client.tournament_players[opponent.uid]["wins"]
-
-            temp = self.client.tournament_players.copy()
 
             if author_kills > 2:
                 self.client.tournament_players[author.uid]["wins"] += 1
@@ -565,6 +563,7 @@ class Tournament(commands.Cog):
                         f"{opponent_wins}-{author_wins},{author_wins}-{opponent_wins}",
                     )
                 break
+            temp = deepcopy(self.client.tournament_players)
 
         if self.client.tournament_players[author.uid]["wins"] > 1:
             await self.set_match_winner(tournament_id, next_match, author.uid)
@@ -678,7 +677,7 @@ class Tournament(commands.Cog):
                         f"{opponent_wins}-{author_wins},{author_wins}-{opponent_wins}",
                     )
                 break
-            temp = self.client.tournament_players.copy()
+            temp = deepcopy(self.client.tournament_players)
 
         if (
             self.client.tournament_players[author.uid]["wins"]

@@ -16,6 +16,7 @@ class Player:
         self.participant_id = participant_id
         self.discord = discord
         self.position = position
+        self.scores = [0, 0, 0]
 
 
 api_key = config.challonge_api
@@ -227,14 +228,14 @@ class Tournament(commands.Cog):
         print("failed to update match!!!")
         return False
 
-    async def set_match_winner(self, tournament_id, match_id, winner_id):
+    async def set_match_winner(self, tournament_id, match_id, winner_id, scores):
         headers = {
             "User-Agent": "FuckYouCloudflare/1.0",
         }
         result = requests.put(
             f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches/{match_id}.json?api_key={api_key}",
             headers=headers,
-            data={"match[winner_id]": winner_id},
+            data={"match[winner_id]": winner_id, "match[scores_csv]": scores},
         )
 
         if result.status_code == 200:
@@ -333,8 +334,6 @@ class Tournament(commands.Cog):
 
         await ctx.send("All checks passed! Now we need to select the first map.")
 
-        map_message = await ctx.send(", ".join(maps))
-
         if random.randint(0, 1) == 0:
             first = author
             second = opponent
@@ -347,6 +346,7 @@ class Tournament(commands.Cog):
         await ctx.send(
             f"{first.discord.mention} has randomly been chosen to pick first.\n{first.discord.mention} please pick **TWO** maps you do **NOT** want to play. Please type the name of the map you want to remove exactly as it is shown:"
         )
+        map_message = await ctx.send(", ".join(maps))
         remove_map1 = await self.ask_map(ctx, first.discord, maps)
         if remove_map1 in maps:
             maps.remove(remove_map1)
@@ -417,8 +417,9 @@ class Tournament(commands.Cog):
             await asyncio.sleep(1)
             author_kills = self.client.tournament_players[author.uid]["kills"]
             opponent_kills = self.client.tournament_players[opponent.uid]["kills"]
-            author_wins = self.client.tournament_players[author.uid]["wins"]
-            opponent_wins = self.client.tournament_players[opponent.uid]["wins"]
+
+            author.scores[0] = author_kills
+            opponent.scores[0] = opponent_kills
 
             if author_kills > 2:
                 self.client.tournament_players[author.uid]["wins"] += 1
@@ -433,13 +434,13 @@ class Tournament(commands.Cog):
                     await self.update_match(
                         tournament_id,
                         next_match,
-                        f"{author_wins}-{opponent_wins},{opponent_wins}-{author_wins}",
+                        f"{author.scores[0]}-{opponent.scores[0]},{author.scores[1]}-{opponent.scores[1]},{author.scores[2]}-{opponent.scores[2]}",
                     )
                 else:
                     await self.update_match(
                         tournament_id,
                         next_match,
-                        f"{opponent_wins}-{author_wins},{author_wins}-{opponent_wins}",
+                        f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
                     )
                 break
 
@@ -450,13 +451,13 @@ class Tournament(commands.Cog):
                     await self.update_match(
                         tournament_id,
                         next_match,
-                        f"{author_wins}-{opponent_wins},{opponent_wins}-{author_wins}",
+                        f"{author.scores[0]}-{opponent.scores[0]},{author.scores[1]}-{opponent.scores[1]},{author.scores[2]}-{opponent.scores[2]}",
                     )
                 else:
                     await self.update_match(
                         tournament_id,
                         next_match,
-                        f"{opponent_wins}-{author_wins},{author_wins}-{opponent_wins}",
+                        f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
                     )
                 break
             temp = deepcopy(self.client.tournament_players)
@@ -469,8 +470,8 @@ class Tournament(commands.Cog):
         await ctx.send(
             f"{round_winner.discord.mention} please pick **ONE** map you do **NOT** want to play. Please type the name of the map you want to remove exactly as it is shown:"
         )
-        map_message = await ctx.send(", ".join(maps))
         remove_map3 = await self.ask_map(ctx, round_winner.discord, maps)
+        map_message = await ctx.send(", ".join(maps))
         if remove_map3 in maps:
             maps.remove(remove_map3)
             await map_message.edit(content=", ".join(maps))
@@ -479,9 +480,20 @@ class Tournament(commands.Cog):
             await ctx.send(
                 "You did not pick a valid map in 5 minutes! You have now forfeited."
             )
-            await self.set_match_winner(
-                tournament_id, next_match, round_loser.participant_id
-            )
+            if author.position == 0:
+                await self.set_match_winner(
+                    tournament_id,
+                    next_match,
+                    round_loser.participant_id,
+                    f"{author.scores[0]}-{opponent.scores[0]},{author.scores[1]}-{opponent.scores[1]},{author.scores[2]}-{opponent.scores[2]}",
+                )
+            else:
+                await self.set_match_winner(
+                    tournament_id,
+                    next_match,
+                    round_loser.participant_id,
+                    f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
+                )
             return
         await ctx.send(
             f"{round_loser.discord.mention} please pick the map you **WANT** to play:"
@@ -495,9 +507,20 @@ class Tournament(commands.Cog):
             await ctx.send(
                 "You did not pick a valid map in 5 minutes! You have now forfeited."
             )
-            await self.set_match_winner(
-                tournament_id, next_match, round_winner.participant_id
-            )
+            if author.position == 0:
+                await self.set_match_winner(
+                    tournament_id,
+                    next_match,
+                    round_winner.participant_id,
+                    f"{author.scores[0]}-{opponent.scores[0]},{author.scores[1]}-{opponent.scores[1]},{author.scores[2]}-{opponent.scores[2]}",
+                )
+            else:
+                await self.set_match_winner(
+                    tournament_id,
+                    next_match,
+                    round_winner.participant_id,
+                    f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
+                )
             return
         await server.send_command(f"map {valid_maps[chosen_map2]}")
         async with aiosqlite.connect(config.bank, timeout=10) as db:
@@ -519,8 +542,9 @@ class Tournament(commands.Cog):
             await asyncio.sleep(1)
             author_kills = self.client.tournament_players[author.uid]["kills"]
             opponent_kills = self.client.tournament_players[opponent.uid]["kills"]
-            author_wins = self.client.tournament_players[author.uid]["wins"]
-            opponent_wins = self.client.tournament_players[opponent.uid]["wins"]
+
+            author.scores[1] = author_kills
+            opponent.scores[1] = opponent_kills
 
             if author_kills > 2:
                 self.client.tournament_players[author.uid]["wins"] += 1
@@ -537,13 +561,13 @@ class Tournament(commands.Cog):
                     await self.update_match(
                         tournament_id,
                         next_match,
-                        f"{author_wins}-{opponent_wins},{opponent_wins}-{author_wins}",
+                        f"{author.scores[0]}-{opponent.scores[0]},{author.scores[1]}-{opponent.scores[1]},{author.scores[2]}-{opponent.scores[2]}",
                     )
                 else:
                     await self.update_match(
                         tournament_id,
                         next_match,
-                        f"{opponent_wins}-{author_wins},{author_wins}-{opponent_wins}",
+                        f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
                     )
                 break
 
@@ -557,28 +581,50 @@ class Tournament(commands.Cog):
                     await self.update_match(
                         tournament_id,
                         next_match,
-                        f"{author_wins}-{opponent_wins},{opponent_wins}-{author_wins}",
+                        f"{author.scores[0]}-{opponent.scores[0]},{author.scores[1]}-{opponent.scores[1]},{author.scores[2]}-{opponent.scores[2]}",
                     )
                 else:
                     await self.update_match(
                         tournament_id,
                         next_match,
-                        f"{opponent_wins}-{author_wins},{author_wins}-{opponent_wins}",
+                        f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
                     )
                 break
             temp = deepcopy(self.client.tournament_players)
 
         if self.client.tournament_players[author.uid]["wins"] > 1:
-            await self.set_match_winner(
-                tournament_id, next_match, author.participant_id
-            )
+            if author.position == 0:
+                await self.set_match_winner(
+                    tournament_id,
+                    next_match,
+                    author.participant_id,
+                    f"{author.scores[0]}-{opponent.scores[0]},{author.scores[1]}-{opponent.scores[1]},{author.scores[2]}-{opponent.scores[2]}",
+                )
+            else:
+                await self.set_match_winner(
+                    tournament_id,
+                    next_match,
+                    author.participant_id,
+                    f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
+                )
             await ctx.send(f"Match has been won 2-0 by {author.discord.mention}!!!")
             return await cleanup()
 
         if self.client.tournament_players[opponent.uid]["wins"] > 1:
-            await self.set_match_winner(
-                tournament_id, next_match, opponent.participant_id
-            )
+            if opponent.position == 0:
+                await self.set_match_winner(
+                    tournament_id,
+                    next_match,
+                    opponent.participant_id,
+                    f"{author.scores[0]}-{opponent.scores[0]},{author.scores[1]}-{opponent.scores[1]},{author.scores[2]}-{opponent.scores[2]}",
+                )
+            else:
+                await self.set_match_winner(
+                    tournament_id,
+                    next_match,
+                    opponent.participant_id,
+                    f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
+                )
             await ctx.send(f"Match has been won 2-0 by {opponent.discord.mention}!!!")
             return await cleanup()
 
@@ -593,6 +639,7 @@ class Tournament(commands.Cog):
         await ctx.send(
             f"{round_loser.discord.mention} please pick the map you **WANT** to play:"
         )
+        map_message = await ctx.send(", ".join(maps))
         chosen_map3 = await self.ask_map(ctx, round_loser.discord, maps)
         if chosen_map3 in maps:
             maps.remove(chosen_map3)
@@ -602,9 +649,20 @@ class Tournament(commands.Cog):
             await ctx.send(
                 "You did not pick a valid map in 5 minutes! You have now forfeited."
             )
-            await self.set_match_winner(
-                tournament_id, next_match, round_winner.participant_id
-            )
+            if author.position == 0:
+                await self.set_match_winner(
+                    tournament_id,
+                    next_match,
+                    round_winner.participant_id,
+                    f"{author.scores[0]}-{opponent.scores[0]},{author.scores[1]}-{opponent.scores[1]},{author.scores[2]}-{opponent.scores[2]}",
+                )
+            else:
+                await self.set_match_winner(
+                    tournament_id,
+                    next_match,
+                    round_winner.participant_id,
+                    f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
+                )
             return
         await server.send_command(f"map {valid_maps[chosen_map3]}")
         async with aiosqlite.connect(config.bank, timeout=10) as db:
@@ -626,8 +684,9 @@ class Tournament(commands.Cog):
             await asyncio.sleep(1)
             author_kills = self.client.tournament_players[author.uid]["kills"]
             opponent_kills = self.client.tournament_players[opponent.uid]["kills"]
-            author_wins = self.client.tournament_players[author.uid]["wins"]
-            opponent_wins = self.client.tournament_players[opponent.uid]["wins"]
+
+            author.scores[2] = author_kills
+            opponent.scores[2] = opponent_kills
 
             if author_kills > 2:
                 self.client.tournament_players[author.uid]["wins"] += 1
@@ -644,13 +703,13 @@ class Tournament(commands.Cog):
                     await self.update_match(
                         tournament_id,
                         next_match,
-                        f"{author_wins}-{opponent_wins},{opponent_wins}-{author_wins}",
+                        f"{author.scores[0]}-{opponent.scores[0]},{author.scores[1]}-{opponent.scores[1]},{author.scores[2]}-{opponent.scores[2]}",
                     )
                 else:
                     await self.update_match(
                         tournament_id,
                         next_match,
-                        f"{opponent_wins}-{author_wins},{author_wins}-{opponent_wins}",
+                        f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
                     )
                 break
 
@@ -664,13 +723,13 @@ class Tournament(commands.Cog):
                     await self.update_match(
                         tournament_id,
                         next_match,
-                        f"{author_wins}-{opponent_wins},{opponent_wins}-{author_wins}",
+                        f"{author.scores[0]}-{opponent.scores[0]},{author.scores[1]}-{opponent.scores[1]},{author.scores[2]}-{opponent.scores[2]}",
                     )
                 else:
                     await self.update_match(
                         tournament_id,
                         next_match,
-                        f"{opponent_wins}-{author_wins},{author_wins}-{opponent_wins}",
+                        f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
                     )
                 break
             temp = deepcopy(self.client.tournament_players)
@@ -680,14 +739,37 @@ class Tournament(commands.Cog):
             > self.client.tournament_players[opponent.uid]["wins"]
         ):
             await ctx.send(f"{author.discord.mention} wins the match! Congrats!")
-            await self.set_match_winner(
-                tournament_id, next_match, author.participant_id
-            )
+            if author.position == 0:
+                await self.set_match_winner(
+                    tournament_id,
+                    next_match,
+                    author.participant_id,
+                    f"{author.scores[0]}-{opponent.scores[0]},{author.scores[1]}-{opponent.scores[1]},{author.scores[2]}-{opponent.scores[2]}",
+                )
+            else:
+                await self.set_match_winner(
+                    tournament_id,
+                    next_match,
+                    author.participant_id,
+                    f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
+                )
         else:
             await ctx.send(f"{opponent.discord.mention} wins the match! Congrats!")
-            await self.set_match_winner(
-                tournament_id, next_match, opponent.participant_id
-            )
+            if author.position == 0:
+                await self.set_match_winner(
+                    tournament_id,
+                    next_match,
+                    opponent.participant_id,
+                    f"{author.scores[0]}-{opponent.scores[0]},{author.scores[1]}-{opponent.scores[1]},{author.scores[2]}-{opponent.scores[2]}",
+                )
+            else:
+                await self.set_match_winner(
+                    tournament_id,
+                    next_match,
+                    opponent.participant_id,
+                    f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
+                )
+        await cleanup()
 
     @commands.command()
     @commands.is_owner()

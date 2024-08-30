@@ -287,14 +287,14 @@ class Relay(commands.Cog):
 
     async def is_whitelisted(self, request):
         # get uid from request
-        uid = request.match_info.get("uid")
+        uid = request.query.get("uid")
 
         # check if uid is whitelisted
         async with aiosqlite.connect(config.bank) as db:
             async with db.execute("SELECT uid FROM whitelist") as cursor:
                 fetched = await cursor.fetchall()
                 for row in fetched:
-                    if row[0] == uid:
+                    if str(row[0]) == str(uid):
                         return web.json_response(
                             text=json.dumps({"whitelisted": True}), status=200
                         )
@@ -705,10 +705,7 @@ uid INT NOT NULL
             print("unknown tournament verb: " + data["verb"])
             return
 
-        print(self.client.tournament_players)
-
         for key, _ in self.client.tournament_players.items():
-            print(key)
             if str(key) == str(killer_uid):
                 print("found killer, adding to kill count")
                 self.client.tournament_players[key]["kills"] += 1

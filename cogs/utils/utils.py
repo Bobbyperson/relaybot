@@ -24,37 +24,6 @@ async def human_time_duration(seconds: int) -> str:
     return f"{(seconds / 60 / 60):.1f} hours"
 
 
-# async def ban(name, uid, reason, server_ip) -> None:
-#     await rcon(
-#         'ban', f'{uid}',
-#         host='server_ip', port=7123, passwd='holyfuckloisimcummingahh'
-#     )
-# await asyncio.sleep(3)
-# with open(
-#     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\reasons.txt",
-#     "a+",
-# ) as f:
-#     f.write(f"{uid} // {name} reason: {reason}\n")
-# with open(
-#     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\banlist.txt",
-#     "r",
-# ) as f:
-#     if str(uid) in f.readlines():
-#         return
-# with open(
-#     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Titanfall2\\R2Northstar\\banlist.txt",
-#     "a+",
-# ) as f:
-#     f.write(f"{uid}\n")
-
-
-# async def unban(uid, reason, server_ip) -> None:
-#     await rcon(
-#         'unban', f'{uid}',
-#         host=server_ip, port=7123, passwd='holyfuckloisimcummingahh'
-#     )
-
-
 def is_admin() -> bool:
     return commands.check(lambda ctx: ctx.author.id in config.admins)
 

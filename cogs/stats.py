@@ -112,39 +112,6 @@ class Stats(commands.Cog):
                 )
             await ctx.send(embed=em)
 
-    # shit
-    # @commands.hybrid_command()
-    # async def firstinfectedboard(self, ctx):
-    #     """See the leaderboard based on the ratio of first infected to games played."""
-    #     amount = 10
-    #     async with aiosqlite.connect(config.bank, timeout=10) as db:
-    #         cursor = await db.cursor()
-
-    #         # Filter out users with one or two games played and order results by the division of firstinfected by gamesplayed and by gamesplayed desc, handle division by zero.
-    #         await cursor.execute("""
-    #         SELECT *, CASE WHEN gamesplayed = 0 THEN 0 ELSE firstinfected * 1.0 / gamesplayed END AS ratio
-    #         FROM main
-    #         WHERE gamesplayed > 9
-    #         ORDER BY ratio DESC, gamesplayed DESC
-    #         """)
-    #         users = await cursor.fetchall()
-
-    #         em = discord.Embed(title=f"Top {amount} First Infected Chances", color=ctx.author.color)
-    #         index = 0
-    #         for user in users:
-    #             if index == amount:
-    #                 break
-    #             index += 1
-    #             username = user[1]
-    #             ratio = user[-1]  # Assuming the ratio is the last column after our addition.
-    #             em.add_field(
-    #                 name=f"{index}. {username}",
-    #                 value=f"{(ratio * 100):.2f}% {user[13]}/{user[14]}",  # Display ratio up to two decimal places.
-    #                 inline=False,
-    #             )
-
-    #         await ctx.send(embed=em)
-
     @commands.hybrid_command()
     async def info(self, ctx):
         """See general server info."""
@@ -718,60 +685,6 @@ class Stats(commands.Cog):
         if message == f"{name}:\n":
             message = "User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive."
         await ctx.reply(message)
-
-    # sucks
-    # @commands.hybrid_command(aliases=["unlucky", "unluckiest", "fic"])
-    # async def firstinfectedchance(self, ctx, name: str = None):
-    #     """See someone's propensity for being first infected."""
-    #     name = await utils.get_name_from_connection(ctx.author.id) if name is None else name
-    #     if name is None:
-    #         await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
-    #         return
-
-    #     async with aiosqlite.connect(config.bank, timeout=10) as db:
-    #         cursor = await db.cursor()
-
-    #         # Use a parameterized query for the SELECT statements
-    #         await cursor.execute('SELECT "firstinfected" FROM main WHERE name=?', (name,))
-    #         firstinfected = await cursor.fetchone()
-    #         firstinfected = firstinfected[0] if firstinfected is not None else None
-    #         await cursor.execute('SELECT "gamesplayed" FROM main WHERE name=?', (name,))
-    #         gamesplayed = await cursor.fetchone()
-    #         gamesplayed = gamesplayed[0] if gamesplayed is not None else None
-    #         if firstinfected is None or gamesplayed is None:
-    #             await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
-    #             return
-    #         gamesplayed = gamesplayed if gamesplayed != 0 else 1 # handle 0 games played
-    #         await ctx.reply(f"{name}: `{((firstinfected/gamesplayed)*100):.2f}% ({firstinfected}/{gamesplayed})`")
-
-    # needs heavy work & a glow-up tbh... get inspo from nocaro
-    #     @commands.hybrid_command(hidden=True)
-    #     async def profile(self, ctx, name: str = None):
-    #         """See someone's profile."""
-    #         name = await utils.get_name_from_connection(ctx.author.id) if name is None else name
-    #         if name is None:
-    #             await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
-    #             return
-
-    #         async with aiosqlite.connect(config.bank, timeout=10) as db:
-    #             cursor = await db.cursor()
-
-    #             # Use a parameterized query for the SELECT statements
-    #             await cursor.execute('SELECT * FROM main WHERE name=?', (name,))
-    #             profile = await cursor.fetchone()
-    #             if profile is None:
-    #                 await ctx.send("User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.")
-    #                 return
-    #             await ctx.reply(f"""
-    # {profile[1]}:
-    # Survivor kills: {profile[4]}
-    # Survivor deaths: {profile[6]}
-    # Infected kills: {profile[3]}
-    # Infected deaths: {profile[5]}
-    # Highest Killstreak: {profile[10]}
-    # Times first infected: {profile[13]}
-    # Games played: {profile[14]}
-    # Playtime: {await utils.human_time_duration(profile[9])}""")
 
     @commands.hybrid_command()
     async def amiwhitelisted(self, ctx, name: str = None):

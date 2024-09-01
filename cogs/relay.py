@@ -75,6 +75,7 @@ class Relay(commands.Cog):
         for s in config.servers:
             self.client.ban_list[s.name] = []
         self.client.tournament_loadout = {}
+        self.client.tournament_should_track_kills = True
 
     async def get_tournament_loadout(self, request):
         return web.Response(
@@ -705,11 +706,15 @@ uid INT NOT NULL
             print("unknown tournament verb: " + data["verb"])
             return
 
-        for key, _ in self.client.tournament_players.items():
-            if str(key) == str(killer_uid):
-                print("found killer, adding to kill count")
-                self.client.tournament_players[key]["kills"] += 1
-                print(self.client.tournament_players[key]["kills"])
+        if self.client.tournament_should_track_kills:
+            for key, _ in self.client.tournament_players.items():
+                if str(key) == str(killer_uid):
+                    print("found killer, adding to kill count")
+                    self.client.tournament_players[key]["kills"] += 1
+                    print(self.client.tournament_players[key]["kills"])
+                    self.client.tournament_should_track_kills = False
+                    await asyncio.sleep(10)
+                    self.client.tournament_should_track_kills = True
 
     async def add_playing(self, player, server_identifier):
         unix = int(time.time())

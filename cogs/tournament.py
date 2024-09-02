@@ -313,6 +313,7 @@ class Tournament(commands.Cog):
                 opponent.position = i
             else:
                 author.position = i
+            opponent.participant_id = participant["participant"]["id"]
 
         if not opponent.discord_id:
             return await ctx.send(

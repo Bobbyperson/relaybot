@@ -2,6 +2,6 @@ discord
 aiosqlite
 asyncpg
 requests
-json
 aiohttp
-dateutil
+requests
+python-dateutil

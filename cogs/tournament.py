@@ -414,6 +414,7 @@ class Tournament(commands.Cog):
         round_winner = None
         round_loser = None
 
+        i = 0
         while True:
             await asyncio.sleep(1)
             author_kills = self.client.tournament_players[author.uid]["kills"]
@@ -462,6 +463,13 @@ class Tournament(commands.Cog):
                     )
                 break
             temp = deepcopy(self.client.tournament_players)
+            i += 1
+            if i > 60 * 30:
+                await cleanup()
+                await ctx.send(
+                    "This is taking too long! Run this command again or ping bobby if your opponent dipped."
+                )
+                return
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute("DELETE FROM whitelist")
@@ -539,6 +547,7 @@ class Tournament(commands.Cog):
 
         temp = deepcopy(self.client.tournament_players)
 
+        i = 0
         while True:
             await asyncio.sleep(1)
             author_kills = self.client.tournament_players[author.uid]["kills"]
@@ -592,6 +601,13 @@ class Tournament(commands.Cog):
                     )
                 break
             temp = deepcopy(self.client.tournament_players)
+            i += 1
+            if i > 60 * 30:
+                await cleanup()
+                await ctx.send(
+                    "This is taking too long! Run this command again or ping bobby if your opponent dipped."
+                )
+                return
 
         if self.client.tournament_players[author.uid]["wins"] > 1:
             if author.position == 0:
@@ -681,6 +697,7 @@ class Tournament(commands.Cog):
 
         temp = deepcopy(self.client.tournament_players)
 
+        i = 0
         while True:
             await asyncio.sleep(1)
             author_kills = self.client.tournament_players[author.uid]["kills"]
@@ -734,6 +751,13 @@ class Tournament(commands.Cog):
                     )
                 break
             temp = deepcopy(self.client.tournament_players)
+            i += 1
+            if i > 60 * 30:
+                await cleanup()
+                await ctx.send(
+                    "This is taking too long! Run this command again or ping bobby if your opponent dipped."
+                )
+                return
 
         if (
             self.client.tournament_players[author.uid]["wins"]

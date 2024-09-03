@@ -78,32 +78,8 @@ class Relay(commands.Cog):
         self.client.tournament_should_track_kills = True
 
     async def get_tournament_loadout(self, request):
-        return web.Response(
-            text=json.dumps(
-                {
-                    "loadout": {
-                        "weapon3": "",
-                        "special": "mp_ability_heal",
-                        "secondary_mod1": "",
-                        "primary": "mp_weapon_shotgun_pistol",
-                        "secondary": "mp_weapon_doubletake",
-                        "melee": "melee_pilot_emptyhanded",
-                        "primary_attachment": "",
-                        "primary_mod2": "",
-                        "primary_mod3": "",
-                        "passive1": "pas_fast_health_regen",
-                        "weapon3_mod3": "",
-                        "ordnance": "mp_weapon_frag_drone",
-                        "weapon3_mod1": "",
-                        "weapon3_mod2": "",
-                        "primary_mod1": "",
-                        "secondary_mod2": "",
-                        "passive2": "pas_wallhang",
-                        "secondary_mod3": "",
-                    }
-                }
-            )
-        )
+        with open("tourney/round1.json", "r") as f:
+            return web.Response(text=f.read())
         # return web.Response(text=json.dumps(self.client.tournament_loadout))
 
     async def add_to_message_queue(self, server, message):

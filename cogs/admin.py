@@ -180,7 +180,7 @@ class Admin(commands.Cog):
         async with ctx.typing():
             for server in config.servers:
                 try:
-                    await server.send_command(f"cbunbanuid {uid}")
+                    await server.send_command(f"cbunban {uid}")
                     await ctx.reply(
                         f"`{uid}` has successfully been unbanned on `{server.name}`"
                     )
@@ -191,7 +191,7 @@ class Admin(commands.Cog):
                     ConnectionAbortedError,
                 ):
                     await ctx.reply(
-                        f"Could not unban `{uid}` on `{server.name}`!\nPlease join that server and manually run `bunbanuid {uid}`"
+                        f"Could not unban `{uid}` on `{server.name}`!\nPlease join that server and manually run `bunban {uid}`"
                     )
 
     @commands.command(aliases=["rcon"])
@@ -200,6 +200,8 @@ class Admin(commands.Cog):
         if not server or not await utils.get_server(server):
             return await ctx.reply("Please specify a server!")
         s = await utils.get_server(server)
+        if not args:
+            return await ctx.reply("Please specify a command!")
         await s.send_command(" ".join(args))
         await ctx.reply("ok done")
         channel = await self.client.fetch_channel(config.bigbrother)

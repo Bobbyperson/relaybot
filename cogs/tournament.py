@@ -58,13 +58,13 @@ tf2_grenadiers = {
 }
 
 valid_maps = {
-    "Coliseum": "mp_coliseum",
-    "Pillars": "mp_coliseum_column",
-    "Deck": "mp_lf_deck",
-    "Traffic": "mp_lf_traffic",
-    "Stacks": "mp_lf_stacks",
-    "Township": "mp_lf_township",
-    "UMA": "mp_lf_uma",
+    "coliseum": "mp_coliseum",
+    "pillars": "mp_coliseum_column",
+    "deck": "mp_lf_deck",
+    "traffic": "mp_lf_traffic",
+    "stacks": "mp_lf_stacks",
+    "township": "mp_lf_township",
+    "uma": "mp_lf_uma",
 }
 
 
@@ -185,18 +185,27 @@ class Tournament(commands.Cog):
         return None
 
     async def ask_map(self, ctx, user, maps):
+        def check(m):
+            if m.content:
+                return (
+                    m.author == user
+                    and m.channel == ctx.channel
+                    and m.content.lower() in maps
+                )
+            return False
+
         try:
             msg = await self.client.wait_for(
                 "message",
-                check=lambda message: message.author == user
-                and message.channel == ctx.channel
-                and message.content in maps,
+                check=check,
                 timeout=300.0,
             )
         except asyncio.TimeoutError:
             return None
 
-        return msg.content
+        if msg.content:
+            return msg.content.lower()
+        return None
 
     async def mark_match_as_underway(self, tournament_id, match_id):
         headers = {

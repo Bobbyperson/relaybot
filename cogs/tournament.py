@@ -65,6 +65,7 @@ valid_maps = {
     "stacks": "mp_lf_stacks",
     "township": "mp_lf_township",
     "uma": "mp_lf_uma",
+    "meadow": "mp_lf_meadow",
 }
 
 

@@ -664,6 +664,34 @@ class Tournament(commands.Cog):
             f"{round_winner.discord.mention} wins the round! Now entering a tiebreaker!!!"
         )
         await ctx.send(
+            f"{round_winner.discord.mention} please pick **ONE** map you do **NOT** want to play. Please type the name of the map you want to remove exactly as it is shown:"
+        )
+        map_message = await ctx.send(", ".join(maps))
+        remove_map4 = await self.ask_map(ctx, round_winner.discord, maps)
+        if remove_map4 in maps:
+            maps.remove(remove_map4)
+            await map_message.edit(content=", ".join(maps))
+        else:
+            await cleanup()
+            await ctx.send(
+                "You did not pick a valid map in 5 minutes! You have now forfeited."
+            )
+            if author.position == 0:
+                await self.set_match_winner(
+                    tournament_id,
+                    next_match,
+                    round_loser.participant_id,
+                    f"{author.scores[0]}-{opponent.scores[0]},{author.scores[1]}-{opponent.scores[1]},{author.scores[2]}-{opponent.scores[2]}",
+                )
+            else:
+                await self.set_match_winner(
+                    tournament_id,
+                    next_match,
+                    round_loser.participant_id,
+                    f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
+                )
+            return
+        await ctx.send(
             f"{round_loser.discord.mention} please pick the map you **WANT** to play:"
         )
         map_message = await ctx.send(", ".join(maps))

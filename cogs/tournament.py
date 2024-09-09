@@ -488,8 +488,8 @@ class Tournament(commands.Cog):
         await ctx.send(
             f"{round_winner.discord.mention} please pick **ONE** map you do **NOT** want to play. Please type the name of the map you want to remove exactly as it is shown:"
         )
-        remove_map3 = await self.ask_map(ctx, round_winner.discord, maps)
         map_message = await ctx.send(", ".join(maps))
+        remove_map3 = await self.ask_map(ctx, round_winner.discord, maps)
         if remove_map3 in maps:
             maps.remove(remove_map3)
             await map_message.edit(content=", ".join(maps))

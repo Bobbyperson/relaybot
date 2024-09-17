@@ -2,7 +2,7 @@ from server import Server
 
 TOKEN = ""
 
-ban_words = ["fa+got", "nig+er"]  # automatic ban words
+ban_words = ["fag+ot", "nig+er"]  # automatic ban words
 bad_words = [
     "nigg",
     "fag",

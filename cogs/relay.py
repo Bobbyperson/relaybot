@@ -988,7 +988,7 @@ uid INT NOT NULL
                     await server.send_command(f"cbbanuid {uid}")
                 adminrelay = self.client.get_channel(config.admin_relay)
                 await adminrelay.send(
-                    f"{player} has been automatically banned due to a rule breaking message:\n{message}\nMatches pattern:`{word}`\nUID: `{uid}`\nPlease review"
+                    f"`{player}` has been automatically banned due to a rule breaking message:\n`{message}`\nMatches pattern:`{word}`\nUID: `{uid}`\nPlease review: {sent.jump_url}"
                 )
                 banlog = self.client.get_channel(config.ban_log)
                 await banlog.send(

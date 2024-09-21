@@ -282,7 +282,7 @@ class Tournament(commands.Cog):
 
         opponent = Player(None, None, None, None, None)
 
-        tournament_id = "jlkdx0i4"
+        tournament_id = "atra7egj"
 
         participants = await self.get_participants(tournament_id)
 

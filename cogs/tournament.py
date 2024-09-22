@@ -330,6 +330,13 @@ class Tournament(commands.Cog):
                 "Your opponent did not supply their discord id when signing up. Please ping them and ask them to edit their sign-in. Ping Bobby if needed."
             )
 
+        try:
+            opponent.discord_id = int(opponent.discord_id)
+        except ValueError:
+            return await ctx.send(
+                "Your opponent did not supply a valid discord id. Please ping them and ask them to edit their sign-in. Ping Bobby if needed."
+            )
+
         opponent.uid = await utils.get_uid_from_connection(opponent.discord_id)
 
         opponent.discord = await self.client.fetch_user(opponent.discord_id)

@@ -650,14 +650,14 @@ class Tournament(commands.Cog):
                     tournament_id,
                     next_match,
                     opponent.participant_id,
-                    f"{author.scores[0]}-{opponent.scores[0]},{author.scores[1]}-{opponent.scores[1]},{author.scores[2]}-{opponent.scores[2]}",
+                    f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
                 )
             else:
                 await self.set_match_winner(
                     tournament_id,
                     next_match,
                     opponent.participant_id,
-                    f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
+                    f"{author.scores[0]}-{opponent.scores[0]},{author.scores[1]}-{opponent.scores[1]},{author.scores[2]}-{opponent.scores[2]}",
                 )
             await ctx.send(f"Match has been won 2-0 by {opponent.discord.mention}!!!")
             return await cleanup()

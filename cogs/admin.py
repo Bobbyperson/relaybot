@@ -46,7 +46,7 @@ class Admin(commands.Cog):
     async def lookup(self, ctx, user):
         """Lookup a user in the database."""
 
-        async def closestMatch(name, server):
+        async def closest_match(name, server):
             await cursor.execute(f"SELECT name FROM {server}")
             users = await cursor.fetchall()
             good_list = []
@@ -86,12 +86,12 @@ class Admin(commands.Cog):
                         await ctx.send("You should never see this message. :)")
                 except aiosqlite.OperationalError:
                     if isinstance(user, str):
-                        await closestMatch(user, s.name)
+                        await closest_match(user, s.name)
                     elif isinstance(user, int):
                         await ctx.send("Could not find UID in database!")
                     continue
                 if fetched is None and isinstance(user, str):
-                    await closestMatch(user, s.name)
+                    await closest_match(user, s.name)
                     continue
                 elif fetched is None and isinstance(user, int):
                     await ctx.send("Could not find UID in database!")
@@ -139,6 +139,8 @@ class Admin(commands.Cog):
                 timestamp = timestamp[0]
                 first_join = first_join[0]
                 playtime = playtime[0]
+                s.send_command("reportbans")
+                await asyncio.sleep(1)
                 banned = True if str(uid) in self.client.ban_list[s.name] else False
                 await ctx.send(
                     f"`{s.name}:\n{user}`:\nUID: `{uid}`\nFirst seen: `{first_join}`\nLast seen: `{timestamp}`\nPlaytime: `{await utils.human_time_duration(playtime)}`\nBanned: `{banned}`"

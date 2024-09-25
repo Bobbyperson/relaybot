@@ -293,6 +293,10 @@ class Relay(commands.Cog):
     async def on_message(self, message):
         if message.author.bot:
             return
+        if not message.content:
+            return
+        if not message.guild:
+            return
         for role in message.role_mentions:
             if role.id == 1000617424934154260:
                 await role.edit(mentionable=False)
@@ -304,17 +308,21 @@ class Relay(commands.Cog):
                 await self.discord_log("looking to play is now mentionable")
         for s in config.servers:
             if message.channel.id == s.relay:
-                cleaned_message = (
-                    message.content.strip("'")
-                    .strip('"')
-                    .strip("`;&|")
-                    .replace("\n", " ")
-                )
+                remove_chars = "`;&|'\""
+                translation_table = str.maketrans("", "", remove_chars)
+                cleaned_message = message.content.translate(translation_table)
+                cleaned_message.replace("\n", " ").strip()
+                cleaned_message = re.sub(
+                    r"\s+", " ", cleaned_message
+                )  # replace multiple spaces with a single space
+                cleaned_message.replace("\n", " ").strip()  # for good measure
 
                 await s.send_command(
                     f"serversay {message.author.name} {cleaned_message}"
                 )
-                await self.discord_log(f"from {message.author.name}: `serversay {message.author.name} {cleaned_message}`")
+                await self.discord_log(
+                    f"from {message.author.name}: `serversay {message.author.name} {cleaned_message}`"
+                )
 
     @commands.Cog.listener()
     async def on_ready(self):

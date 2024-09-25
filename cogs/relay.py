@@ -314,6 +314,7 @@ class Relay(commands.Cog):
                 await s.send_command(
                     f"serversay {message.author.name} {cleaned_message}"
                 )
+                await self.discord_log(f"from {message.author.name}: `serversay {message.author.name} {cleaned_message}`")
 
     @commands.Cog.listener()
     async def on_ready(self):

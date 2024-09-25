@@ -302,6 +302,18 @@ class Relay(commands.Cog):
                 await asyncio.sleep(3600)
                 await role.edit(mentionable=True)
                 await self.discord_log("looking to play is now mentionable")
+        for s in config.servers:
+            if message.channel.id == s.relay:
+                cleaned_message = (
+                    message.content.strip("'")
+                    .strip('"')
+                    .strip("`;&|")
+                    .replace("\n", " ")
+                )
+
+                await s.send_command(
+                    f"serversay {message.author.name} {cleaned_message}"
+                )
 
     @commands.Cog.listener()
     async def on_ready(self):

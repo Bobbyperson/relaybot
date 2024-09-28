@@ -15,6 +15,7 @@ class Stats(commands.Cog):
 
     def __init__(self, client):
         self.client = client
+        self.client.raid_mode = False
 
     # events
     @commands.Cog.listener()
@@ -24,13 +25,39 @@ class Stats(commands.Cog):
     @commands.Cog.listener()
     async def on_member_join(self, member):
         try:
-            await member.send(
-                "Welcome to the awesome titanfall server! I am a stat tracking bot you can use to see all of your kills, deaths, games played, etc, but you need to link your titanfall and discord accounts first. Run `,.link <your titanfall name>` in the server to get started! My prefix is `,.` and my commands can be seen with `,.help`."
-            )
-            # if self.client.whitelist != 5:
-            # await member.send("The server is currently being affected by a targeted attack, and thus is temporarily whitelist only. If you wish to be whitelisted, please contact an admin. Sorry for the inconvenience, and thank you for your patience")
+            if member.bot:
+                return
+            if self.client.raid_mode:
+                await member.timeout(2419200, reason="Pro-active anti-raid mode.")
+                await member.send(
+                    """Welcome to the awesome titanfall server!
+Unfortunately due to reasons outside of our control (mostly likely a raid), we have temporarily timed you out.
+To get un-timed out, please run the command `,.link <your titanfall name>`.
+If you have any trouble with this or cannot do this please contact an admin.."""
+                )
+            else:
+                await member.send(
+                    """Welcome to the awesome titanfall server!
+I am a stat tracking bot you can use to see all of your kills, deaths, games played, etc, but you need to link your titanfall and discord accounts first.
+Run `,.link <your titanfall name>` in the server to get started!
+My prefix is `,.` and my commands can be seen with `,.help`."""
+                )
+
         except discord.Forbidden:
             pass
+
+    @commands.command()
+    @utils.is_admin()
+    async def raidmode(self, ctx, mode: bool = None):
+        if mode is None:
+            await ctx.send(f"Raid mode is currently {self.client.raid_mode}")
+            return
+        if mode:
+            self.client.raid_mode = True
+            await ctx.send("Raid mode enabled.")
+        else:
+            self.client.raid_mode = False
+            await ctx.send("Raid mode disabled.")
 
     @commands.hybrid_command()
     async def playtime(self, ctx, name: str = None):
@@ -584,10 +611,14 @@ class Stats(commands.Cog):
                     "INSERT INTO connection(discordID, titanfallID) VALUES(?, ?)",
                     (did, uid),
                 )
+                await db.commit()
                 await ctx.reply(
                     "Successfully linked your titanfall and discord accounts!"
                 )
-                await db.commit()
+                if self.client.raid_mode:
+                    server = await self.client.get_guild(929895874799226881)
+                    member = await server.get_member(ctx.author.id)
+                    await member.timeout(None, reason="Linked")
         else:
             await ctx.reply("Code expired. Please try again.")
         del self.client.auth[auth_code]
@@ -595,6 +626,9 @@ class Stats(commands.Cog):
     @commands.hybrid_command()
     async def unlink(self, ctx):
         """Unlink your titanfall and discord"""
+        if not ctx.guild:
+            await ctx.reply("This command can only be used in servers.")
+            return
         await ctx.send(
             "Are you absolutely sure you want to unlink your titanfall and discord accounts? You can relink them at any time with `,link`.\nType `yes` to confirm."
         )

@@ -5,6 +5,7 @@ import aiosqlite
 import config
 import secrets
 import cogs.utils.utils as utils  # this is stupid
+from datetime import timedelta
 import asyncio
 
 # import cogs.utils.crashes as crashes
@@ -28,10 +29,12 @@ class Stats(commands.Cog):
             if member.bot:
                 return
             if self.client.raid_mode:
-                await member.timeout(2419200, reason="Pro-active anti-raid mode.")
+                current_time = discord.utils.utcnow()
+                future_time = current_time + timedelta(seconds=2419200)
+                await member.timeout(future_time, reason="Pro-active anti-raid mode.")
                 await member.send(
                     """Welcome to the awesome titanfall server!
-Unfortunately due to reasons outside of our control (mostly likely a raid), we have temporarily timed you out.
+Unfortunately due to reasons outside of our control (most likely a raid), we have temporarily timed you out.
 To get un-timed out, please run the command `,.link <your titanfall name>`.
 If you have any trouble with this or cannot do this please contact an admin.."""
                 )

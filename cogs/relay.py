@@ -571,7 +571,7 @@ uid INT NOT NULL
             return web.Response(status=401, text="Bad IP")
         if await utils.is_tournament_server(server_identifier):
             await self.handle_tournament(data, server_identifier)
-            return
+            return web.Response(status=200, text="OK")
         await self.register_server(server_identifier)
         try:
             custom = data["custom"]

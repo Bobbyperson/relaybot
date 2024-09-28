@@ -49,7 +49,7 @@ class Relay(commands.Cog):
         self.client.playing = {}
         self.client.lazy_playing = {}
         self.client.online = {}
-        for s in config.servers:
+        for s in config.servers + config.tournament_servers:
             self.client.playing[s.name] = []
             self.client.lazy_playing[s.name] = []
             self.client.online[s.name] = False

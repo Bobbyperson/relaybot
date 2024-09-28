@@ -363,7 +363,7 @@ class Relay(commands.Cog):
         for server in servers:
             total_players += server["playerCount"]
 
-        for s in config.servers:
+        for s in config.servers + config.tournament_servers:
             for server in servers:
                 if s.display_name in server["name"]:
                     query_results.append(server)

@@ -2,8 +2,9 @@ from rcon.source import rcon
 
 
 class Server:
-    def __init__(self, name, relay, ip, key, rcon_password):
+    def __init__(self, name, display_name, relay, ip, key, rcon_password):
         self.name = name
+        self.display_name = display_name
         self.relay = relay
         self.ip = ip
         self.key = key

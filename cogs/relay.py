@@ -48,9 +48,11 @@ class Relay(commands.Cog):
             )  # sometimes northstar server will return nothing
         self.client.playing = {}
         self.client.lazy_playing = {}
+        self.client.online = {}
         for s in config.servers:
             self.client.playing[s.name] = []
             self.client.lazy_playing[s.name] = []
+            self.client.online[s.name] = False
         self.update_stats.start()
         self.app = web.Application()
         self.app.router.add_post("/post", self.recieve_relay_info)
@@ -361,10 +363,22 @@ class Relay(commands.Cog):
         for server in servers:
             total_players += server["playerCount"]
 
-        for term in config.query:
+        for s in config.servers:
             for server in servers:
-                if term in server["name"]:
+                if s.display_name in server["name"]:
                     query_results.append(server)
+                    if not self.client.online[s.name]:
+                        self.client.online[s.name] = True
+                        adminrelay = self.client.get_channel(config.admin_relay)
+                        await adminrelay.send(f"{s.display_name} just came online")
+                    break
+            else:
+                if self.client.online[s.name]:
+                    self.client.online[s.name] = False
+                    adminrelay = self.client.get_channel(config.admin_relay)
+                    await adminrelay.send(
+                        f"{s.display_name} just went offline, did it crash?"
+                    )
 
         if query_results:
             sdescription = f"Total Northstar Players: {total_players}"

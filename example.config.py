@@ -12,13 +12,26 @@ bad_words = [
 ]  # admin warnings
 
 servers = [
-    Server("server1", 0, "127.0.0.1", "secretkey1", "rconpass1"),
-    Server("server2", 0, "127.0.0.1", "secretkey2", "rconpass2"),
-    Server("server3", 0, "127.0.0.1", "secretkey3", "rconpass3"),
+    Server(
+        "server1", "100th attrition server", 0, "127.0.0.1", "secretkey1", "rconpass1"
+    ),
+    Server(
+        "server2", "101st attrition server", 0, "127.0.0.1", "secretkey2", "rconpass2"
+    ),
+    Server(
+        "server3", "102nd attrition server", 0, "127.0.0.1", "secretkey3", "rconpass3"
+    ),
 ]
 
 tournament_servers = [
-    Server("tournament1", 0, "127.0.0.1", "secretkey1", "rconpass1"),
+    Server(
+        "tournament1",
+        "awesome tournament server",
+        0,
+        "127.0.0.1",
+        "secretkey1",
+        "rconpass1",
+    ),
 ]
 
 admin_relay = 0

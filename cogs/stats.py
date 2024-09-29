@@ -377,8 +377,15 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
     async def killboard(self, ctx, server: str = None, team: str = None):
         """See who has the most kills on a team."""
         if team != "survivor" and team != "infected" and server == "infection":
-            await ctx.send("Error! Please specify team.")
+            await ctx.send("Error! Please specify team `infected` or `survivor`.")
             return
+        if not server:
+            return await ctx.send("Error! Please specify server.")
+        if not await utils.is_valid_server(server):
+            valid_servers = await utils.get_valid_server_names()
+            return await ctx.send(
+                f"Invalid server. Valid servers are `{', '.join(valid_servers)}`."
+            )
         showteam = team
         if team == "survivor":
             team = "militia"

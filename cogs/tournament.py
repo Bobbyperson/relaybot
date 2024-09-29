@@ -398,7 +398,7 @@ class Tournament(commands.Cog):
                 "You did not pick a valid map in time! Please run this command again."
             )
             return
-        server = await utils.get_server("1v1")
+        server = await utils.get_server("oneVone")
         try:
             await server.send_command(f"map {valid_maps[chosen_map]}")
         except (

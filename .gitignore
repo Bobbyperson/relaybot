@@ -2,9 +2,8 @@
 *.lnk
 *.sqlite
 __pycache__
-.vscode
 config.py
 .stignore
 parkour.py
 tourney/
-relayvenv
+.venv

@@ -1,6 +1,7 @@
 import config
 import aiosqlite
 from discord.ext import commands
+from typing import Union
 
 # async def human_time_duration(seconds):
 #     TIME_DURATION_UNITS = (
@@ -42,7 +43,7 @@ async def get_uid_from_connection(did):
         return uid[0] if uid else None
 
 
-async def get_name_from_connection(did) -> str:
+async def get_name_from_connection(did) -> Union[str, None]:
     async with aiosqlite.connect(config.bank, timeout=10) as db:
         cursor = await db.cursor()
         uid = await get_uid_from_connection(did)
@@ -64,7 +65,7 @@ async def get_discord_id_user_from_connection(uid):
         return did[0] if did else None
 
 
-async def get_uid_from_name(name: str = None) -> int:
+async def get_uid_from_name(name: str = None) -> Union[int, None]:
     async with aiosqlite.connect(config.bank, timeout=10) as db:
         cursor = await db.cursor()
         for s in config.servers:

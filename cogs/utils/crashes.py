@@ -3,7 +3,7 @@ from dateutil.relativedelta import relativedelta
 import aiosqlite
 
 
-class Crash_Handler:
+class CrashHandler:
     def __init__(self):
         self.last_crash = None
         self.crashes = []
@@ -33,7 +33,7 @@ class Crash_Handler:
         return False
 
 
-async def whitelist_set(mode: int = 5) -> None:
+async def whitelist_set(mode: int = 5) -> int:
     date_format = "%Y-%m-%d %H:%M:%S"
 
     if mode == 5:
@@ -42,7 +42,7 @@ async def whitelist_set(mode: int = 5) -> None:
             "w",
         ) as f:
             f.write("")
-        return
+        return 0
     elif mode == 4:
         async with aiosqlite.connect("database.sqlite", timeout=10) as db:
             cursor = await db.cursor()

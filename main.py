@@ -69,7 +69,7 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 if __name__ == "__main__":
     if not os.path.exists("database.sqlite"):
         with open("database.sqlite", "w") as f:
-            pass
+            f.write("")
     discord.utils.setup_logging()
     sys.excepthook = handle_exception
     try:

@@ -160,12 +160,7 @@ class Admin(commands.Cog):
                     await ctx.reply(
                         f"`{uid}` has successfully been banned on `{server.name}`"
                     )
-                except (
-                    ConnectionRefusedError,
-                    ConnectionResetError,
-                    ConnectionError,
-                    ConnectionAbortedError,
-                ):
+                except ConnectionError:
                     await ctx.reply(
                         f"Could not ban `{uid}` on `{server.name}`!\nPlease join that server and manually run `bbanuid {uid}`"
                     )
@@ -186,12 +181,7 @@ class Admin(commands.Cog):
                     await ctx.reply(
                         f"`{uid}` has successfully been unbanned on `{server.name}`"
                     )
-                except (
-                    ConnectionRefusedError,
-                    ConnectionResetError,
-                    ConnectionError,
-                    ConnectionAbortedError,
-                ):
+                except ConnectionError:
                     await ctx.reply(
                         f"Could not unban `{uid}` on `{server.name}`!\nPlease join that server and manually run `bunban {uid}`"
                     )
@@ -280,8 +270,6 @@ class Admin(commands.Cog):
                     await ctx.send(
                         f"{name}:\nLast seen: `{last_join}`\nPlaytime: `{playtime}`"
                     )
-
-    # TODO: make server periodically check a /whitelist file and update
 
     # @commands.command(aliases=["defcon"])
     # @utils.is_admin()

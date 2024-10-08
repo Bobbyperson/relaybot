@@ -341,14 +341,14 @@ class Relay(commands.Cog):
     @tasks.loop(seconds=30)
     async def update_stats(self):
         channel = self.client.get_channel(config.stats_channel)
-        fetchMessage = None
+        fetch_message = None
         async for message in channel.history(limit=200):
             if message.author.id == self.client.user.id:
-                fetchMessage = message
+                fetch_message = message
                 break
 
-        if fetchMessage is not None:
-            message_id = fetchMessage.id
+        if fetch_message is not None:
+            message_id = fetch_message.id
             msg = await channel.fetch_message(message_id)
         else:
             msg = None
@@ -523,9 +523,9 @@ uid INT NOT NULL
         done = False
         while not done:  # clean stupid ass color
             if "" in data:
-                startEsc = data.find("")
-                endEsc = data[startEsc:].find("m")
-                data = data[:startEsc] + data[endEsc + startEsc + 1 :]
+                start_esc = data.find("")
+                end_esc = data[start_esc:].find("m")
+                data = data[:start_esc] + data[end_esc + start_esc + 1 :]
             else:
                 done = True
         try:
@@ -959,8 +959,8 @@ uid INT NOT NULL
             await cursor.execute(
                 f'SELECT "first_join" FROM {server_identifier} WHERE uid=?', (uid,)
             )
-            result_userID = await cursor.fetchone()
-            if not result_userID:
+            result_userid = await cursor.fetchone()
+            if not result_userid:
                 await self.new_account(player, uid, server_identifier)
             await cursor.execute(
                 f"UPDATE {server_identifier} SET last_join = ? WHERE uid=?",
@@ -1061,10 +1061,7 @@ uid INT NOT NULL
             ctx.command.reset_cooldown(ctx)
         elif isinstance(error, commands.NotOwner):
             return
-        elif isinstance(error, commands.UserNotFound):
-            await ctx.reply("The person you specified was not found! Try pinging them.")
-            ctx.command.reset_cooldown(ctx)
-        elif isinstance(error, commands.MemberNotFound):
+        elif isinstance(error, commands.UserNotFound) or isinstance(error, commands.MemberNotFound):
             await ctx.reply("The person you specified was not found! Try pinging them.")
             ctx.command.reset_cooldown(ctx)
         elif isinstance(error, commands.BadArgument):

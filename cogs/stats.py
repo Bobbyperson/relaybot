@@ -213,14 +213,14 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
             await cursor.execute(
                 f"SELECT COUNT(*) AS total_rows FROM {server}_kill_log WHERE action <> 2 AND killer <> victim"
             )
-            total_killLog_kills = await cursor.fetchone()
-            total_killLog_kills = total_killLog_kills[0]
+            total_kill_log_kills = await cursor.fetchone()
+            total_kill_log_kills = total_kill_log_kills[0]
             await cursor.execute(
                 f"SELECT COUNT(*) AS total_rows FROM {server}_kill_log WHERE action = 2 OR killer = victim"
             )
             total_suicides = await cursor.fetchone()
             total_suicides = total_suicides[0]
-            missing_kills = total_kills - total_killLog_kills
+            missing_kills = total_kills - total_kill_log_kills
             offset = number - missing_kills - 1
             if offset < 0:
                 await ctx.send(
@@ -329,30 +329,30 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
                         f"SELECT count(*) FROM {server.name}_kill_log WHERE killer=? AND victim=? AND action=0",
                         (killer, victim),
                     )
-                    user1KillsAsSurvivor = await cursor.fetchone()
-                    user1KillsAsSurvivor = user1KillsAsSurvivor[0]
+                    user1_kills_as_survivor = await cursor.fetchone()
+                    user1_kills_as_survivor = user1_kills_as_survivor[0]
 
                     await cursor.execute(
                         f"SELECT count(*) FROM {server.name}_kill_log WHERE killer=? AND victim=? AND action=1",
                         (killer, victim),
                     )
-                    user1KillsAsInfected = await cursor.fetchone()
-                    user1KillsAsInfected = user1KillsAsInfected[0]
+                    user1_kills_as_infected = await cursor.fetchone()
+                    user1_kills_as_infected = user1_kills_as_infected[0]
 
                     await cursor.execute(
                         f"SELECT count(*) FROM {server.name}_kill_log WHERE killer=? AND victim=? AND action=0",
                         (victim, killer),
                     )
-                    user2KillsAsSurvivor = await cursor.fetchone()
-                    user2KillsAsSurvivor = user2KillsAsSurvivor[0]
+                    user2_kills_as_survivor = await cursor.fetchone()
+                    user2_kills_as_survivor = user2_kills_as_survivor[0]
 
                     await cursor.execute(
                         f"SELECT count(*) FROM {server.name}_kill_log WHERE killer=? AND victim=? AND action=1",
                         (victim, killer),
                     )
-                    user2KillsAsInfected = await cursor.fetchone()
-                    user2KillsAsInfected = user2KillsAsInfected[0]
-                    message += f"{user1} has killed {user2} {user1KillsAsSurvivor} times as a survivor.\n{user2} has killed {user1} {user2KillsAsSurvivor} times as a survivor.\n{user1} has killed {user2} {user1KillsAsInfected} times as an infected.\n{user2} has killed {user1} {user2KillsAsInfected} times as an infected.\n"
+                    user2_kills_as_infected = await cursor.fetchone()
+                    user2_kills_as_infected = user2_kills_as_infected[0]
+                    message += f"{user1} has killed {user2} {user1_kills_as_survivor} times as a survivor.\n{user2} has killed {user1} {user2_kills_as_survivor} times as a survivor.\n{user1} has killed {user2} {user1_kills_as_infected} times as an infected.\n{user2} has killed {user1} {user2_kills_as_infected} times as an infected.\n"
                 else:
                     await cursor.execute(
                         f"SELECT count(*) FROM {server.name}_kill_log WHERE killer=? AND victim=?",
@@ -370,7 +370,7 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
 
                     message += f"{server.name}: {user1} has killed {user2} {killer_kills} times.\n{user2} has killed {user1} {victim_kills} times.\n"
         if message == "":
-            message == "One or both of these users does not exist!"
+            message = "One or both of these users does not exist!"
         await ctx.send(message)
 
     @commands.hybrid_command()
@@ -675,7 +675,6 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
                     await db.commit()
             else:
                 await ctx.reply("Cancelled.")
-                return
 
     @commands.hybrid_command()
     async def whois(self, ctx, name: discord.Member = None):

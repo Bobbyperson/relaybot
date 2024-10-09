@@ -1,12 +1,14 @@
-from discord.ext import commands
+import asyncio
+import json
+import random
+from copy import deepcopy
+
+import aiosqlite
 import config
 import requests
+from discord.ext import commands
+
 import cogs.utils.utils as utils
-import json
-import aiosqlite
-import random
-import asyncio
-from copy import deepcopy
 
 
 class Player:

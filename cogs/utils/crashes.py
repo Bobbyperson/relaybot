@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
+
 import aiosqlite
+from dateutil.relativedelta import relativedelta
 
 
 class CrashHandler:

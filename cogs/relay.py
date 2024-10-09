@@ -1,21 +1,21 @@
-import discord
-import time
-from discord.ext import commands
-from discord.ext import tasks
-import config
-import aiosqlite
-import asyncpg
-import requests
-import json
 import asyncio
-import sys
-import traceback
-from datetime import datetime
-import cogs.utils.utils as utils  # this is stupid
-
+import json
 # import cogs.utils.crashes as crashes
 import re
-from aiohttp import web, ClientSession
+import sys
+import time
+import traceback
+from datetime import datetime
+
+import aiosqlite
+import asyncpg
+import config
+import discord
+import requests
+from aiohttp import ClientSession, web
+from discord.ext import commands, tasks
+
+import cogs.utils.utils as utils  # this is stupid
 
 
 class Relay(commands.Cog):

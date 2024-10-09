@@ -1,6 +1,7 @@
-from discord.ext import commands
-import requests
 import json
+
+import requests
+from discord.ext import commands
 
 
 class Parkour(commands.Cog):

@@ -1,7 +1,8 @@
-import config
-import aiosqlite
-from discord.ext import commands
 from typing import Union
+
+import aiosqlite
+import config
+from discord.ext import commands
 
 # async def human_time_duration(seconds):
 #     TIME_DURATION_UNITS = (

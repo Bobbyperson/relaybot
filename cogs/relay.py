@@ -1061,7 +1061,9 @@ uid INT NOT NULL
             ctx.command.reset_cooldown(ctx)
         elif isinstance(error, commands.NotOwner):
             return
-        elif isinstance(error, commands.UserNotFound) or isinstance(error, commands.MemberNotFound):
+        elif isinstance(error, commands.UserNotFound) or isinstance(
+            error, commands.MemberNotFound
+        ):
             await ctx.reply("The person you specified was not found! Try pinging them.")
             ctx.command.reset_cooldown(ctx)
         elif isinstance(error, commands.BadArgument):

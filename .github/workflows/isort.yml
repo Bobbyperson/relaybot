@@ -1,13 +1,43 @@
-name: Run isort
+name: Auto Isort
+
 on:
-  - push
-  - pull_request
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
 
 jobs:
-  build:
+  isort:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
-      - uses: isort/isort-action@v1
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-            requirements-files: "requirements.txt"
+          python-version: '3.10'
+
+      - name: Install isort
+        run: |
+          python -m pip install --upgrade pip
+          pip install isort
+
+      - name: Run isort
+        run: isort .
+
+      - name: Check if changes were made by isort
+        id: isort_check
+        run: |
+          git diff --exit-code || echo "isort made changes"
+
+      - name: Commit and push changes
+        if: steps.isort_check.outputs.stdout == 'isort made changes'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "Auto-sort imports with isort"
+          git push

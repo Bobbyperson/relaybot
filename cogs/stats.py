@@ -554,7 +554,7 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
     async def link(self, ctx, name: str = ""):
         """Link your titanfall and discord"""
         if name == "":
-            await ctx.reply("Please specify your in game name.")
+            return await ctx.reply("Please specify your in game name.")
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
             did = ctx.author.id
@@ -627,6 +627,10 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
                 await ctx.reply(
                     "Successfully linked your titanfall and discord accounts!"
                 )
+                adminrelay = await self.client.fetch_channel(config.admin_relay)
+                await adminrelay.send(
+                    f"{ctx.author.mention} just `,.link`ed to {name}!"
+                )
                 if self.client.raid_mode:
                     server = await self.client.get_guild(929895874799226881)
                     member = await server.get_member(ctx.author.id)
@@ -639,8 +643,7 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
     async def unlink(self, ctx):
         """Unlink your titanfall and discord"""
         if not ctx.guild:
-            await ctx.reply("This command can only be used in servers.")
-            return
+            return await ctx.reply("This command can only be used in servers.")
         await ctx.send(
             "Are you absolutely sure you want to unlink your titanfall and discord accounts? You can relink them at any time with `,link`.\nType `yes` to confirm."
         )
@@ -671,10 +674,12 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
                     await cursor.execute(
                         "DELETE FROM connection WHERE discordID = ?", (did,)
                     )
+                    await db.commit()
                     await ctx.reply(
                         "Successfully unlinked your titanfall and discord accounts!"
                     )
-                    await db.commit()
+                    adminrelay = self.client.get_channel(config.admin_relay)
+                    await adminrelay.send(f"{ctx.author.mention} just `,.unlink`ed!")
             else:
                 await ctx.reply("Cancelled.")
 

@@ -849,6 +849,24 @@ class Tournament(commands.Cog):
             await db.commit()
         await ctx.send("Done!")
 
+    @commands.command()
+    @commands.is_owner()
+    async def reserve(self, ctx, player1: int, player2: int):
+        if not player1 or not player2:
+            return await ctx.send("dumbass")
+        self.client.reserved = True
+        self.client.tournament_players = {
+            player1: {"kills": 0, "wins": 0},
+            player2: {"kills": 0, "wins": 0},
+        }
+        async with aiosqlite.connect(config.bank, timeout=10) as db:
+            cursor = await db.cursor()
+            await cursor.execute("DELETE FROM whitelist")
+            await cursor.execute(f"INSERT INTO whitelist(uid) values({player1})")
+            await cursor.execute(f"INSERT INTO whitelist(uid) values({player2})")
+            await db.commit()
+        await ctx.send("Done!")
+
 
 # @commands.Cog.listener()
 # async def on_command_error(self, ctx, error):

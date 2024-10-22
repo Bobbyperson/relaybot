@@ -421,6 +421,9 @@ class Tournament(commands.Cog):
                 "You did not pick a valid map in time! Please run this command again."
             )
             return
+
+        with open("tourney/round1.json", "r") as f:
+            self.client.tournament_loadout = json.loads(f.read())
         server = await utils.get_server("oneVone")
         try:
             if semifinals:
@@ -572,6 +575,9 @@ class Tournament(commands.Cog):
                     f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
                 )
             return
+
+        with open("tourney/round2.json", "r") as f:
+            self.client.tournament_loadout = json.loads(f.read())
         if semifinals:
             await server.send_command(f"gamemode ps; map {valid_maps[chosen_map]}")
         else:
@@ -755,6 +761,8 @@ class Tournament(commands.Cog):
                     f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
                 )
             return
+        with open("tourney/round3.json", "r") as f:
+            self.client.tournament_loadout = json.loads(f.read())
         if semifinals:
             await server.send_command(f"gamemode ps; map {valid_maps[chosen_map]}")
         else:

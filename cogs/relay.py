@@ -81,9 +81,9 @@ class Relay(commands.Cog):
         self.client.tournament_should_track_kills = True
 
     async def get_tournament_loadout(self, request):
-        with open("tourney/round1.json", "r") as f:
-            return web.Response(text=f.read())
-        # return web.Response(text=json.dumps(self.client.tournament_loadout))
+        # with open("tourney/round1.json", "r") as f:
+        #     return web.Response(text=f.read())
+        return web.Response(text=json.dumps(self.client.tournament_loadout))
 
     async def add_to_message_queue(self, server, message):
         self.message_queue[server] += message + "\n"

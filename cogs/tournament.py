@@ -352,6 +352,27 @@ class Tournament(commands.Cog):
 
         maps = list(valid_maps.keys())
 
+        await ctx.send(
+            "Is your match semifinals or later (look in same column for losers)? (yes/no)"
+        )
+        try:
+            msg = await self.client.wait_for(
+                "message",
+                timeout=30.0,
+                check=lambda message: message.author == ctx.author
+                and message.channel == ctx.channel
+                and message.content.lower() in ["yes", "no"],
+            )
+        except asyncio.TimeoutError:
+            await ctx.send("Cancelled.")
+            await cleanup()
+            return
+
+        if msg.content.lower() == "yes":
+            semifinals = True
+        else:
+            semifinals = False
+
         await ctx.send("All checks passed! Now we need to select the first map.")
 
         if random.randint(0, 1) == 0:
@@ -402,7 +423,12 @@ class Tournament(commands.Cog):
             return
         server = await utils.get_server("oneVone")
         try:
-            await server.send_command(f"map {valid_maps[chosen_map]}")
+            if semifinals:
+                await server.send_command(f"gamemode ps; map {valid_maps[chosen_map]}")
+            else:
+                await server.send_command(
+                    f"gamemode coliseum; map {valid_maps[chosen_map]}"
+                )
         except ConnectionError:
             await ctx.send("Couldn't set map. Is the server online? Ping bobby.")
             return
@@ -429,6 +455,7 @@ class Tournament(commands.Cog):
         round_loser = None
 
         i = 0
+        required_kills = 2 if not semifinals else 24
         while True:
             await asyncio.sleep(1)
             author_kills = self.client.tournament_players[author.uid]["kills"]
@@ -437,10 +464,10 @@ class Tournament(commands.Cog):
             author.scores[0] = author_kills
             opponent.scores[0] = opponent_kills
 
-            if author_kills > 2:
+            if author_kills > required_kills:
                 self.client.tournament_players[author.uid]["wins"] += 1
 
-            if opponent_kills > 2:
+            if opponent_kills > required_kills:
                 self.client.tournament_players[opponent.uid]["wins"] += 1
 
             if self.client.tournament_players[author.uid]["wins"] > 0:
@@ -545,7 +572,12 @@ class Tournament(commands.Cog):
                     f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
                 )
             return
-        await server.send_command(f"map {valid_maps[chosen_map2]}")
+        if semifinals:
+            await server.send_command(f"gamemode ps; map {valid_maps[chosen_map]}")
+        else:
+            await server.send_command(
+                f"gamemode coliseum; map {valid_maps[chosen_map]}"
+            )
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute("DELETE FROM whitelist")
@@ -570,9 +602,9 @@ class Tournament(commands.Cog):
             author.scores[1] = author_kills
             opponent.scores[1] = opponent_kills
 
-            if author_kills > 2:
+            if author_kills > required_kills:
                 self.client.tournament_players[author.uid]["wins"] += 1
-            if opponent_kills > 2:
+            if opponent_kills > required_kills:
                 self.client.tournament_players[opponent.uid]["wins"] += 1
 
             if (
@@ -723,7 +755,12 @@ class Tournament(commands.Cog):
                     f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
                 )
             return
-        await server.send_command(f"map {valid_maps[chosen_map3]}")
+        if semifinals:
+            await server.send_command(f"gamemode ps; map {valid_maps[chosen_map]}")
+        else:
+            await server.send_command(
+                f"gamemode coliseum; map {valid_maps[chosen_map]}"
+            )
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute("DELETE FROM whitelist")
@@ -748,9 +785,9 @@ class Tournament(commands.Cog):
             author.scores[2] = author_kills
             opponent.scores[2] = opponent_kills
 
-            if author_kills > 2:
+            if author_kills > required_kills:
                 self.client.tournament_players[author.uid]["wins"] += 1
-            if opponent_kills > 2:
+            if opponent_kills > required_kills:
                 self.client.tournament_players[opponent.uid]["wins"] += 1
 
             if (

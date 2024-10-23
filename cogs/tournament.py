@@ -427,10 +427,12 @@ class Tournament(commands.Cog):
         server = await utils.get_server("oneVone")
         try:
             if semifinals:
-                await server.send_command(f"gamemode ps; map {valid_maps[chosen_map]}")
+                await server.send_command(
+                    f"mp_gamemode ps; map {valid_maps[chosen_map]}"
+                )
             else:
                 await server.send_command(
-                    f"gamemode coliseum; map {valid_maps[chosen_map]}"
+                    f"mp_gamemode coliseum; map {valid_maps[chosen_map]}"
                 )
         except ConnectionError:
             await ctx.send("Couldn't set map. Is the server online? Ping bobby.")
@@ -579,10 +581,10 @@ class Tournament(commands.Cog):
         with open("tourney/round2.json", "r") as f:
             self.client.tournament_loadout = json.loads(f.read())
         if semifinals:
-            await server.send_command(f"gamemode ps; map {valid_maps[chosen_map]}")
+            await server.send_command(f"mp_gamemode ps; map {valid_maps[chosen_map]}")
         else:
             await server.send_command(
-                f"gamemode coliseum; map {valid_maps[chosen_map]}"
+                f"mp_gamemode coliseum; map {valid_maps[chosen_map]}"
             )
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
@@ -764,10 +766,10 @@ class Tournament(commands.Cog):
         with open("tourney/round3.json", "r") as f:
             self.client.tournament_loadout = json.loads(f.read())
         if semifinals:
-            await server.send_command(f"gamemode ps; map {valid_maps[chosen_map]}")
+            await server.send_command(f"mp_gamemode ps; map {valid_maps[chosen_map]}")
         else:
             await server.send_command(
-                f"gamemode coliseum; map {valid_maps[chosen_map]}"
+                f"mp_gamemode coliseum; map {valid_maps[chosen_map]}"
             )
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()

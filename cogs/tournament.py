@@ -425,7 +425,11 @@ class Tournament(commands.Cog):
         with open("tourney/round1.json", "r") as f:
             self.client.tournament_loadout = json.loads(f.read())
         server = await utils.get_server("oneVone")
+        required_kills = 2 if not semifinals else 24
         try:
+            await server.send_command(
+                f'setplaylistvaroverrides "max_players 4 respawn_delay 0 run_epilogue 1 scorelimit {required_kills + 1} timelimit 3 boosts_enabled 1"'
+            )
             if semifinals:
                 await server.send_command(
                     f"mp_gamemode ps; map {valid_maps[chosen_map]}"
@@ -460,7 +464,6 @@ class Tournament(commands.Cog):
         round_loser = None
 
         i = 0
-        required_kills = 2 if not semifinals else 24
         while True:
             await asyncio.sleep(1)
             author_kills = self.client.tournament_players[author.uid]["kills"]
@@ -580,6 +583,9 @@ class Tournament(commands.Cog):
 
         with open("tourney/round2.json", "r") as f:
             self.client.tournament_loadout = json.loads(f.read())
+        await server.send_command(
+            f'setplaylistvaroverrides "max_players 4 respawn_delay 0 run_epilogue 1 scorelimit {required_kills + 1} timelimit 3 boosts_enabled 1"'
+        )
         if semifinals:
             await server.send_command(f"mp_gamemode ps; map {valid_maps[chosen_map]}")
         else:
@@ -765,6 +771,9 @@ class Tournament(commands.Cog):
             return
         with open("tourney/round3.json", "r") as f:
             self.client.tournament_loadout = json.loads(f.read())
+        await server.send_command(
+            f'setplaylistvaroverrides "max_players 4 respawn_delay 0 run_epilogue 1 scorelimit {required_kills + 1} timelimit 3 boosts_enabled 1"'
+        )
         if semifinals:
             await server.send_command(f"mp_gamemode ps; map {valid_maps[chosen_map]}")
         else:

@@ -353,7 +353,7 @@ class Tournament(commands.Cog):
         maps = list(valid_maps.keys())
 
         await ctx.send(
-            "Is your match semifinals or later (look in same column for losers)? (yes/no)"
+            "Is your match semifinals or later (look in same column for losers)? Respond yes or no."
         )
         try:
             msg = await self.client.wait_for(
@@ -387,10 +387,15 @@ class Tournament(commands.Cog):
                 timeout=300.0,
                 check=lambda message: message.author == me
                 and message.channel == ctx.channel
-                and message.content.lower() == "confirm",
+                and message.content.lower() in ["confirm", "deny"],
             )
         except asyncio.TimeoutError:
-            await ctx.send("Cancelled.")
+            await ctx.send("Timeout, cancelled.")
+            await cleanup()
+            return
+
+        if msg.content.lower() == "deny":
+            await ctx.send("bruh")
             await cleanup()
             return
 

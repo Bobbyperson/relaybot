@@ -373,6 +373,23 @@ class Tournament(commands.Cog):
         else:
             semifinals = False
 
+        me = await ctx.guild.fetch_member(248984895940984832)
+
+        await ctx.send(f"{me.mention} please confirm")
+
+        try:
+            msg = await self.client.wait_for(
+                "message",
+                timeout=300.0,
+                check=lambda message: message.author == me
+                and message.channel == ctx.channel
+                and message.content.lower() == "confirm",
+            )
+        except asyncio.TimeoutError:
+            await ctx.send("Cancelled.")
+            await cleanup()
+            return
+
         await ctx.send("All checks passed! Now we need to select the first map.")
 
         if random.randint(0, 1) == 0:

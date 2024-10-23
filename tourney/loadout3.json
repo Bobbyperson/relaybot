@@ -1,0 +1,22 @@
+{
+    "loadout": {
+        "primary": "mp_weapon_shotgun_pistol",
+        "primary_mod1": "",
+        "primary_mod2": "",
+        "primary_mod3": "",
+        "primary_attachment": "",
+        "secondary": "mp_weapon_doubletake",
+        "secondary_mod1": "pas_fast_swap",
+        "secondary_mod2": "",
+        "secondary_mod3": "",
+        "weapon3": "",
+        "weapon3_mod1": "",
+        "weapon3_mod2": "",
+        "weapon3_mod3": "",
+        "melee": "melee_pilot_emptyhanded",
+        "ordnance": "mp_weapon_thermite_grenade",
+        "special": "mp_ability_heal",
+        "passive1": "pas_fast_health_regen",
+        "passive2": "pas_wallhang"
+    }
+}

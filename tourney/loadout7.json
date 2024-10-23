@@ -1,0 +1,22 @@
+{
+    "loadout": {
+        "primary": "mp_weapon_epg",
+        "primary_mod1": "",
+        "primary_mod2": "tactical_cdr_on_kill",
+        "primary_mod3": "",
+        "primary_attachment": "",
+        "secondary": "mp_weapon_semipistol",
+        "secondary_mod1": "silencer",
+        "secondary_mod2": "",
+        "secondary_mod3": "",
+        "weapon3": "mp_weapon_arc_launcher",
+        "weapon3_mod1": "pas_fast_reload",
+        "weapon3_mod2": "",
+        "weapon3_mod3": "",
+        "melee": "melee_pilot_emptyhanded",
+        "ordnance": "mp_weapon_satchel",
+        "special": "mp_ability_grapple",
+        "passive1": "pas_stealth_movement",
+        "passive2": "pas_ordnance_pack"
+    }
+}

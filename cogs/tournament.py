@@ -370,8 +370,10 @@ class Tournament(commands.Cog):
 
         if msg.content.lower() == "yes":
             semifinals = True
+            self.client.tournament_should_sleep = False
         else:
             semifinals = False
+            self.client.tournament_should_sleep = True
 
         me = await ctx.guild.fetch_member(248984895940984832)
 
@@ -442,11 +444,8 @@ class Tournament(commands.Cog):
         with open("tourney/round1.json", "r") as f:
             self.client.tournament_loadout = json.loads(f.read())
         server = await utils.get_server("oneVone")
-        required_kills = 2 if not semifinals else 24
+        required_kills = 2 if not semifinals else 14
         try:
-            await server.send_command(
-                f'setplaylistvaroverrides "max_players 4 respawn_delay 0 run_epilogue 1 scorelimit {required_kills + 1} timelimit 3 boosts_enabled 1"'
-            )
             if semifinals:
                 await server.send_command(
                     f"mp_gamemode ps; map {valid_maps[chosen_map]}"
@@ -600,14 +599,11 @@ class Tournament(commands.Cog):
 
         with open("tourney/round2.json", "r") as f:
             self.client.tournament_loadout = json.loads(f.read())
-        await server.send_command(
-            f'setplaylistvaroverrides "max_players 4 respawn_delay 0 run_epilogue 1 scorelimit {required_kills + 1} timelimit 3 boosts_enabled 1"'
-        )
         if semifinals:
-            await server.send_command(f"mp_gamemode ps; map {valid_maps[chosen_map]}")
+            await server.send_command(f"mp_gamemode ps; map {valid_maps[chosen_map2]}")
         else:
             await server.send_command(
-                f"mp_gamemode coliseum; map {valid_maps[chosen_map]}"
+                f"mp_gamemode coliseum; map {valid_maps[chosen_map2]}"
             )
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
@@ -788,14 +784,11 @@ class Tournament(commands.Cog):
             return
         with open("tourney/round3.json", "r") as f:
             self.client.tournament_loadout = json.loads(f.read())
-        await server.send_command(
-            f'setplaylistvaroverrides "max_players 4 respawn_delay 0 run_epilogue 1 scorelimit {required_kills + 1} timelimit 3 boosts_enabled 1"'
-        )
         if semifinals:
-            await server.send_command(f"mp_gamemode ps; map {valid_maps[chosen_map]}")
+            await server.send_command(f"mp_gamemode ps; map {valid_maps[chosen_map3]}")
         else:
             await server.send_command(
-                f"mp_gamemode coliseum; map {valid_maps[chosen_map]}"
+                f"mp_gamemode coliseum; map {valid_maps[chosen_map3]}"
             )
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()

@@ -79,6 +79,7 @@ class Relay(commands.Cog):
             self.client.ban_list[s.name] = []
         self.client.tournament_loadout = {}
         self.client.tournament_should_track_kills = True
+        self.client.tournament_should_sleep = True
 
     async def get_tournament_loadout(self, request):
         # with open("tourney/round1.json", "r") as f:
@@ -713,6 +714,7 @@ uid INT NOT NULL
     async def handle_tournament(self, data, server_identifier):
         if data["verb"] == "killed":
             killer_uid = data["subject"]["uid"]
+            victim_uid = data["object"]["uid"]
             print(f"killer uid: {killer_uid}")
         else:
             print("unknown tournament verb: " + data["verb"])
@@ -720,12 +722,22 @@ uid INT NOT NULL
 
         if self.client.tournament_should_track_kills:
             for key, _ in self.client.tournament_players.items():
-                if str(key) == str(killer_uid):
+                if str(key) == str(killer_uid) and str(key) != str(victim_uid):
                     print("found killer, adding to kill count")
                     self.client.tournament_players[key]["kills"] += 1
                     print(self.client.tournament_players[key]["kills"])
                     self.client.tournament_should_track_kills = False
-                    await asyncio.sleep(10)
+                    if self.client.tournament_should_sleep:
+                        await asyncio.sleep(5)
+                    self.client.tournament_should_track_kills = True
+                elif str(key) == str(killer_uid) and str(key) == str(victim_uid):
+                    print("found suicide")
+                    for key, _ in self.client.tournament_players.items():
+                        if str(key) != str(killer_uid):
+                            self.client.tournament_players[key]["kills"] += 1
+                    self.client.tournament_should_track_kills = False
+                    if self.client.tournament_should_sleep:
+                        await asyncio.sleep(5)
                     self.client.tournament_should_track_kills = True
 
     async def add_playing(self, player, server_identifier):

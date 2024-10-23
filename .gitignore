@@ -5,5 +5,4 @@ __pycache__
 config.py
 .stignore
 parkour.py
-tourney/
 .venv

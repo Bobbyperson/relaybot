@@ -371,9 +371,11 @@ class Tournament(commands.Cog):
         if msg.content.lower() == "yes":
             semifinals = True
             self.client.tournament_should_sleep = False
+            required_kills = 14
         else:
             semifinals = False
             self.client.tournament_should_sleep = True
+            required_kills = 2
 
         me = await ctx.guild.fetch_member(248984895940984832)
 
@@ -403,9 +405,18 @@ class Tournament(commands.Cog):
             # first = author  # ! TEMP
             second = author
 
-        await ctx.send(
-            f"{first.discord.mention} has randomly been chosen to pick first.\n{first.discord.mention} please pick **TWO** maps you do **NOT** want to play. Please type the name of the map you want to remove exactly as it is shown:"
-        )
+        if semifinals:
+            maps.remove("coliseum")
+            maps.remove("pillars")
+
+            await ctx.send(
+                f"{first.discord.mention} has randomly been chosen to pick first.\n{first.discord.mention} please pick **ONE** map you do **NOT** want to play. Please type the name of the map you want to remove exactly as it is shown:"
+            )
+        else:
+
+            await ctx.send(
+                f"{first.discord.mention} has randomly been chosen to pick first.\n{first.discord.mention} please pick **TWO** maps you do **NOT** want to play. Please type the name of the map you want to remove exactly as it is shown:"
+            )
         map_message = await ctx.send(", ".join(maps))
         remove_map1 = await self.ask_map(ctx, first.discord, maps)
         if remove_map1 in maps:
@@ -417,16 +428,17 @@ class Tournament(commands.Cog):
                 "You did not pick a valid map in time! Please run this command again."
             )
             return
-        remove_map2 = await self.ask_map(ctx, first.discord, maps)
-        if remove_map2 in maps:
-            maps.remove(remove_map2)
-            await map_message.edit(content=", ".join(maps))
-        else:
-            await cleanup()
-            await ctx.send(
-                "You did not pick a valid map in time! Please run this command again."
-            )
-            return
+        if not semifinals:
+            remove_map2 = await self.ask_map(ctx, first.discord, maps)
+            if remove_map2 in maps:
+                maps.remove(remove_map2)
+                await map_message.edit(content=", ".join(maps))
+            else:
+                await cleanup()
+                await ctx.send(
+                    "You did not pick a valid map in time! Please run this command again."
+                )
+                return
         await ctx.send(
             f"{second.discord.mention} please pick the map you **WANT** to play:"
         )
@@ -440,11 +452,10 @@ class Tournament(commands.Cog):
                 "You did not pick a valid map in time! Please run this command again."
             )
             return
-
-        with open("tourney/round1.json", "r") as f:
+        loadout1 = random.randint(1, 9)
+        with open(f"tourney/loadout{loadout1}.json", "r") as f:
             self.client.tournament_loadout = json.loads(f.read())
         server = await utils.get_server("oneVone")
-        required_kills = 2 if not semifinals else 14
         try:
             if semifinals:
                 await server.send_command(
@@ -597,7 +608,10 @@ class Tournament(commands.Cog):
                 )
             return
 
-        with open("tourney/round2.json", "r") as f:
+        loadout2 = random.randint(1, 9)
+        while loadout2 == loadout1:
+            loadout2 = random.randint(1, 9)
+        with open(f"tourney/round{loadout2}.json", "r") as f:
             self.client.tournament_loadout = json.loads(f.read())
         if semifinals:
             await server.send_command(f"mp_gamemode ps; map {valid_maps[chosen_map2]}")
@@ -726,34 +740,35 @@ class Tournament(commands.Cog):
         await ctx.send(
             f"{round_winner.discord.mention} wins the round! Now entering a tiebreaker!!!"
         )
-        await ctx.send(
-            f"{round_winner.discord.mention} please pick **ONE** map you do **NOT** want to play. Please type the name of the map you want to remove exactly as it is shown:"
-        )
-        map_message = await ctx.send(", ".join(maps))
-        remove_map4 = await self.ask_map(ctx, round_winner.discord, maps)
-        if remove_map4 in maps:
-            maps.remove(remove_map4)
-            await map_message.edit(content=", ".join(maps))
-        else:
-            await cleanup()
+        if not semifinals:
             await ctx.send(
-                "You did not pick a valid map in 5 minutes! You have now forfeited."
+                f"{round_winner.discord.mention} please pick **ONE** map you do **NOT** want to play. Please type the name of the map you want to remove exactly as it is shown:"
             )
-            if author.position == 0:
-                await self.set_match_winner(
-                    tournament_id,
-                    next_match,
-                    round_loser.participant_id,
-                    f"{author.scores[0]}-{opponent.scores[0]},{author.scores[1]}-{opponent.scores[1]},{author.scores[2]}-{opponent.scores[2]}",
-                )
+            map_message = await ctx.send(", ".join(maps))
+            remove_map4 = await self.ask_map(ctx, round_winner.discord, maps)
+            if remove_map4 in maps:
+                maps.remove(remove_map4)
+                await map_message.edit(content=", ".join(maps))
             else:
-                await self.set_match_winner(
-                    tournament_id,
-                    next_match,
-                    round_loser.participant_id,
-                    f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
+                await cleanup()
+                await ctx.send(
+                    "You did not pick a valid map in 5 minutes! You have now forfeited."
                 )
-            return
+                if author.position == 0:
+                    await self.set_match_winner(
+                        tournament_id,
+                        next_match,
+                        round_loser.participant_id,
+                        f"{author.scores[0]}-{opponent.scores[0]},{author.scores[1]}-{opponent.scores[1]},{author.scores[2]}-{opponent.scores[2]}",
+                    )
+                else:
+                    await self.set_match_winner(
+                        tournament_id,
+                        next_match,
+                        round_loser.participant_id,
+                        f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
+                    )
+                return await cleanup()
         await ctx.send(
             f"{round_loser.discord.mention} please pick the map you **WANT** to play:"
         )
@@ -782,7 +797,10 @@ class Tournament(commands.Cog):
                     f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
                 )
             return
-        with open("tourney/round3.json", "r") as f:
+        loadout3 = random.randint(1, 9)
+        while loadout3 == loadout1 or loadout3 == loadout2:
+            loadout3 = random.randint(1, 9)
+        with open(f"tourney/loadout{loadout3}.json", "r") as f:
             self.client.tournament_loadout = json.loads(f.read())
         if semifinals:
             await server.send_command(f"mp_gamemode ps; map {valid_maps[chosen_map3]}")

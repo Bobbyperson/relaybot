@@ -457,7 +457,7 @@ class Tournament(commands.Cog):
                 "You did not pick a valid map in time! Please run this command again."
             )
             return
-        loadout1 = random.randint(1, 9)
+        loadout1 = random.randint(0, 9)
         with open(f"tourney/loadout{loadout1}.json", "r") as f:
             self.client.tournament_loadout = json.loads(f.read())
         server = await utils.get_server("oneVone")
@@ -481,7 +481,7 @@ class Tournament(commands.Cog):
             await cursor.execute(f"INSERT INTO whitelist(uid) values({author.uid})")
             await db.commit()
         await ctx.send(
-            "Done! Round 1 starting now! Please join the `awesome 1v1 server`. Please be aware that you will have to come back to this channel after this match."
+            f"Done! Round 1 starting now! Please join the `awesome 1v1 server`. Players will be given loadout {loadout1 + 1}! Please be aware that you will have to come back to this channel after this match."
         )
         self.client.tournament_players = {
             author.uid: {"kills": 0, "wins": 0},
@@ -613,9 +613,9 @@ class Tournament(commands.Cog):
                 )
             return
 
-        loadout2 = random.randint(1, 9)
+        loadout2 = random.randint(0, 9)
         while loadout2 == loadout1:
-            loadout2 = random.randint(1, 9)
+            loadout2 = random.randint(0, 9)
         with open(f"tourney/round{loadout2}.json", "r") as f:
             self.client.tournament_loadout = json.loads(f.read())
         if semifinals:
@@ -631,7 +631,7 @@ class Tournament(commands.Cog):
             await cursor.execute(f"INSERT INTO whitelist(uid) values({author.uid})")
             await db.commit()
         await ctx.send(
-            "Done! Round 2 starting now! Please join the `awesome 1v1 server`. Please be aware that you will have to come back to this channel after this match."
+            f"Done! Round 2 starting now! Please join the `awesome 1v1 server`. Players will be given loadout {loadout2 + 1}! Please be aware that you will have to come back to this channel after this match."
         )
 
         self.client.tournament_players[author.uid]["kills"] = 0
@@ -802,9 +802,9 @@ class Tournament(commands.Cog):
                     f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
                 )
             return
-        loadout3 = random.randint(1, 9)
+        loadout3 = random.randint(0, 9)
         while loadout3 == loadout1 or loadout3 == loadout2:
-            loadout3 = random.randint(1, 9)
+            loadout3 = random.randint(0, 9)
         with open(f"tourney/loadout{loadout3}.json", "r") as f:
             self.client.tournament_loadout = json.loads(f.read())
         if semifinals:
@@ -820,7 +820,7 @@ class Tournament(commands.Cog):
             await cursor.execute(f"INSERT INTO whitelist(uid) values({author.uid})")
             await db.commit()
         await ctx.send(
-            "Done! Final round starting now! Please join the `awesome 1v1 server`. This is the tiebreaker!"
+            f"Done! Final round starting now! Players will be given loadout {loadout3 + 1}! Please join the `awesome 1v1 server`. This is the tiebreaker!"
         )
 
         self.client.tournament_players[author.uid]["kills"] = 0

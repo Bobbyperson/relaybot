@@ -4,6 +4,6 @@ asyncpg==0.30.0
 requests==2.32.3
 aiohttp==3.10.10
 python-dateutil==2.9.0.post0
-keyring==25.4.1
+keyring==25.5.0
 discord-pretty-help==2.0.7
 rcon==2.4.6

@@ -1,7 +1,7 @@
 {
     "loadout": {
         "primary": "mp_weapon_epg",
-        "primary_mod1": "",
+        "primary_mod1": "pas_fast_reload",
         "primary_mod2": "tactical_cdr_on_kill",
         "primary_mod3": "",
         "primary_attachment": "",

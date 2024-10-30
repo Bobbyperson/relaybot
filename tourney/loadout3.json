@@ -14,9 +14,9 @@
         "weapon3_mod2": "",
         "weapon3_mod3": "",
         "melee": "melee_pilot_emptyhanded",
-        "ordnance": "mp_weapon_thermite_grenade",
+        "ordnance": "mp_weapon_grenade_gravity",
         "special": "mp_ability_heal",
         "passive1": "pas_fast_health_regen",
-        "passive2": "pas_wallhang"
+        "passive2": "pas_stealth_movement"
     }
 }

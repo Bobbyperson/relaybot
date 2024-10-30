@@ -4,7 +4,7 @@
         "primary_mod1": "pas_fast_reload",
         "primary_mod2": "tactical_cdr_on_kill",
         "primary_mod3": "",
-        "primary_attachment": "redline_sight",
+        "primary_attachment": "",
         "secondary": "mp_weapon_autopistol",
         "secondary_mod1": "pas_fast_reload",
         "secondary_mod2": "tactical_cdr_on_kill",
@@ -17,6 +17,6 @@
         "ordnance": "mp_weapon_satchel",
         "special": "mp_ability_grapple",
         "passive1": "pas_fast_health_regen",
-        "passive2": "pas_wallhang"
+        "passive2": "pas_stealth_movement"
     }
 }

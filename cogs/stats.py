@@ -147,20 +147,26 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
     @commands.hybrid_command()
     async def info(self, ctx):
         """See general server info."""
+        total_users = 0
+        users = []
+        total_kills = 0
         async with aiosqlite.connect(config.bank, timeout=10) as db:
-            cursor = await db.cursor()
-            await cursor.execute("SELECT COUNT(*) FROM main")
-            users = await cursor.fetchone()
-            users = users[0]
-            await cursor.execute("SELECT sum(kills_as_inf) FROM main")
-            total_kills = await cursor.fetchone()
-            total_kills = total_kills[0]
-            await cursor.execute("SELECT sum(kills_as_sur) FROM main")
-            survivor_kills = await cursor.fetchone()
-            total_kills += survivor_kills[0]
-            await ctx.send(
-                f"A total of {await utils.commafy(users)} players have joined the server as of September 26th, 2022\nThere have been a combined total of {await utils.commafy(total_kills)} kills amongst all players."
-            )
+            for s in config.servers:
+                await db.execute(f"SELECT * FROM {s.name}")
+                fetch = await db.fetchall()
+                for user in fetch:
+                    if user[2] not in users:
+                        users.append(user[2])
+                        total_users += 1
+                    total_kills += user[3]
+                    total_kills += user[4]
+
+        em = discord.Embed(
+            title="Server Info",
+            color=ctx.author.color,
+            description=f"Total Users: {total_users}\nTotal Kills: {total_kills}",
+        )
+        await ctx.send(embed=em)
 
     @commands.command(hidden=True)
     @commands.is_owner()

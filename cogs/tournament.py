@@ -23,42 +23,6 @@ class Player:
 
 api_key = config.challonge_api
 
-tf2_assault_rifles = {
-    "R-201": "mp_weapon_rspn101",
-    "R-101": "mp_weapon_rspn101_og",
-    "Hemlock": "mp_weapon_hemlock",
-    "Flatline": "mp_weapon_vinson",
-    "G2A5": "mp_weapon_g2",
-}
-
-tf2_smgs = {
-    "CAR": "mp_weapon_car",
-    "Alternator": "mp_weapon_alternator_smg",
-    "Volt": "mp_weapon_hemlok_smg",
-    "R-97": "mp_weapon_r97",
-}
-
-tf2_lmg = {
-    "Spitfire": "mp_weapon_lmg",
-    "L-Star": "mp_weapon_lstar",
-    "Devotion": "mp_weapon_devotion",
-}
-
-tf2_snipers = {
-    "Kraber": "mp_weapon_sniper",
-    "Double-Take": "mp_weapon_doubletake",
-    "DMR": "mp_weapon_dmr",
-}
-
-tf2_shotguns = {"EVA-8": "mp_weapon_shotgun", "Mastiff": "mp_weapon_mastiff"}
-
-tf2_grenadiers = {
-    "Sidewinder": "mp_weapon_smr",
-    "EPG": "mp_weapon_epg",
-    "Softball": "mp_weapon_softball",
-    "Cold-War": "mp_weapon_pulse_lmg",
-}
-
 valid_maps = {
     "coliseum": "mp_coliseum",
     "pillars": "mp_coliseum_column",

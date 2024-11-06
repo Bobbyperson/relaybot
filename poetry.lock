@@ -1177,13 +1177,13 @@ files = [
 
 [[package]]
 name = "rcon"
-version = "2.4.6"
+version = "2.4.9"
 description = "An RCON client library."
 optional = false
 python-versions = ">=3.10"
 files = [
-    {file = "rcon-2.4.6-py3-none-any.whl", hash = "sha256:cd7f4f3a6f1ee1786c08c58d46333ca252a9a969e8bb1418ec4cff8747a54d69"},
-    {file = "rcon-2.4.6.tar.gz", hash = "sha256:e89697860e33312d99df8d54408b9d0fae179858b52ae4b8dadb72c978d7c4d2"},
+    {file = "rcon-2.4.9-py3-none-any.whl", hash = "sha256:c0d2477070f189a6b49774133c412473ece40bb452473f160c7373b162dc8929"},
+    {file = "rcon-2.4.9.tar.gz", hash = "sha256:d41a8311dc13352da35163f46a3cc13eb20f5cde1297b75b56e7645ef76d0a48"},
 ]
 
 [package.extras]
@@ -1409,4 +1409,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.13,!=3.12.5"
-content-hash = "7a78046e01cdf1f0af60805a79754d3f0a2b4d0645e8c31fd5109ea9f3f06014"
+content-hash = "1260fb1a44648b8f171fdecf686993d0b6d7f36503eba0a542a1b67937f84f6b"

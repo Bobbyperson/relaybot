@@ -580,7 +580,7 @@ class Tournament(commands.Cog):
         loadout2 = random.randint(0, 9)
         while loadout2 == loadout1:
             loadout2 = random.randint(0, 9)
-        with open(f"tourney/round{loadout2}.json", "r") as f:
+        with open(f"tourney/loadout{loadout2}.json", "r") as f:
             self.client.tournament_loadout = json.loads(f.read())
         if semifinals:
             await server.send_command(f"mp_gamemode ps; map {valid_maps[chosen_map2]}")

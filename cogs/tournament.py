@@ -34,6 +34,56 @@ valid_maps = {
     "meadow": "mp_lf_meadow",
 }
 
+weapons = {
+    "mp_weapon_rspn101": "R-201 Carbine",
+    "mp_weapon_rspn101_og": "R-101 Carbine",
+    "mp_weapon_hemlock": "Hemlok BF-R",
+    "mp_weapon_vinson": "V-47 Flatline",
+    "mp_weapon_g2": "G2A5",
+    "mp_weapon_car": "CAR",
+    "mp_weapon_alternator_smg": "Alternator",
+    "mp_weapon_hemlok_smg": "Volt",
+    "mp_weapon_r97": "R-97",
+    "mp_weapon_lmg": "Spitfire",
+    "mp_weapon_lstar": "L-STAR",
+    "mp_weapon_esaw": "Devotion",
+    "mp_weapon_sniper": "Kraber",
+    "mp_weapon_doubletake": "Double Take",
+    "mp_weapon_dmr": "Longbow DMR",
+    "mp_weapon_shotgun": "EVA-8 Auto",
+    "mp_weapon_mastiff": "Mastiff",
+    "mp_weapon_smr": "Sidewinder SMR",
+    "mp_weapon_epg": "EPG",
+    "mp_weapon_softball": "Softball",
+    "mp_weapon_pulse_lmg": "EM-4 Cold War",
+    "mp_weapon_semipistol": "P2016",
+    "mp_weapon_autopistol": "RE-45 Auto",
+    "mp_weapon_wingman": "B3 Wingman",
+    "mp_weapon_wingman_n": "Wingman Elite",
+    "mp_weapon_shotgun_pistol": "Mozambique",
+    "mp_weapon_smart_pistol": "Smart Pistol",
+    "mp_weapon_defender": "Charge Rifle",
+    "mp_weapon_mgl": "MGL",
+    "mp_weapon_arc_launcher": "LG-97 Thunderbolt",
+    "mp_weapon_rocket_launcher": "Archer",
+    "mp_weapon_frag_grenade": "Frag Grenade",
+    "mp_weapon_grenade_emp": "Arc Grenade",
+    "mp_weapon_thermite_grenade": "Firestar",
+    "mp_weapon_grenade_gravity": "Gravity Star",
+    "mp_weapon_grenade_electric_smoke": "Electric Smoke",
+    "mp_weapon_satchel": "Satchel",
+    "mp_ability_cloak": "Cloak",
+    "mp_weapon_grenade_sonar": "Pulse Blade",
+    "mp_ability_grapple": "Grapple",
+    "mp_ability_heal": "Stim",
+    "mp_weapon_deployable_cover": "A-Wall",
+    "mp_ability_shifter": "Phase Shift",
+    "mp_ability_holopilot": "Holopilot",
+}
+
+
+def loadout_to_string(loadout): ...
+
 
 class Tournament(commands.Cog):
 

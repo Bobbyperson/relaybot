@@ -21,7 +21,7 @@ rcon = "^2.4.9"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.9.3"
-black = "^24.10.0"
+black = "^25.1.0"
 
 [build-system]
 requires = ["poetry-core"]

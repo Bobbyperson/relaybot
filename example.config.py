@@ -13,13 +13,31 @@ bad_words = [
 
 servers = [
     Server(
-        "server1", "100th attrition server", 0, "127.0.0.1", "secretkey1", "rconpass1"
+        "server1",
+        "100th attrition server",
+        0,
+        "127.0.0.1",
+        "secretkey1",
+        "rconpass1",
+        1234,
     ),
     Server(
-        "server2", "101st attrition server", 0, "127.0.0.1", "secretkey2", "rconpass2"
+        "server2",
+        "101st attrition server",
+        0,
+        "127.0.0.1",
+        "secretkey2",
+        "rconpass2",
+        1234,
     ),
     Server(
-        "server3", "102nd attrition server", 0, "127.0.0.1", "secretkey3", "rconpass3"
+        "server3",
+        "102nd attrition server",
+        0,
+        "127.0.0.1",
+        "secretkey3",
+        "rconpass3",
+        1234,
     ),
 ]
 
@@ -31,6 +49,7 @@ tournament_servers = [
         "127.0.0.1",
         "secretkey1",
         "rconpass1",
+        1234,
     ),
 ]
 

@@ -191,8 +191,17 @@ class Admin(commands.Cog):
     @commands.command(aliases=["rcon"])
     @utils.is_admin()
     async def parse(self, ctx, server: str = None, *args):
-        if not server or not await utils.get_server(server):
+        if (not server or not await utils.get_server(server)) and server != "all":
             return await ctx.reply("Please specify a server!")
+        if server == "all":
+            for s in config.servers:
+                await s.send_command(" ".join(args))
+            await ctx.reply("ok done")
+            channel = await self.client.fetch_channel(config.bigbrother)
+            await channel.send(
+                f"`{ctx.author.name}` just ran `{' '.join(args)}` thru the bot to all servers"
+            )
+            return
         s = await utils.get_server(server)
         if not args:
             return await ctx.reply("Please specify a command!")
@@ -200,7 +209,7 @@ class Admin(commands.Cog):
         await ctx.reply("ok done")
         channel = await self.client.fetch_channel(config.bigbrother)
         await channel.send(
-            f"`{ctx.author.name}` just ran `{' '.join(args)}` thru the bot"
+            f"`{ctx.author.name}` just ran `{' '.join(args)}` thru the bot to {server}"
         )
 
     @commands.command(aliases=["spl"], hidden=True)

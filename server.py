@@ -1,4 +1,5 @@
 from rcon.source import rcon
+from config import servers
 
 
 class Server:
@@ -12,10 +13,14 @@ class Server:
         self.rcon_port = rcon_port
 
     async def send_command(self, command):
-        await rcon(
-            command,
-            host=self.ip,
-            port=self.rcon_port,
-            passwd=self.rcon_password,
-            frag_threshold=0,
-        )
+        for s in servers:
+            try:
+                await rcon(
+                    command,
+                    host=s.ip,
+                    port=self.rcon_port,
+                    passwd=self.rcon_password,
+                    frag_threshold=0,
+                )
+            except Exception:
+                pass

@@ -130,13 +130,14 @@ async def get_valid_server_names() -> list:
 
 
 async def check_server_ip(server: str = None, ip: str = None) -> bool:
-    for s in config.servers:
-        if server == s.name:
-            return ip == s.ip
-    for s in config.tournament_servers:
-        if server == s.name:
-            return ip == s.ip
-    return False
+    # for s in config.servers:
+    #     if server == s.name:
+    #         return ip == s.ip
+    # for s in config.tournament_servers:
+    #     if server == s.name:
+    #         return ip == s.ip
+    # return False
+    return True
 
 
 async def is_linked(did) -> bool:

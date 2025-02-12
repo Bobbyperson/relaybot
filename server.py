@@ -12,8 +12,10 @@ class Server:
         self.rcon_port = rcon_port
 
     async def send_command(self, command):
-        temp = ["172.18.0.2", "172.19.0.2", "172.20.0.2", "172.21.0.2", "172.22.0.2"]
-        for ip in temp:
+        iplist = []
+        for i in range(18, 30, 1):
+            iplist.append(f"172.{i}.0.2")
+        for ip in iplist:
             try:
                 await rcon(
                     command,
@@ -22,5 +24,5 @@ class Server:
                     passwd=self.rcon_password,
                     timeout=1,
                 )
-            except Exception as e:
-                print(e)
+            except Exception:
+                pass

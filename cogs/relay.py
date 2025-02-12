@@ -295,7 +295,7 @@ class Relay(commands.Cog):
                     if fetched[3]:
                         expire_date = datetime.strptime(fetched[3], "%Y-%m-%d %H:%M:%S")
                         now = datetime.now()
-                        if expire_date < now:
+                        if expire_date > now:
                             return web.json_response(
                                 text=json.dumps(
                                     {"banned": "false", "ban_message": "ban expired"}

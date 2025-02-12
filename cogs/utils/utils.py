@@ -254,7 +254,7 @@ async def unban_user(uid):
                 )
                 await db.commit()
             else:
-                if ban[2] > now:
+                if datetime.strptime(ban[2], "%Y-%m-%d %H:%M:%S") > now:
                     await cursor.execute(
                         "UPDATE banned SET expire_date = (?) WHERE uid = (?) AND expire_date = (?)",
                         (now.strftime("%Y-%m-%d %H:%M:%S"), uid, ban[2]),

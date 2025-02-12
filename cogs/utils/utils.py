@@ -3,7 +3,7 @@ import time
 
 import aiosqlite
 import config
-import datetime
+from datetime import datetime
 from discord.ext import commands
 
 # async def human_time_duration(seconds):

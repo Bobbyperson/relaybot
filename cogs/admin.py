@@ -162,6 +162,7 @@ class Admin(commands.Cog):
                     await ctx.reply(
                         f"couldn't tell {server.name} to update banlist! ban may be delayed for one round."
                     )
+        await ctx.send("done!")
 
     @commands.hybrid_command()
     @utils.is_admin()

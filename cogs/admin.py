@@ -157,7 +157,7 @@ class Admin(commands.Cog):
             await utils.ban_user(uid, reason, utils.human_time_to_seconds(length))
             for server in config.servers:
                 try:
-                    await server.send_command("checkplayers")
+                    await server.send_command("checkbans")
                 except ConnectionError:
                     await ctx.reply(
                         f"couldn't tell {server.name} to update banlist! ban may be delayed for one round."

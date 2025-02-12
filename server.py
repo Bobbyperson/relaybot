@@ -13,7 +13,7 @@ class Server:
 
     async def send_command(self, command):
         iplist = []
-        for i in range(18, 30, 1):
+        for i in range(18, 25, 1):
             iplist.append(f"172.{i}.0.2")
         for ip in iplist:
             try:
@@ -23,6 +23,7 @@ class Server:
                     port=self.rcon_port,
                     passwd=self.rcon_password,
                     frag_threshold=0,
+                    timeout=1,
                 )
             except Exception:
                 pass

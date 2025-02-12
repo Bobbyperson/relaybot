@@ -1088,6 +1088,8 @@ expire_date TEXT
                 await banlog.send(
                     f"{player} has been automatically banned.\nReason: Rule breaking language\nContext: {sent.jump_url}"
                 )
+                for server in config.servers:
+                    await server.send_command("checkbans")
                 return
 
         for word in config.bad_words:

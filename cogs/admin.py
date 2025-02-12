@@ -142,9 +142,9 @@ class Admin(commands.Cog):
                 timestamp = timestamp[0]
                 first_join = first_join[0]
                 playtime = playtime[0]
-                message += f"`{s.name}:\n{user}`:\nUID: `{uid}`\nFirst seen: `{first_join}`\nLast seen: `{timestamp}`\nPlaytime: `{await utils.human_time_duration(playtime)}`"
-        message += await utils.get_ban_info(uid)
+                message += f"`{s.name}:\n{user}`:\nUID: `{uid}`\nFirst seen: `{first_join}`\nLast seen: `{timestamp}`\nPlaytime: `{await utils.human_time_duration(playtime)}`\n"
         await ctx.send(message)
+        await ctx.send(await utils.get_ban_info(uid))
 
     @commands.hybrid_command()
     @utils.is_admin()
@@ -162,6 +162,7 @@ class Admin(commands.Cog):
                     await ctx.reply(
                         f"couldn't tell {server.name} to update banlist! ban may be delayed for one round."
                     )
+        await ctx.send("done!")
 
     @commands.hybrid_command()
     @utils.is_admin()

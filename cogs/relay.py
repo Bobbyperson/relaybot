@@ -289,29 +289,29 @@ class Relay(commands.Cog):
         async with aiosqlite.connect(config.bank) as db:
             async with db.execute("SELECT * FROM banned WHERE uid=?", (uid,)) as cursor:
                 # uid, reason, expires (datetime object)
-                fetched = await cursor.fetchone()
+                fetched = await cursor.fetchall()
                 if fetched:
-                    reason = fetched[2] if fetched[2] else "Not listed"
-                    if fetched[3]:
-                        expire_date = datetime.strptime(fetched[3], "%Y-%m-%d %H:%M:%S")
-                        now = datetime.now()
-                        if expire_date < now:
-                            return web.json_response(
-                                text=json.dumps({"banned": "false", "ban_message": ""}),
-                                status=200,
+                    for row in fetched:
+                        reason = row[2] if row[2] else "Not listed"
+                        if row[3]:
+                            expire_date = datetime.strptime(row[3], "%Y-%m-%d %H:%M:%S")
+                            now = datetime.now()
+                            if expire_date < now:
+                                continue
+                            expires = (
+                                humanize.naturaldate(expire_date)
+                                + ", "
+                                + humanize.naturaltime(expire_date)
                             )
-                        expires = (
-                            humanize.naturaldate(expire_date)
-                            + ","
-                            + humanize.naturaltime(expire_date)
+                        else:
+                            expires = "Never"
+                        ban_message = f"You have been banned from all awesome servers.\nReason: {reason}\nExpires: {expires}\nPlease join discord.gg/awesometf to appeal"
+                        return web.json_response(
+                            text=json.dumps(
+                                {"banned": "true", "ban_message": ban_message}
+                            ),
+                            status=200,
                         )
-                    else:
-                        expires = "Never"
-                    ban_message = f"You have been banned from this server:\nReason: {reason}\nExpires: {expires}\nPlease join discord.gg/awesometf to appeal."
-                    return web.json_response(
-                        text=json.dumps({"banned": "true", "ban_message": ban_message}),
-                        status=200,
-                    )
 
         return web.json_response(
             text=json.dumps({"banned": "false", "ban_message": ""}), status=200

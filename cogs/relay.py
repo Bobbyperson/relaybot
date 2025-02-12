@@ -291,9 +291,9 @@ class Relay(commands.Cog):
                 # uid, reason, expires (datetime object)
                 fetched = await cursor.fetchone()
                 if fetched:
-                    reason = fetched[1] if fetched[1] else "Not listed"
-                    if fetched[2]:
-                        expire_date = datetime.strptime(fetched[2], "%Y-%m-%d %H:%M:%S")
+                    reason = fetched[2] if fetched[2] else "Not listed"
+                    if fetched[3]:
+                        expire_date = datetime.strptime(fetched[3], "%Y-%m-%d %H:%M:%S")
                         now = datetime.now()
                         if expire_date < now:
                             return web.json_response(

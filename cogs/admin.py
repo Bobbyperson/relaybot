@@ -69,6 +69,7 @@ class Admin(commands.Cog):
             user = int(user)
         except ValueError:
             pass
+        message = ""
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
             for s in config.servers:
@@ -141,52 +142,38 @@ class Admin(commands.Cog):
                 timestamp = timestamp[0]
                 first_join = first_join[0]
                 playtime = playtime[0]
-                s.send_command("reportbans")
-                await asyncio.sleep(1)
-                banned = True if str(uid) in self.client.ban_list[s.name] else False
-                await ctx.send(
-                    f"`{s.name}:\n{user}`:\nUID: `{uid}`\nFirst seen: `{first_join}`\nLast seen: `{timestamp}`\nPlaytime: `{await utils.human_time_duration(playtime)}`\nBanned: `{banned}`"
-                )
+                message += f"`{s.name}:\n{user}`:\nUID: `{uid}`\nFirst seen: `{first_join}`\nLast seen: `{timestamp}`\nPlaytime: `{await utils.human_time_duration(playtime)}`"
+        message += await utils.get_ban_info(uid)
+        await ctx.send(message)
 
-    @commands.command()
+    @commands.hybrid_command()
     @utils.is_admin()
-    async def addban(self, ctx, uid: str = None):
+    async def ban(self, ctx, uid: str = "", reason: str = "", length: str = ""):
         if ctx.author.id not in config.admins:
             return await ctx.reply("naw")
         if not uid:
             return await ctx.reply("Please specify a uid!")
         async with ctx.typing():
+            await utils.ban_user(uid, reason, length)
             for server in config.servers:
                 try:
-                    await server.send_command(f"cbbanuid {uid}")
-                    await ctx.reply(
-                        f"`{uid}` has successfully been banned on `{server.name}`"
-                    )
+                    await server.send_command("checkplayers")
                 except ConnectionError:
                     await ctx.reply(
-                        f"Could not ban `{uid}` on `{server.name}`!\nPlease join that server and manually run `bbanuid {uid}`"
+                        f"couldn't tell {server.name} to update banlist! ban may be delayed for one round."
                     )
 
-    @commands.command()
+    @commands.hybrid_command()
     @utils.is_admin()
-    async def removeban(self, ctx, uid: str = ""):
+    async def unban(self, ctx, uid: str = ""):
         if ctx.author.id not in config.admins:
             await ctx.reply("naw")
             return
         if uid == "":
             await ctx.reply("Please specify a uid!")
             return
-        async with ctx.typing():
-            for server in config.servers:
-                try:
-                    await server.send_command(f"cbunban {uid}")
-                    await ctx.reply(
-                        f"`{uid}` has successfully been unbanned on `{server.name}`"
-                    )
-                except ConnectionError:
-                    await ctx.reply(
-                        f"Could not unban `{uid}` on `{server.name}`!\nPlease join that server and manually run `bunban {uid}`"
-                    )
+        await utils.unban_user(uid)
+        await ctx.send("ok done")
 
     @commands.command(aliases=["rcon"])
     @utils.is_admin()

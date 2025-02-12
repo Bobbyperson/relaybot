@@ -2,6 +2,7 @@ from typing import Union
 
 import aiosqlite
 import config
+import datetime
 from discord.ext import commands
 
 # async def human_time_duration(seconds):
@@ -155,3 +156,100 @@ async def is_tournament_server(server: str = None) -> bool:
         if server == s.name:
             return True
     return False
+
+
+def human_time_to_seconds(*args) -> int:
+    if not args or len(args) == 0:
+        return 0
+
+    if len(args) == 1:
+        time = args[0]
+        unit = time[-1]
+        try:
+            value = float(time[:-1])
+        except ValueError:
+            return -1
+
+        match unit:
+            case "m":
+                return int(value * 60)
+            case "h":
+                return int(value * 60 * 60)
+            case "d":
+                return int(value * 60 * 60 * 24)
+            case "w":
+                return int(value * 60 * 60 * 24 * 7)
+            case "M":
+                return int(value * 60 * 60 * 24 * 30)
+            case "y":
+                return int(value * 60 * 60 * 24 * 365)
+            case "_":
+                return int(value)
+
+    value = 0
+    for i, arg in enumerate(args):
+        if i == 0:
+            try:
+                time = float(arg)
+            except ValueError:
+                return -1
+            continue
+
+        match arg:
+            case "s" | "second" | "seconds" | "sec":
+                value += float(time)
+            case "m" | "minute" | "minutes" | "min":
+                value += float(time) * 60
+            case "h" | "hour" | "hours" | "hr" | "hrs":
+                value += float(time) * 60 * 60
+            case "d" | "day" | "days":
+                value += float(time) * 60 * 60 * 24
+            case "w" | "week" | "weeks":
+                value += float(time) * 60 * 60 * 24 * 7
+            case "M" | "month" | "months":
+                value += float(time) * 60 * 60 * 24 * 30
+            case "y" | "year" | "years":
+                value += float(time) * 60 * 60 * 24 * 365
+
+    return int(value)
+
+
+async def get_ban_info(uid):
+    async with aiosqlite.connect(config.bank, timeout=10) as db:
+        cursor = await db.cursor()
+        await cursor.execute("SELECT * FROM banned WHERE uid = (?)", (uid,))
+        ban_info = await cursor.fetchone()
+        return ban_info
+
+
+async def ban_user(uid, reason="", expires=""):
+    async with aiosqlite.connect(config.bank, timeout=10) as db:
+        cursor = await db.cursor()
+        await cursor.execute(
+            "INSERT INTO banned(uid, reason, expires) VALUES(?, ?, ?)",
+            (uid, reason, expires),
+        )
+        await db.commit()
+
+
+async def unban_user(uid):
+    # get current ban and set expire time to right now
+    async with aiosqlite.connect(config.bank, timeout=10) as db:
+        now = datetime.now()
+        cursor = await db.cursor()
+        await cursor.execute("SELECT * FROM banned WHERE uid = (?)", (uid,))
+        ban_info = await cursor.fetchall()
+        for ban in ban_info:
+            if not ban[2]:
+                await cursor.execute(
+                    "UPDATE banned SET expires = (?) WHERE uid = (?)",
+                    (now.strftime("%Y-%m-%d %H:%M:%S"), uid),
+                )
+                await db.commit()
+            else:
+                if ban[2] > now:
+                    await cursor.execute(
+                        "UPDATE banned SET expires = (?) WHERE uid = (?) AND expires = (?)",
+                        (now.strftime("%Y-%m-%d %H:%M:%S"), uid, ban[2]),
+                    )
+                    await db.commit()

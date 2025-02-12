@@ -13,6 +13,7 @@ import asyncpg
 import config
 import discord
 import requests
+import humanize
 from aiohttp import ClientSession, web
 from discord.ext import commands, tasks
 
@@ -61,6 +62,7 @@ class Relay(commands.Cog):
         self.app.router.add_post("/leaderboard", self.get_leaderboard)
         self.app.router.add_get("/leaderboard-info", self.get_leaderboard_info)
         self.app.router.add_get("/is-whitelisted", self.is_whitelisted)
+        self.app.router.add_get("/is-banned", self.is_banned)
         self.app.router.add_get("/stats", self.get_stats)
         self.app.router.add_get("/tournament-loadout", self.get_tournament_loadout)
         self.app.router.add_route("OPTIONS", "/leaderboard", self.handle_options)
@@ -74,9 +76,6 @@ class Relay(commands.Cog):
         self.message_queue = {}
         for s in config.servers:
             self.message_queue[s.name] = ""
-        self.client.ban_list = {}
-        for s in config.servers:
-            self.client.ban_list[s.name] = []
         self.client.tournament_loadout = {}
         self.client.tournament_should_track_kills = True
         self.client.tournament_should_sleep = True
@@ -282,6 +281,42 @@ class Relay(commands.Cog):
 
         return web.json_response(text=json.dumps({"whitelisted": False}), status=200)
 
+    async def is_banned(self, request):
+        # get uid from request
+        uid = request.query.get("uid")
+
+        # check if uid is banned
+        async with aiosqlite.connect(config.bank) as db:
+            async with db.execute("SELECT * FROM banned WHERE uid=?", (uid,)) as cursor:
+                # uid, reason, expires (datetime object)
+                fetched = await cursor.fetchone()
+                if fetched:
+                    reason = fetched[1] if fetched[1] else "Not listed"
+                    if fetched[2]:
+                        expire_date = datetime.strptime(fetched[2], "%Y-%m-%d %H:%M:%S")
+                        now = datetime.now()
+                        if expire_date < now:
+                            return web.json_response(
+                                text=json.dumps({"banned": "false", "ban_message": ""}),
+                                status=200,
+                            )
+                        expires = (
+                            humanize.naturaldate(expire_date)
+                            + ","
+                            + humanize.naturaltime(expire_date)
+                        )
+                    else:
+                        expires = "Never"
+                    ban_message = f"You have been banned from this server:\nReason: {reason}\nExpires: {expires}\nPlease join discord.gg/awesometf to appeal."
+                    return web.json_response(
+                        text=json.dumps({"banned": "true", "ban_message": ban_message}),
+                        status=200,
+                    )
+
+        return web.json_response(
+            text=json.dumps({"banned": "false", "ban_message": ""}), status=200
+        )
+
     async def handle_options(self, request):
         # do nothing, just respond with OK
         return web.Response(
@@ -330,6 +365,7 @@ class Relay(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
+        await self.client.tree.sync()
         await self.make_mentionable()
         print("Relay is ready. Starting web server...")
         await self.start_web_server()
@@ -459,6 +495,16 @@ uid INT NOT NULL
 )
 """
             )
+            await db.execute(
+                """CREATE TABLE IF NOT EXISTS banned(
+num INTEGER PRIMARY KEY AUTOINCREMENT,
+uid INT NOT NULL,
+reason TEXT,
+expire_date TEXT
+)
+"""
+            )
+
             await db.commit()
 
     async def tone_info(self, request):
@@ -647,9 +693,6 @@ uid INT NOT NULL
                     await self.big_brother(
                         f"Command `{data['args']}|{server_identifier}`."
                     )
-                case "banlist":
-                    bans = data["args"].split("|")
-                    self.client.ban_list[server_identifier] = bans
                 case _:
                     print(f"Warning! Unknown custom message {custom}.")
         else:
@@ -1032,8 +1075,11 @@ uid INT NOT NULL
         for word in config.ban_words:
             # Search for the pattern in the text
             if re.search(word, message, re.IGNORECASE):
-                for server in config.servers:
-                    await server.send_command(f"cbbanuid {uid}")
+                await utils.ban_user(
+                    uid,
+                    reason="AUTO BAN: Rule breaking language",
+                    expires=utils.human_time_to_seconds("1w"),
+                )
                 adminrelay = self.client.get_channel(config.admin_relay)
                 await adminrelay.send(
                     f"`{player}` has been automatically banned due to a rule breaking message:\n`{message}`\nMatches pattern:`{word}`\nUID: `{uid}`\nPlease review: {sent.jump_url}"

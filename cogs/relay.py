@@ -297,7 +297,9 @@ class Relay(commands.Cog):
                         now = datetime.now()
                         if expire_date < now:
                             return web.json_response(
-                                text=json.dumps({"banned": "false", "ban_message": ""}),
+                                text=json.dumps(
+                                    {"banned": "false", "ban_message": "ban expired"}
+                                ),
                                 status=200,
                             )
                         expires = (

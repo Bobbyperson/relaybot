@@ -154,7 +154,7 @@ class Admin(commands.Cog):
         if not uid:
             return await ctx.reply("Please specify a uid!")
         async with ctx.typing():
-            await utils.ban_user(uid, reason, length)
+            await utils.ban_user(uid, reason, utils.human_time_to_seconds(length))
             for server in config.servers:
                 try:
                     await server.send_command("checkplayers")

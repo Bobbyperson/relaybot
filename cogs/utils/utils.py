@@ -1,4 +1,5 @@
 from typing import Union
+import time
 
 import aiosqlite
 import config
@@ -223,10 +224,16 @@ async def get_ban_info(uid):
 
 
 async def ban_user(uid, reason="", expires=""):
+    if expires:
+        expires = datetime.utcfromtimestamp(int(time.time()) + expires).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+    else:
+        expires = ""
     async with aiosqlite.connect(config.bank, timeout=10) as db:
         cursor = await db.cursor()
         await cursor.execute(
-            "INSERT INTO banned(uid, reason, expires) VALUES(?, ?, ?)",
+            "INSERT INTO banned(uid, reason, expire_date) VALUES(?, ?, ?)",
             (uid, reason, expires),
         )
         await db.commit()
@@ -242,14 +249,14 @@ async def unban_user(uid):
         for ban in ban_info:
             if not ban[2]:
                 await cursor.execute(
-                    "UPDATE banned SET expires = (?) WHERE uid = (?)",
+                    "UPDATE banned SET expire_date = (?) WHERE uid = (?)",
                     (now.strftime("%Y-%m-%d %H:%M:%S"), uid),
                 )
                 await db.commit()
             else:
                 if ban[2] > now:
                     await cursor.execute(
-                        "UPDATE banned SET expires = (?) WHERE uid = (?) AND expires = (?)",
+                        "UPDATE banned SET expire_date = (?) WHERE uid = (?) AND expire_date = (?)",
                         (now.strftime("%Y-%m-%d %H:%M:%S"), uid, ban[2]),
                     )
                     await db.commit()

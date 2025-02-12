@@ -219,7 +219,7 @@ async def get_ban_info(uid):
     async with aiosqlite.connect(config.bank, timeout=10) as db:
         cursor = await db.cursor()
         await cursor.execute("SELECT * FROM banned WHERE uid = (?)", (uid,))
-        ban_info = await cursor.fetchone()
+        ban_info = await cursor.fetchall()
         return ban_info
 
 

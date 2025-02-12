@@ -296,7 +296,7 @@ class Relay(commands.Cog):
                         if row[3]:
                             expire_date = datetime.strptime(row[3], "%Y-%m-%d %H:%M:%S")
                             now = datetime.now()
-                            if expire_date > now:
+                            if expire_date < now:
                                 continue
                             expires = (
                                 humanize.naturaldate(expire_date)

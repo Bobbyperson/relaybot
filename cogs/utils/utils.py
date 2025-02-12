@@ -225,7 +225,7 @@ async def get_ban_info(uid):
 
 async def ban_user(uid, reason="", expires=""):
     if expires:
-        expires = datetime.utcfromtimestamp(int(time.time()) + expires).strftime(
+        expires = datetime.fromtimestamp(int(time.time()) + expires).strftime(
             "%Y-%m-%d %H:%M:%S"
         )
     else:

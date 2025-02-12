@@ -247,16 +247,16 @@ async def unban_user(uid):
         await cursor.execute("SELECT * FROM banned WHERE uid = (?)", (uid,))
         ban_info = await cursor.fetchall()
         for ban in ban_info:
-            if not ban[2]:
+            if not ban[3]:
                 await cursor.execute(
                     "UPDATE banned SET expire_date = (?) WHERE uid = (?)",
                     (now.strftime("%Y-%m-%d %H:%M:%S"), uid),
                 )
                 await db.commit()
             else:
-                if datetime.strptime(ban[2], "%Y-%m-%d %H:%M:%S") > now:
+                if datetime.strptime(ban[3], "%Y-%m-%d %H:%M:%S") > now:
                     await cursor.execute(
                         "UPDATE banned SET expire_date = (?) WHERE uid = (?) AND expire_date = (?)",
-                        (now.strftime("%Y-%m-%d %H:%M:%S"), uid, ban[2]),
+                        (now.strftime("%Y-%m-%d %H:%M:%S"), uid, ban[3]),
                     )
                     await db.commit()

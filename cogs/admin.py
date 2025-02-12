@@ -143,7 +143,7 @@ class Admin(commands.Cog):
                 first_join = first_join[0]
                 playtime = playtime[0]
                 message += f"`{s.name}:\n{user}`:\nUID: `{uid}`\nFirst seen: `{first_join}`\nLast seen: `{timestamp}`\nPlaytime: `{await utils.human_time_duration(playtime)}`"
-        message += await utils.get_ban_info(uid)
+        await ctx.send(await utils.get_ban_info(uid))
         await ctx.send(message)
 
     @commands.hybrid_command()

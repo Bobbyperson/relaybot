@@ -20,8 +20,7 @@ class Server:
                     host=ip,
                     port=self.rcon_port,
                     passwd=self.rcon_password,
-                    frag_threshold=0,
                     timeout=1,
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                print(e)

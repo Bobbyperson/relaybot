@@ -160,7 +160,7 @@ async def is_tournament_server(server: str = None) -> bool:
 
 
 def human_time_to_seconds(*args) -> int:
-    if not args or len(args) == 0:
+    if not args or len(args) == 0 or args[0] == "0" or args[0] == "":
         return 0
 
     if len(args) == 1:

@@ -220,6 +220,25 @@ async def get_ban_info(uid):
         cursor = await db.cursor()
         await cursor.execute("SELECT * FROM banned WHERE uid = (?)", (uid,))
         ban_info = await cursor.fetchall()
+        times_banned = len(ban_info)
+        is_banned = False
+        reason = "None"
+        async with aiosqlite.connect(config.bank) as db:
+            async with db.execute("SELECT * FROM banned WHERE uid=?", (uid,)) as cursor:
+                # uid, reason, expires (datetime object)
+                fetched = await cursor.fetchall()
+                if fetched:
+                    for row in fetched:
+                        reason = row[2] if row[2] else "Not listed"
+                        if row[3]:
+                            expire_date = datetime.strptime(row[3], "%Y-%m-%d %H:%M:%S")
+                            now = datetime.now()
+                            if expire_date < now:
+                                continue
+                        is_banned = True
+                        break
+
+        ban_info = f"Banned: {is_banned}\nTimes Banned: {times_banned}\nReason for current ban: {reason}"
         return ban_info
 
 

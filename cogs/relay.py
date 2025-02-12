@@ -300,12 +300,12 @@ class Relay(commands.Cog):
                                 continue
                             expires = (
                                 humanize.naturaldate(expire_date)
-                                + ","
+                                + ", "
                                 + humanize.naturaltime(expire_date)
                             )
                         else:
                             expires = "Never"
-                        ban_message = f"You have been banned from this server:\nReason: {reason}\nExpires: {expires}\nPlease join discord.gg/awesometf to appeal."
+                        ban_message = f"You have been banned from all awesome servers.\nReason: {reason}\nExpires: {expires}\nPlease join discord.gg/awesometf to appeal"
                         return web.json_response(
                             text=json.dumps(
                                 {"banned": "true", "ban_message": ban_message}

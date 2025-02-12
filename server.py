@@ -12,10 +12,8 @@ class Server:
         self.rcon_port = rcon_port
 
     async def send_command(self, command):
-        iplist = []
-        for i in range(18, 25, 1):
-            iplist.append(f"172.{i}.0.2")
-        for ip in iplist:
+        temp = ["172.18.0.2", "172.19.0.2", "172.20.0.2", "172.21.0.2", "172.22.0.2"]
+        for ip in temp:
             try:
                 await rcon(
                     command,

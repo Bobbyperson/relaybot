@@ -3,6 +3,7 @@ import time
 
 import aiosqlite
 import config
+import humanize
 from datetime import datetime
 from discord.ext import commands
 
@@ -223,6 +224,7 @@ async def get_ban_info(uid):
         times_banned = len(ban_info)
         is_banned = False
         reason = "None"
+        expires = "None"
         async with aiosqlite.connect(config.bank) as db:
             async with db.execute("SELECT * FROM banned WHERE uid=?", (uid,)) as cursor:
                 # uid, reason, expires (datetime object)
@@ -235,10 +237,15 @@ async def get_ban_info(uid):
                             now = datetime.now()
                             if expire_date < now:
                                 continue
+                        expires = (
+                            humanize.naturaldate(expire_date)
+                            + ", "
+                            + humanize.naturaltime(expire_date)
+                        )
                         is_banned = True
                         break
 
-        ban_info = f"Banned: {is_banned}\nTimes Banned: {times_banned}\nReason for current ban: {reason}"
+        ban_info = f"Banned: {is_banned}\nTimes Banned: {times_banned}\nReason for current ban: {reason}\nExpires: {expires}"
         return ban_info
 
 

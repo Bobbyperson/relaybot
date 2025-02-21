@@ -21,7 +21,7 @@ rcon = "^2.4.9"
 humanize = "^4.12.1"
 
 [tool.poetry.group.dev.dependencies]
-ruff = "^0.9.6"
+ruff = "^0.9.7"
 black = "^25.1.0"
 
 [build-system]

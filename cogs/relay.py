@@ -14,6 +14,9 @@ import config
 import discord
 import requests
 import humanize
+import io
+import math
+from PIL import Image
 from aiohttp import ClientSession, web
 from discord.ext import commands, tasks
 
@@ -347,6 +350,33 @@ class Relay(commands.Cog):
                 await self.discord_log("looking to play is now mentionable")
         for s in config.servers:
             if message.channel.id == s.relay:
+
+                if message.attachments:
+                    async with io.BytesIO() as f:
+                        f = await message.attachments[0].read(f)
+                        f.seek(0)
+                        f = Image.open(f)
+                        f.convert("RGB")
+                        resize_ratio = min(37 / f.width, 11 / f.height)
+                        f = f.resize(
+                            (
+                                math.floor(f.width * resize_ratio),
+                                math.floor(f.height * resize_ratio),
+                            )
+                        )
+                        pixels = []
+                        for x in range(f.width):
+                            for y in range(f.height):
+                                r, g, b = f.getpixel((x, y))
+                                pixels.append(f"{r},{g},{b}")
+                        await s.send_command(
+                            f"sendimage {message.author.name} {f.width} {" ".join(pixels)}"
+                        )
+                        await self.discord_log(
+                            f"from {message.author.name}: `sendimage {message.author.name} {f.width}`"
+                        )
+                        return
+
                 remove_chars = "`;&|'\"\\"
                 translation_table = str.maketrans("", "", remove_chars)
                 cleaned_message = message.content.translate(translation_table)

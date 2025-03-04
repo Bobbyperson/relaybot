@@ -237,11 +237,13 @@ async def get_ban_info(uid):
                             now = datetime.now()
                             if expire_date < now:
                                 continue
-                        expires = (
-                            humanize.naturaldate(expire_date)
-                            + ", "
-                            + humanize.naturaltime(expire_date)
-                        )
+                            expires = (
+                                humanize.naturaldate(expire_date)
+                                + ", "
+                                + humanize.naturaltime(expire_date)
+                            )
+                        else:
+                            expires = "Never"
                         is_banned = True
                         break
 

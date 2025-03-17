@@ -68,7 +68,7 @@ class Relay(commands.Cog):
         self.app.router.add_route("OPTIONS", "/is-whitelisted", self.handle_options)
         self.app.router.add_route("OPTIONS", "/stats", self.handle_options)
         self.app.router.add_route("OPTIONS", "/tournament-loadout", self.handle_options)
-        self.app.router.add_route("OPTIONS", "/server-leaderboard", self.handle_options)
+        self.app.router.add_route("OPTIONS", "/server-scoreboard", self.handle_options)
         self.runner = web.AppRunner(self.app)
         self.message_queue = {}
         for s in config.servers:

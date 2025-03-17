@@ -59,7 +59,7 @@ class Relay(commands.Cog):
         self.app.router.add_get("/is-whitelisted", self.is_whitelisted)
         self.app.router.add_get("/is-banned", self.is_banned)
         self.app.router.add_get("/stats", self.get_stats)
-        self.app.router.add_post("/server-scoreboard", self.get_server_scoreboard)
+        self.app.router.add_get("/server-scoreboard", self.get_server_scoreboard)
         self.app.router.add_get("/tournament-loadout", self.get_tournament_loadout)
         self.app.router.add_route("OPTIONS", "/leaderboard", self.handle_options)
         self.app.router.add_route("OPTIONS", "/leaderboard-info", self.handle_options)
@@ -434,30 +434,10 @@ class Relay(commands.Cog):
             "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type",
         }
-        try:
-            data = await request.json()
-        except json.decoder.JSONDecodeError:
-            return web.Response(
-                status=400, text="bad json dumbass", headers=corsheaders
-            )
-        page = data["page"]
-        if not isinstance(page, int):
-            return web.Response(
-                status=400, text="page must be an integer", headers=corsheaders
-            )
-        if page < 0:
-            return web.Response(
-                status=400, text="page must be greater than 0", headers=corsheaders
-            )
         async with aiosqlite.connect(config.bank) as db:
-            await db.execute(
-                "SELECT * FROM server_tracker ORDER BY score DESC LIMIT 10 OFFSET ?",
-                (page - 1) * 10,
-            )
+            await db.execute("SELECT * FROM server_tracker ORDER BY score")
             rows = await db.fetchall()
-            await db.execute("SELECT COUNT(*) FROM server_tracker")
-            total = await db.fetchone()
-            result = {"rows": total, "servers": []}
+            result = {"rows": len(rows), "servers": []}
             for row in rows:
                 result["servers"].append({"name": row[1], "score": row[2]})
         return web.json_response(result, headers=corsheaders, status=200)

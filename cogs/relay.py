@@ -455,7 +455,12 @@ class Relay(commands.Cog):
                 (page - 1) * 10,
             )
             rows = await db.fetchall()
-        return web.json_response(rows, headers=corsheaders, status=200)
+            await db.execute("SELECT COUNT(*) FROM server_tracker")
+            total = await db.fetchone()
+            result = {"rows": total, "servers": []}
+            for row in rows:
+                result["servers"].append({"name": row[1], "score": row[2]})
+        return web.json_response(result, headers=corsheaders, status=200)
 
     async def start_web_server(self):
         await self.runner.setup()

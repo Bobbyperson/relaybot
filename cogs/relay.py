@@ -59,6 +59,7 @@ class Relay(commands.Cog):
         self.app.router.add_get("/is-whitelisted", self.is_whitelisted)
         self.app.router.add_get("/is-banned", self.is_banned)
         self.app.router.add_get("/stats", self.get_stats)
+        self.app.router.add_get("/server-scoreboard", self.get_server_scoreboard)
         self.app.router.add_get("/tournament-loadout", self.get_tournament_loadout)
         self.app.router.add_route("OPTIONS", "/leaderboard", self.handle_options)
         self.app.router.add_route("OPTIONS", "/leaderboard-info", self.handle_options)
@@ -67,6 +68,7 @@ class Relay(commands.Cog):
         self.app.router.add_route("OPTIONS", "/is-whitelisted", self.handle_options)
         self.app.router.add_route("OPTIONS", "/stats", self.handle_options)
         self.app.router.add_route("OPTIONS", "/tournament-loadout", self.handle_options)
+        self.app.router.add_route("OPTIONS", "/server-leaderboard", self.handle_options)
         self.runner = web.AppRunner(self.app)
         self.message_queue = {}
         for s in config.servers:

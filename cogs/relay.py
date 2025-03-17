@@ -31,26 +31,18 @@ class Relay(commands.Cog):
         self.client.current_log = None
         self.client.old = 0
         self.client.auth = {}
+        errors = [
+            asyncpg.PostgresConnectionError,
+            discord.errors.NotFound,
+            discord.errors.HTTPException,
+            requests.exceptions.ConnectionError,
+            AttributeError,
+            json.decoder.JSONDecodeError,
+        ]
         if not config.debug:
-            # if there is a common exception occuring, add it here.
-            self.update_stats.add_exception_type(
-                asyncpg.PostgresConnectionError
-            )  # internet dropping
-            self.update_stats.add_exception_type(
-                discord.errors.NotFound
-            )  # 404, unsure when this occurs
-            self.update_stats.add_exception_type(
-                discord.errors.HTTPException
-            )  # discord 524
-            self.update_stats.add_exception_type(
-                requests.exceptions.ConnectionError
-            )  # northstar 524
-            self.update_stats.add_exception_type(
-                AttributeError
-            )  # very rare, sometimes the channel will not be fetched properly
-            self.update_stats.add_exception_type(
-                json.decoder.JSONDecodeError
-            )  # sometimes northstar server will return nothing
+            for error in errors:
+                self.update_stats.add_exception_type(error)
+                self.track_servers.add_exception_type(error)
         self.client.playing = {}
         self.client.lazy_playing = {}
         self.client.online = {}
@@ -112,9 +104,6 @@ class Relay(commands.Cog):
         await self.client.get_guild(929895874799226881).get_role(
             1000617424934154260
         ).edit(mentionable=True)
-
-    async def send_test_message(self, request):
-        await self.client.get_channel(745410408482865267).send("test")
 
     async def get_leaderboard(self, request):
         corsheaders = {
@@ -399,6 +388,72 @@ class Relay(commands.Cog):
         await self.make_mentionable()
         print("Relay is ready. Starting web server...")
         await self.start_web_server()
+
+    async def create_server_tracker_db(self):
+        async with aiosqlite.connect(config.bank) as db:
+            await db.execute(
+                "CREATE TABLE IF NOT EXISTS server_tracker(num INTEGER PRIMARY KEY AUTOINCREMENT, server_name TEXT, score INTEGER)"
+            )
+            await db.execute(
+                "CREATE TABLE IF NOT EXISTS players_tracker(num INTEGER PRIMARY KEY AUTOINCREMENT, server_name TEXT, playercount INTEGER)"
+            )
+            await db.commit()
+
+    @tasks.loop(seconds=30)
+    async def track_servers(self):
+        await self.create_server_tracker_db()
+        async with ClientSession() as session:
+            async with session.get(config.masterurl) as response:
+                servers = await response.json()
+        async with aiosqlite.connect(config.bank) as db:
+            for server in servers:
+                cursor = await db.cursor()
+                await cursor.execute(
+                    "SELECT * FROM server_tracker WHERE server_name = ?",
+                    (server["name"],),
+                )
+                result = await cursor.fetchone()
+                if result:
+                    old_score = result[2]
+                    await cursor.execute(
+                        "UPDATE server_tracker SET score = ? WHERE server_name = ?",
+                        (server["playerCount"] + old_score, server["name"]),
+                    )
+                else:
+                    await cursor.execute(
+                        "INSERT INTO server_tracker (server_name, score) VALUES (?, ?)",
+                        (server["name"], server["playerCount"]),
+                    )
+                await db.commit()
+
+    async def get_server_scoreboard(self, request):
+        corsheaders = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+        }
+        try:
+            data = await request.json()
+        except json.decoder.JSONDecodeError:
+            return web.Response(
+                status=400, text="bad json dumbass", headers=corsheaders
+            )
+        page = data["page"]
+        if not isinstance(page, int):
+            return web.Response(
+                status=400, text="page must be an integer", headers=corsheaders
+            )
+        if page < 0:
+            return web.Response(
+                status=400, text="page must be greater than 0", headers=corsheaders
+            )
+        async with aiosqlite.connect(config.bank) as db:
+            await db.execute(
+                "SELECT * FROM server_tracker ORDER BY score DESC LIMIT 10 OFFSET ?",
+                (page - 1) * 10,
+            )
+            rows = await db.fetchall()
+        return web.json_response(rows, headers=corsheaders, status=200)
 
     async def start_web_server(self):
         await self.runner.setup()

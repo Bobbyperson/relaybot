@@ -59,7 +59,7 @@ class Relay(commands.Cog):
         self.app.router.add_get("/is-whitelisted", self.is_whitelisted)
         self.app.router.add_get("/is-banned", self.is_banned)
         self.app.router.add_get("/stats", self.get_stats)
-        self.app.router.add_get("/server-scoreboard", self.get_server_scoreboard)
+        self.app.router.add_post("/server-scoreboard", self.get_server_scoreboard)
         self.app.router.add_get("/tournament-loadout", self.get_tournament_loadout)
         self.app.router.add_route("OPTIONS", "/leaderboard", self.handle_options)
         self.app.router.add_route("OPTIONS", "/leaderboard-info", self.handle_options)

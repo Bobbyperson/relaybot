@@ -436,8 +436,9 @@ class Relay(commands.Cog):
             "Access-Control-Allow-Headers": "Content-Type",
         }
         async with aiosqlite.connect(config.bank) as db:
-            await db.execute("SELECT * FROM server_tracker ORDER BY score")
-            rows = await db.fetchall()
+            cursor = await db.cursor()
+            await cursor.execute("SELECT * FROM server_tracker ORDER BY score")
+            rows = await cursor.fetchall()
             result = {"rows": len(rows), "servers": []}
             for row in rows:
                 result["servers"].append({"name": row[1], "score": row[2]})

@@ -51,6 +51,7 @@ class Relay(commands.Cog):
             self.client.lazy_playing[s.name] = []
             self.client.online[s.name] = False
         self.update_stats.start()
+        self.track_servers.start()
         self.app = web.Application()
         self.app.router.add_post("/post", self.recieve_relay_info)
         self.app.router.add_get("/get", self.tone_info)

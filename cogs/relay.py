@@ -398,7 +398,7 @@ class Relay(commands.Cog):
                 "CREATE TABLE IF NOT EXISTS server_tracker(num INTEGER PRIMARY KEY AUTOINCREMENT, server_name TEXT, score INTEGER)"
             )
             await db.execute(
-                "CREATE TABLE IF NOT EXISTS players_tracker(num INTEGER PRIMARY KEY AUTOINCREMENT, server_name TEXT, playercount INTEGER)"
+                "CREATE TABLE IF NOT EXISTS players_tracker(num INTEGER PRIMARY KEY AUTOINCREMENT, server_name TEXT, playercount INTEGER, timestamp INTEGER)"
             )
             await db.commit()
 
@@ -427,7 +427,30 @@ class Relay(commands.Cog):
                         "INSERT INTO server_tracker (server_name, score) VALUES (?, ?)",
                         (server["name"], server["playerCount"]),
                     )
+                await cursor.execute(
+                    "INSERT INTO players_tracker (server_name, playercount, timestamp) VALUES (?, ?, ?)",
+                    (server["name"], server["playerCount"], int(time.time())),
+                )
                 await db.commit()
+
+    @commands.command()
+    @commands.is_owner()
+    async def resettracker(self, ctx):
+        await ctx.send(
+            "YOU ARE ABOUT TO RESET THE SERVER TRACKER AND ALL OF ITS HISTORY, ARE YOU SURE?"
+        )
+        msg = await self.client.wait_for(
+            "message", check=lambda m: m.author == ctx.author
+        )
+        if msg.content.lower() == "yes":
+            async with aiosqlite.connect(config.bank) as db:
+                await db.execute("DROP TABLE server_tracker")
+                await db.execute("DROP TABLE players_tracker")
+                await db.commit()
+            await self.create_server_tracker_db()
+            await ctx.send("done")
+        else:
+            await ctx.send("cancelled")
 
     async def get_server_scoreboard(self, request):
         corsheaders = {

@@ -532,7 +532,7 @@ class Relay(commands.Cog):
         async with aiosqlite.connect(config.bank) as db:
             async with db.cursor() as cursor:
                 servers = []
-                await cursor.execute("SELECT name FROM server_tracker")
+                await cursor.execute("SELECT server_name FROM server_tracker")
                 server_names = await cursor.fetchall()
                 for name in server_names:
                     if filter:

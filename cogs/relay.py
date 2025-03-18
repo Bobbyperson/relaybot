@@ -61,6 +61,7 @@ class Relay(commands.Cog):
         self.app.router.add_get("/is-banned", self.is_banned)
         self.app.router.add_get("/stats", self.get_stats)
         self.app.router.add_get("/server-scoreboard", self.get_server_scoreboard)
+        self.app.router.add_get("/server-history", self.get_scoreboard_history)
         self.app.router.add_get("/tournament-loadout", self.get_tournament_loadout)
         self.app.router.add_route("OPTIONS", "/leaderboard", self.handle_options)
         self.app.router.add_route("OPTIONS", "/leaderboard-info", self.handle_options)
@@ -70,6 +71,7 @@ class Relay(commands.Cog):
         self.app.router.add_route("OPTIONS", "/stats", self.handle_options)
         self.app.router.add_route("OPTIONS", "/tournament-loadout", self.handle_options)
         self.app.router.add_route("OPTIONS", "/server-scoreboard", self.handle_options)
+        self.app.router.add_route("OPTIONS", "/server-history", self.handle_options)
         self.runner = web.AppRunner(self.app)
         self.message_queue = {}
         for s in config.servers:
@@ -452,6 +454,41 @@ class Relay(commands.Cog):
         else:
             await ctx.send("cancelled")
 
+    @commands.command()
+    @commands.is_owner()
+    async def scoretransfer(self, ctx, old, new):
+        async with aiosqlite.connect(config.bank) as db:
+            async with db.cursor() as cursor:
+                await cursor.execute(
+                    "SELECT score FROM server_tracker WHERE server_name = ?", (old,)
+                )
+                old_score = await cursor.fetchone()
+                if not old_score:
+                    await ctx.send(f"Server `{old}` not found.")
+                    return
+                await cursor.execute(
+                    "SELECT score FROM server_tracker WHERE server_name = ?", (new,)
+                )
+                new_exists = await cursor.fetchone()
+                if not new_exists:
+                    await ctx.send(f"Server `{new}` not found.")
+                    return
+                await cursor.execute(
+                    "UPDATE server_tracker SET score = score + ? WHERE server_name = ?",
+                    (old_score[0], new),
+                )
+                await cursor.execute(
+                    "DELETE FROM server_tracker WHERE server_name = ?", (old,)
+                )
+                await cursor.execute(
+                    "UPDATE players_tracker SET server_name = ? WHERE server_name = ?",
+                    (new, old),
+                )
+                await db.commit()
+            await ctx.send(
+                f"Transferred score ({old_score[0]}) from `{old}` to `{new}` successfully."
+            )
+
     async def get_server_scoreboard(self, request):
         corsheaders = {
             "Access-Control-Allow-Origin": "*",
@@ -465,6 +502,68 @@ class Relay(commands.Cog):
             result = {"rows": len(rows), "servers": []}
             for row in rows:
                 result["servers"].append({"name": row[1], "score": row[2]})
+        return web.json_response(result, headers=corsheaders, status=200)
+
+    async def get_scoreboard_history(self, request):
+        corsheaders = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+        }
+        before = request.query.get("before")
+        after = request.query.get("after")
+        filter = request.query.get("filter")
+        if not before:
+            before = int(time.time())
+        if not after:
+            after = 0
+        if before - after > 60 * 60 * 24 * 30 and not filter:
+            return web.Response(
+                status=403,
+                text="Time range too large, provide a filter or reduce range to 30 days or less.",
+                headers=corsheaders,
+            )
+        if after > before:
+            return web.Response(
+                status=400,
+                text="After time is greater than before time. You likely want to swap them.",
+                headers=corsheaders,
+            )
+        async with aiosqlite.connect(config.bank) as db:
+            async with db.cursor() as cursor:
+                servers = []
+                await cursor.execute("SELECT name FROM server_tracker")
+                server_names = await cursor.fetchall()
+                for name in server_names:
+                    if filter:
+                        if filter in name[0]:
+                            servers.append(name[0])
+                    else:
+                        servers.append(name[0])
+                if filter:
+                    if len(servers) == 0:
+                        return web.Response(
+                            status=404,
+                            headers=corsheaders,
+                            text="No servers found matching filter",
+                        )
+                    if len(servers) > 10:
+                        return web.Response(
+                            status=403,
+                            headers=corsheaders,
+                            text="Too many servers found matching filter, max is 10",
+                        )
+                result = {"servers": {}}
+                for server in servers:
+                    await cursor.execute(
+                        "SELECT * FROM server_tracker WHERE server_name = ? AND timestamp < ? AND timestamp > ? ORDER BY timestamp DESC",
+                        (server, before, after),
+                    )
+                    rows = await cursor.fetchall()
+                    result["servers"][server] = {}
+                    for row in rows:
+                        result["servers"][server][row[3]] = row[2]
+
         return web.json_response(result, headers=corsheaders, status=200)
 
     async def start_web_server(self):

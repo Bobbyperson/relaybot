@@ -556,7 +556,7 @@ class Relay(commands.Cog):
                 result = {"servers": {}}
                 for server in servers:
                     await cursor.execute(
-                        "SELECT * FROM server_tracker WHERE server_name = ? AND timestamp < ? AND timestamp > ? ORDER BY timestamp DESC",
+                        "SELECT * FROM players_tracker WHERE server_name = ? AND timestamp < ? AND timestamp > ? ORDER BY timestamp DESC",
                         (server, before, after),
                     )
                     rows = await cursor.fetchall()

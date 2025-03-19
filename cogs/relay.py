@@ -403,7 +403,7 @@ class Relay(commands.Cog):
             )
             await db.commit()
 
-    async def seconds_until_next_interval(wait_time):
+    async def seconds_until_next_interval(self, wait_time):
         """Calculate seconds until the next exact interval (1:05, 1:10, etc.)."""
         now = datetime.now()
         next_minute = (now.minute // wait_time + 1) * wait_time  # Next multiple of 5

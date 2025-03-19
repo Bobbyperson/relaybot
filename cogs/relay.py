@@ -6,7 +6,7 @@ import re
 import sys
 import time
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import aiosqlite
 import asyncpg
@@ -42,7 +42,6 @@ class Relay(commands.Cog):
         if not config.debug:
             for error in errors:
                 self.update_stats.add_exception_type(error)
-                self.track_servers.add_exception_type(error)
         self.client.playing = {}
         self.client.lazy_playing = {}
         self.client.online = {}
@@ -51,7 +50,6 @@ class Relay(commands.Cog):
             self.client.lazy_playing[s.name] = []
             self.client.online[s.name] = False
         self.update_stats.start()
-        self.track_servers.start()
         self.app = web.Application()
         self.app.router.add_post("/post", self.recieve_relay_info)
         self.app.router.add_get("/get", self.tone_info)
@@ -393,6 +391,7 @@ class Relay(commands.Cog):
         await self.make_mentionable()
         print("Relay is ready. Starting web server...")
         await self.start_web_server()
+        self.client.loop.create_task(self.track_servers())
 
     async def create_server_tracker_db(self):
         async with aiosqlite.connect(config.bank) as db:
@@ -404,35 +403,62 @@ class Relay(commands.Cog):
             )
             await db.commit()
 
-    @tasks.loop(seconds=30)
+    async def seconds_until_next_interval(wait_time):
+        """Calculate seconds until the next exact interval (1:05, 1:10, etc.)."""
+        now = datetime.now()
+        next_minute = (now.minute // wait_time + 1) * wait_time  # Next multiple of 5
+        if next_minute >= 60:
+            next_minute = 0
+            next_hour = now.hour + 1
+        else:
+            next_hour = now.hour
+
+        next_run = now.replace(
+            hour=next_hour, minute=next_minute, second=0, microsecond=0
+        )
+        if next_run <= now:
+            next_run += timedelta(hours=1)
+
+        return (next_run - now).total_seconds()
+
     async def track_servers(self):
-        await self.create_server_tracker_db()
-        async with ClientSession() as session:
-            async with session.get(config.masterurl) as response:
-                servers = await response.json()
-        async with aiosqlite.connect(config.bank) as db:
-            for server in servers:
-                cursor = await db.cursor()
-                await cursor.execute(
-                    "SELECT * FROM server_tracker WHERE server_name = ?",
-                    (server["name"],),
-                )
-                result = await cursor.fetchone()
-                if result:
-                    old_score = result[2]
-                    await cursor.execute(
-                        "UPDATE server_tracker SET score = ? WHERE server_name = ?",
-                        (server["playerCount"] + old_score, server["name"]),
-                    )
-                else:
-                    await cursor.execute(
-                        "INSERT INTO server_tracker (server_name, score) VALUES (?, ?)",
-                        (server["name"], server["playerCount"]),
-                    )
-                await cursor.execute(
-                    "INSERT INTO players_tracker (server_name, playercount, timestamp) VALUES (?, ?, ?)",
-                    (server["name"], server["playerCount"], int(time.time())),
-                )
+        await self.client.wait_until_ready()
+        while not self.client.is_closed():
+            wait_time = await self.seconds_until_next_interval(5)
+            print(f"Next server check in {wait_time:.2f} seconds")
+            await asyncio.sleep(wait_time)
+            await self.create_server_tracker_db()
+            try:
+                async with ClientSession() as session:
+                    async with session.get(config.masterurl) as response:
+                        servers = await response.json()
+            except Exception as e:
+                print("Error fetching servers " + e)
+                await asyncio.sleep(10)
+                continue
+            async with aiosqlite.connect(config.bank) as db:
+                async with db.cursor() as cursor:
+                    for server in servers:
+                        await cursor.execute(
+                            "SELECT * FROM server_tracker WHERE server_name = ?",
+                            (server["name"],),
+                        )
+                        result = await cursor.fetchone()
+                        if result:
+                            old_score = result[2]
+                            await cursor.execute(
+                                "UPDATE server_tracker SET score = ? WHERE server_name = ?",
+                                (server["playerCount"] + old_score, server["name"]),
+                            )
+                        else:
+                            await cursor.execute(
+                                "INSERT INTO server_tracker (server_name, score) VALUES (?, ?)",
+                                (server["name"], server["playerCount"]),
+                            )
+                        await cursor.execute(
+                            "INSERT INTO players_tracker (server_name, playercount, timestamp) VALUES (?, ?, ?)",
+                            (server["name"], server["playerCount"], int(time.time())),
+                        )
                 await db.commit()
 
     @commands.command()
@@ -512,12 +538,17 @@ class Relay(commands.Cog):
         }
         before = request.query.get("before")
         after = request.query.get("after")
-        filter = request.query.get("filter")
+        name_filter = request.query.get("filter")
+        key = request.query.get("key")
+        authorized = False
+        if key:
+            if key in config.keys:
+                authorized = True
         if not before:
             before = int(time.time())
         if not after:
             after = 0
-        if before - after > 60 * 60 * 24 * 30 and not filter:
+        if before - after > 60 * 60 * 24 * 30 and not name_filter and not authorized:
             return web.Response(
                 status=403,
                 text="Time range too large, provide a filter or reduce range to 30 days or less.",
@@ -535,12 +566,12 @@ class Relay(commands.Cog):
                 await cursor.execute("SELECT server_name FROM server_tracker")
                 server_names = await cursor.fetchall()
                 for name in server_names:
-                    if filter:
-                        if filter in name[0]:
+                    if name_filter:
+                        if name_filter in name[0]:
                             servers.append(name[0])
                     else:
                         servers.append(name[0])
-                if filter:
+                if name_filter:
                     if len(servers) == 0:
                         return web.Response(
                             status=404,

@@ -69,3 +69,5 @@ admins = []
 # northstar ids
 admin_uids = []
 owner_id = 0
+
+keys = []

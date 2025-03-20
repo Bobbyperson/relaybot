@@ -413,6 +413,18 @@ class Relay(commands.Cog):
         else:
             next_hour = now.hour
 
+            # If next_hour is 24, roll over to the next day
+        if next_hour == 24:
+            next_hour = 0
+            # Add one day with a timedelta
+            next_run = (now + timedelta(days=1)).replace(
+                hour=0, minute=next_minute, second=0, microsecond=0
+            )
+        else:
+            next_run = now.replace(
+                hour=next_hour, minute=next_minute, second=0, microsecond=0
+            )
+
         next_run = now.replace(
             hour=next_hour, minute=next_minute, second=0, microsecond=0
         )
@@ -424,42 +436,50 @@ class Relay(commands.Cog):
     async def track_servers(self):
         await self.client.wait_until_ready()
         while not self.client.is_closed():
-            wait_time = await self.seconds_until_next_interval(5)
-            print(f"Next server check in {wait_time:.2f} seconds")
-            await asyncio.sleep(wait_time)
-            await self.create_server_tracker_db()
             try:
-                async with ClientSession() as session:
-                    async with session.get(config.masterurl) as response:
-                        servers = await response.json()
+                wait_time = await self.seconds_until_next_interval(5)
+                print(f"Next server check in {wait_time:.2f} seconds")
+                await asyncio.sleep(wait_time)
+                await self.create_server_tracker_db()
+                try:
+                    async with ClientSession() as session:
+                        async with session.get(config.masterurl) as response:
+                            servers = await response.json()
+                except Exception as e:
+                    print("Error fetching servers " + e)
+                    await asyncio.sleep(10)
+                    continue
+                async with aiosqlite.connect(config.bank) as db:
+                    async with db.cursor() as cursor:
+                        for server in servers:
+                            await cursor.execute(
+                                "SELECT * FROM server_tracker WHERE server_name = ?",
+                                (server["name"],),
+                            )
+                            result = await cursor.fetchone()
+                            if result:
+                                old_score = result[2]
+                                await cursor.execute(
+                                    "UPDATE server_tracker SET score = ? WHERE server_name = ?",
+                                    (server["playerCount"] + old_score, server["name"]),
+                                )
+                            else:
+                                await cursor.execute(
+                                    "INSERT INTO server_tracker (server_name, score) VALUES (?, ?)",
+                                    (server["name"], server["playerCount"]),
+                                )
+                            await cursor.execute(
+                                "INSERT INTO players_tracker (server_name, playercount, timestamp) VALUES (?, ?, ?)",
+                                (
+                                    server["name"],
+                                    server["playerCount"],
+                                    int(time.time()),
+                                ),
+                            )
+                    await db.commit()
             except Exception as e:
-                print("Error fetching servers " + e)
+                print(e)
                 await asyncio.sleep(10)
-                continue
-            async with aiosqlite.connect(config.bank) as db:
-                async with db.cursor() as cursor:
-                    for server in servers:
-                        await cursor.execute(
-                            "SELECT * FROM server_tracker WHERE server_name = ?",
-                            (server["name"],),
-                        )
-                        result = await cursor.fetchone()
-                        if result:
-                            old_score = result[2]
-                            await cursor.execute(
-                                "UPDATE server_tracker SET score = ? WHERE server_name = ?",
-                                (server["playerCount"] + old_score, server["name"]),
-                            )
-                        else:
-                            await cursor.execute(
-                                "INSERT INTO server_tracker (server_name, score) VALUES (?, ?)",
-                                (server["name"], server["playerCount"]),
-                            )
-                        await cursor.execute(
-                            "INSERT INTO players_tracker (server_name, playercount, timestamp) VALUES (?, ?, ?)",
-                            (server["name"], server["playerCount"], int(time.time())),
-                        )
-                await db.commit()
 
     @commands.command()
     @commands.is_owner()

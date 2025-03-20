@@ -548,6 +548,15 @@ class Relay(commands.Cog):
             before = int(time.time())
         if not after:
             after = 0
+        try:
+            before = int(before)
+            after = int(after)
+        except ValueError:
+            return web.Response(
+                status=400,
+                text="Before and after must be integers",
+                headers=corsheaders,
+            )
         if before - after > 60 * 60 * 24 * 30 and not name_filter and not authorized:
             return web.Response(
                 status=403,

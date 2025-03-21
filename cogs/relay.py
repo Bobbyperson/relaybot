@@ -404,31 +404,42 @@ class Relay(commands.Cog):
             await db.commit()
 
     async def seconds_until_next_interval(self, wait_time):
-        """Calculate seconds until the next exact interval (1:05, 1:10, etc.)."""
         now = datetime.now()
-        next_minute = (now.minute // wait_time + 1) * wait_time  # Next multiple of 5
+
+        # Figure out the next “multiple-of-wait_time” minute
+        next_minute = (now.minute // wait_time + 1) * wait_time
+        next_hour = now.hour
+        next_day = now.day
+        next_month = now.month
+        next_year = now.year
+
         if next_minute >= 60:
             next_minute = 0
-            next_hour = now.hour + 1
-        else:
-            next_hour = now.hour
+            next_hour += 1
+            if next_hour == 24:
+                next_hour = 0
+                # Roll over to next day
+                tomorrow = now + timedelta(days=1)
+                next_day = tomorrow.day
+                next_month = tomorrow.month
+                next_year = tomorrow.year
 
-            # If next_hour is 24, roll over to the next day
-        if next_hour == 24:
-            next_hour = 0
-            # Add one day with a timedelta
-            next_run = (now + timedelta(days=1)).replace(
-                hour=0, minute=next_minute, second=0, microsecond=0
-            )
-        else:
-            next_run = now.replace(
-                hour=next_hour, minute=next_minute, second=0, microsecond=0
-            )
-
-        next_run = now.replace(
-            hour=next_hour, minute=next_minute, second=0, microsecond=0
+        # Now make one replace() call that includes potentially updated day/month/year/hour/minute
+        next_run = datetime(
+            next_year,
+            next_month,
+            next_day,
+            next_hour,
+            next_minute,
+            0,
+            0,
+            tzinfo=now.tzinfo,
         )
+
+        # Make sure we haven't ended up in the past
         if next_run <= now:
+            # If it *still* falls in the past, you can add an hour or a day,
+            # depending on exactly how you want to handle that scenario
             next_run += timedelta(hours=1)
 
         return (next_run - now).total_seconds()

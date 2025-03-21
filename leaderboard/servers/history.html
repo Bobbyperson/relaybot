@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Server History Graph</title>
+  <link rel="stylesheet" href="history.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
+</head>
+<body>
+<div id="wrapper">
+  <h1>Players Over Time</h1>
+  <p class="info-text">
+    Search for servers, add them, optionally pick date/time, then click "Fetch History".
+  </p>
+
+  <div id="topRow">
+    <div class="column">
+      <label for="searchInput" class="label-above">Server Search:</label>
+      <input type="text" id="searchInput" placeholder="Type partial name..." />
+      <button id="searchBtn" style="margin-top:0.5rem;">Search</button>
+
+      <div class="box" id="searchResults" style="margin-top:1rem;"></div>
+    </div>
+
+    <div class="column">
+      <h3>Selected Servers</h3>
+      <div class="box" id="selectedServers" style="max-height:250px;"></div>
+    </div>
+
+    <div class="column">
+      <label for="afterTime" class="label-above">From:</label>
+      <input type="datetime-local" id="afterTime" />
+
+      <label for="beforeTime" class="label-above" style="margin-top:0.7rem;">To:</label>
+      <input type="datetime-local" id="beforeTime" />
+    </div>
+    <div style="text-align:center; margin-top:1rem;">
+      <label for="rollingSlider">Graph Smoothness: </label>
+      <input 
+        type="range" 
+        id="rollingSlider" 
+        min="1" 
+        max="30" 
+        value="1" 
+        step="1"
+        style="vertical-align: middle;"
+      />
+      <span id="sliderValue">1</span>
+    </div>
+
+  </div>
+
+  <button id="fetchDataBtn" class="fetch-button">
+    Fetch History
+  </button>
+
+  <div id="chartContainer">
+    <canvas id="historyChart" width="900" height="450"></canvas>
+  </div>
+</div>
+
+<script src="history.js"></script>
+</body>
+</html>

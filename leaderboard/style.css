@@ -1,0 +1,140 @@
+:root {
+    --text-color: #e0e0e0;
+    --global-padding: 0.2rem;
+}
+
+body {
+    background-color: #212326;
+    font-family: monospace !important;
+    color: var(--text-color);
+    font-size: 1.35rem;
+    height: 100vh;
+    margin: 0;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+h1 {
+    margin-top: 0;
+}
+
+#wrapper {
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+button, select {
+    font-family: inherit;
+    font-size: 1.2rem;
+    border-radius: 0 !important;
+}
+
+table {
+    text-align: left;
+    /* border-top: 1px solid var(--text-color); */
+    margin-top: calc(5 * var(--global-padding));
+    margin-bottom: calc(5 * var(--global-padding));
+}
+table .rank {
+    text-align: right;
+}
+
+table .name {
+    font-weight: 500;
+}
+table .stat {
+    font-weight: 500;
+}
+
+table #filled-square {
+    background-color: #e0e0e0;
+    margin: 0;
+    background-clip: content-box;
+}
+
+
+th {
+    padding: var(--global-padding);
+}
+
+
+#pages button {
+    font-size: 1.35rem;
+    margin: 0;
+    text-align: center;
+}
+
+
+.depressed {
+    background-color: #939393;
+    /* box-shadow: inset 2px 2px #5e5e5e;
+    border-top: 0px;
+    border-left: 0px;
+    padding-left: 0.40rem; */
+}
+button {
+    background-color: #e9e9ed;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+@media only screen and (min-width: 1000px) {
+    .depressed {
+        box-shadow: inset 2px 2px #5e5e5e;
+        border-top: 0px;
+        border-left: 0px;
+        padding-left: 0.40rem;
+    }
+}
+@media only screen and (max-width: 1000px) {
+    html {
+        font-size: 1.4rem;
+    }
+    #wrapper {
+        display: flex;
+        padding: 25px;
+        max-width: calc(100vw - 35px);
+    }
+    h1 {
+        text-align: center;
+    }
+    body {
+        align-items: flex-start;
+    }
+    /* #pages {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100vw;
+        display: flex;
+    } */
+    #pages button {
+        /* flex-grow: 1; */
+        max-width: 20px;
+        text-align: center;
+    }
+
+    /* #ad {
+        display: none !important;
+    } */
+}
+
+#pages {
+    display: flex;
+    flex-direction: row;
+}
+
+
+#ad {
+    position: fixed;
+    bottom: 0;
+    width: 350px;
+    height: 100px;
+
+    display: none;
+}

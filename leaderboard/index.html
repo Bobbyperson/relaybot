@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Awesome Titanfall Server Statsboard (Austin is a furry)</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id='wrapper'>
+
+<h1>Awesome Titanfall Server Statsboard</h1>
+
+<div id='server-select'>
+    Server: 
+    <select name='Server' id='dropdown-servers' onchange='updateDropdowns()'>
+        <!-- <option value='pvp1'>pvp1</option>
+        <option value='v3x'>v3x</option>
+        <option value='infection'>infection</option> -->
+    </select>
+</div>
+
+<table id='stats-table'>
+    <tr>
+        <th id='filled-square'>
+            <div></div>
+        </th>
+        <th>User</th>
+        <th>
+            <select name='Statistic' id='dropdown-stats' onchange='displayInfo()'></select>
+        </th>
+    </tr>
+</table>
+
+<div id='pages'></div>
+
+</div>
+    <!-- <form onsubmit="usernameLookup(event)">
+        <label for="search">Search:</label>
+        <input type="text" id="search" name="query">
+        <button type="submit">Go</button>
+    </form> -->
+<a href='https://benjaminperla.hair/' target='_blank' id='ad'>
+    <img src='benperlahair.jpg' onmouseover="this.src='benperlahairhover.jpg';" onmouseout="this.src='benperlahair.jpg';">
+</a>
+
+    <script src='script.js'></script>
+</body>
+</html>

@@ -7,23 +7,23 @@ requires-python = ">=3.11,<3.13,!=3.12.5"
 readme = "README.md"
 license = "GNU GPLv3"
 dependencies = [
-    "discord.py[voice]>=2.5.2,<3",
-    "aiosqlite==0.21.0",
-    "asyncpg>=0.30.0,<0.31",
-    "requests>=2.32.3,<3",
-    "aiohttp>=3.11.16,<4",
-    "python-dateutil>=2.9.0.post0,<3",
-    "keyring>=25.6.0,<26",
-    "discord-pretty-help>=2.0.7,<3",
-    "rcon>=2.4.9,<3",
-    "humanize>=4.12.2,<5",
-    "pillow>=11.1.0,<12",
+    "discord.py[voice]>=2.5.2",
+    "aiosqlite>=0.21.0",
+    "asyncpg>=0.30.0",
+    "requests>=2.32.3",
+    "aiohttp>=3.11.16",
+    "python-dateutil>=2.9.0.post0",
+    "keyring>=25.6.0",
+    "discord-pretty-help>=2.0.7",
+    "rcon>=2.4.9",
+    "humanize>=4.12.2",
+    "pillow>=11.1.0",
 ]
 
 [dependency-groups]
 dev = [
-    "ruff>=0.11.4,<0.12",
-    "black>=25.1.0,<26",
+    "ruff>=0.11.4",
+    "black>=25.1.0",
 ]
 
 [tool.uv]

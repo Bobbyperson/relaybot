@@ -20,7 +20,7 @@ class Parkour(commands.Cog):
     async def get_events(self, ctx):
         response = requests.get(
             "https://parkour.bluetick.dev/v1/events",
-            headers={"authentication": "holyshitballsbatman051404"},
+            headers={"authentication": "fixme"},
         )
         pretty_json = json.dumps(response.json(), indent=4)  # This makes it pretty
         pretty_json = pretty_json.replace("    ", "\t")
@@ -39,7 +39,7 @@ class Parkour(commands.Cog):
             data = json.loads(arg)
             response = requests.post(
                 "https://parkour.bluetick.dev/v1/events",
-                headers={"authentication": "holyshitballsbatman051404"},
+                headers={"authentication": "fixme"},
                 json=data,
             )
             await ctx.send(
@@ -53,7 +53,7 @@ class Parkour(commands.Cog):
     async def get_event_maps(self, ctx, event_id):
         response = requests.get(
             f"https://parkour.bluetick.dev/v1/events/{event_id}/maps",
-            headers={"authentication": "holyshitballsbatman051404"},
+            headers={"authentication": "fixme"},
         )
         pretty_json = json.dumps(response.json(), indent=4)  # This makes it pretty
         pretty_json = pretty_json.replace("    ", "\t")
@@ -72,7 +72,7 @@ class Parkour(commands.Cog):
             data = json.loads(arg)
             response = requests.post(
                 f"https://parkour.bluetick.dev/v1/events/{event_id}/maps",
-                headers={"authentication": "holyshitballsbatman051404"},
+                headers={"authentication": "fixme"},
                 json=data,
             )
             await ctx.send(
@@ -86,7 +86,7 @@ class Parkour(commands.Cog):
     async def get_map_scores(self, ctx, map_id):
         response = requests.get(
             f"https://parkour.bluetick.dev/v1/maps/{map_id}/scores",
-            headers={"authentication": "holyshitballsbatman051404"},
+            headers={"authentication": "fixme"},
         )
         pretty_json = json.dumps(response.json(), indent=4)  # This makes it pretty
         pretty_json = pretty_json.replace("    ", "\t")
@@ -105,7 +105,7 @@ class Parkour(commands.Cog):
             data = json.loads(arg)
             response = requests.post(
                 f"https://parkour.bluetick.dev/v1/maps/{map_id}/scores",
-                headers={"authentication": "holyshitballsbatman051404"},
+                headers={"authentication": "fixme"},
                 json=data,
             )
             await ctx.send(
@@ -119,7 +119,7 @@ class Parkour(commands.Cog):
     async def get_map_config(self, ctx, map_id):
         response = requests.get(
             f"https://parkour.bluetick.dev/v1/maps/{map_id}/configuration",
-            headers={"authentication": "holyshitballsbatman051404"},
+            headers={"authentication": "fixme"},
         )
         pretty_json = json.dumps(response.json(), indent=4)  # This makes it pretty
         pretty_json = pretty_json.replace("    ", "\t")
@@ -138,7 +138,7 @@ class Parkour(commands.Cog):
             data = json.loads(arg)
             response = requests.post(
                 f"https://parkour.bluetick.dev/v1/maps/{map_id}/configuration",
-                headers={"authentication": "holyshitballsbatman051404"},
+                headers={"authentication": "fixme"},
                 json=data,
             )
             await ctx.send(

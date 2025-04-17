@@ -4,11 +4,11 @@ import random
 from copy import deepcopy
 
 import aiosqlite
-import config
 import requests
 from discord.ext import commands
 
-import cogs.utils.utils as utils
+import config
+from cogs.utils import utils
 
 
 class Player:
@@ -86,7 +86,6 @@ def loadout_to_string(loadout): ...
 
 
 class Tournament(commands.Cog):
-
     def __init__(self, client):
         self.client = client
         self.client.tournament_players = {}
@@ -197,7 +196,8 @@ class Tournament(commands.Cog):
         if result.status_code == 200:
             data = result.json()
             return await self.get_participant(
-                tournament_id, data["match"]["player1_id"]
+                tournament_id,
+                data["match"]["player1_id"],
             ), await self.get_participant(tournament_id, data["match"]["player2_id"])
         return None
 
@@ -217,7 +217,7 @@ class Tournament(commands.Cog):
                 check=check,
                 timeout=300.0,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return None
 
         if msg.content:
@@ -280,12 +280,12 @@ class Tournament(commands.Cog):
 
         if not await utils.is_linked(ctx.author.id):
             return await ctx.send(
-                "Your titanfall and discord accounts are not linked. Please join any of our servers and run the command `,.link (in-game name)` (besides the 1v1 server). Then run this command again."
+                "Your titanfall and discord accounts are not linked. Please join any of our servers and run the command `,.link (in-game name)` (besides the 1v1 server). Then run this command again.",
             )
 
         if self.client.reserved:
             return await ctx.send(
-                "It looks like someone is currently playing their match. Please try again after they have finished."
+                "It looks like someone is currently playing their match. Please try again after they have finished.",
             )
 
         author = Player(
@@ -304,7 +304,8 @@ class Tournament(commands.Cog):
 
         for participant in participants:
             discord_id = await self.get_participant_discord_id(
-                tournament_id, participant["participant"]["id"]
+                tournament_id,
+                participant["participant"]["id"],
             )
             if (
                 discord_id == str(ctx.author.id)
@@ -315,26 +316,28 @@ class Tournament(commands.Cog):
 
         if not author.participant_id:
             return await ctx.send(
-                "Either you are not in the tournament, or you did not supply your discord id when signing up. Please edit your sign-in or ping Bobby."
+                "Either you are not in the tournament, or you did not supply your discord id when signing up. Please edit your sign-in or ping Bobby.",
             )
 
         await ctx.send("Found user. Checking for open match...")
 
         next_match = await self.get_participant_next_match(
-            tournament_id, author.participant_id
+            tournament_id,
+            author.participant_id,
         )
 
         if not next_match:
             return await ctx.send(
-                "No match found! Do you currently have an open match? If you believe this is an error please ping bobby."
+                "No match found! Do you currently have an open match? If you believe this is an error please ping bobby.",
             )
         await ctx.send("Match found! Checking for opponent...")
         for i, participant in enumerate(
-            await self.get_participants_in_match(tournament_id, next_match)
+            await self.get_participants_in_match(tournament_id, next_match),
         ):
             if participant["participant"]["id"] != author.participant_id:
                 opponent.discord_id = await self.get_participant_discord_id(
-                    tournament_id, participant["participant"]["id"]
+                    tournament_id,
+                    participant["participant"]["id"],
                 )
                 opponent.position = i
                 opponent.participant_id = participant["participant"]["id"]
@@ -343,14 +346,14 @@ class Tournament(commands.Cog):
 
         if not opponent.discord_id:
             return await ctx.send(
-                "Your opponent did not supply their discord id when signing up. Please ping them and ask them to edit their sign-in. Ping Bobby if needed."
+                "Your opponent did not supply their discord id when signing up. Please ping them and ask them to edit their sign-in. Ping Bobby if needed.",
             )
 
         try:
             opponent.discord_id = int(opponent.discord_id)
         except ValueError:
             return await ctx.send(
-                "Your opponent did not supply a valid discord id. Please ping them and ask them to edit their sign-in. Ping Bobby if needed."
+                "Your opponent did not supply a valid discord id. Please ping them and ask them to edit their sign-in. Ping Bobby if needed.",
             )
 
         opponent.uid = await utils.get_uid_from_connection(opponent.discord_id)
@@ -359,7 +362,7 @@ class Tournament(commands.Cog):
 
         if not opponent.uid:
             return await ctx.send(
-                f"Your opponent is not linked! {opponent.discord.mention} please join any of our servers and run the command `,.link (in-game name)` (besides the 1v1 server). Then run this command again."
+                f"Your opponent is not linked! {opponent.discord.mention} please join any of our servers and run the command `,.link (in-game name)` (besides the 1v1 server). Then run this command again.",
             )
 
         self.client.reserved = True
@@ -367,7 +370,7 @@ class Tournament(commands.Cog):
         maps = list(valid_maps.keys())
 
         await ctx.send(
-            "Is your match semifinals or later (look in same column for losers)? Respond yes or no."
+            "Is your match semifinals or later (look in same column for losers)? Respond yes or no.",
         )
         try:
             msg = await self.client.wait_for(
@@ -377,10 +380,10 @@ class Tournament(commands.Cog):
                 and message.channel == ctx.channel
                 and message.content.lower() in ["yes", "no"],
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             await ctx.send("Cancelled.")
             await cleanup()
-            return
+            return None
 
         if msg.content.lower() == "yes":
             semifinals = True
@@ -403,15 +406,15 @@ class Tournament(commands.Cog):
                 and message.channel == ctx.channel
                 and message.content.lower() in ["confirm", "deny"],
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             await ctx.send("Timeout, cancelled.")
             await cleanup()
-            return
+            return None
 
         if msg.content.lower() == "deny":
             await ctx.send("bruh")
             await cleanup()
-            return
+            return None
 
         await ctx.send("All checks passed! Now we need to select the first map.")
 
@@ -429,12 +432,11 @@ class Tournament(commands.Cog):
             maps.remove("pillars")
 
             await ctx.send(
-                f"{first.discord.mention} has randomly been chosen to pick first.\n{first.discord.mention} please pick **ONE** map you do **NOT** want to play. Please type the name of the map you want to remove exactly as it is shown:"
+                f"{first.discord.mention} has randomly been chosen to pick first.\n{first.discord.mention} please pick **ONE** map you do **NOT** want to play. Please type the name of the map you want to remove exactly as it is shown:",
             )
         else:
-
             await ctx.send(
-                f"{first.discord.mention} has randomly been chosen to pick first.\n{first.discord.mention} please pick **TWO** maps you do **NOT** want to play. Please type the name of the map you want to remove exactly as it is shown:"
+                f"{first.discord.mention} has randomly been chosen to pick first.\n{first.discord.mention} please pick **TWO** maps you do **NOT** want to play. Please type the name of the map you want to remove exactly as it is shown:",
             )
         map_message = await ctx.send(", ".join(maps))
         remove_map1 = await self.ask_map(ctx, first.discord, maps)
@@ -444,9 +446,9 @@ class Tournament(commands.Cog):
         else:
             await cleanup()
             await ctx.send(
-                "You did not pick a valid map in time! Please run this command again."
+                "You did not pick a valid map in time! Please run this command again.",
             )
-            return
+            return None
         if not semifinals:
             remove_map2 = await self.ask_map(ctx, first.discord, maps)
             if remove_map2 in maps:
@@ -455,11 +457,11 @@ class Tournament(commands.Cog):
             else:
                 await cleanup()
                 await ctx.send(
-                    "You did not pick a valid map in time! Please run this command again."
+                    "You did not pick a valid map in time! Please run this command again.",
                 )
-                return
+                return None
         await ctx.send(
-            f"{second.discord.mention} please pick the map you **WANT** to play:"
+            f"{second.discord.mention} please pick the map you **WANT** to play:",
         )
         chosen_map = await self.ask_map(ctx, second.discord, maps)
         if chosen_map in maps:
@@ -468,25 +470,25 @@ class Tournament(commands.Cog):
         else:
             await cleanup()
             await ctx.send(
-                "You did not pick a valid map in time! Please run this command again."
+                "You did not pick a valid map in time! Please run this command again.",
             )
-            return
+            return None
         loadout1 = random.randint(0, 9)
-        with open(f"tourney/loadout{loadout1}.json", "r") as f:
+        with open(f"tourney/loadout{loadout1}.json") as f:
             self.client.tournament_loadout = json.loads(f.read())
         server = await utils.get_server("oneVone")
         try:
             if semifinals:
                 await server.send_command(
-                    f"mp_gamemode ps; map {valid_maps[chosen_map]}"
+                    f"mp_gamemode ps; map {valid_maps[chosen_map]}",
                 )
             else:
                 await server.send_command(
-                    f"mp_gamemode coliseum; map {valid_maps[chosen_map]}"
+                    f"mp_gamemode coliseum; map {valid_maps[chosen_map]}",
                 )
         except ConnectionError:
             await ctx.send("Couldn't set map. Is the server online? Ping bobby.")
-            return
+            return None
 
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
@@ -495,7 +497,7 @@ class Tournament(commands.Cog):
             await cursor.execute(f"INSERT INTO whitelist(uid) values({author.uid})")
             await db.commit()
         await ctx.send(
-            f"Done! Round 1 starting now! Please join the `awesome 1v1 server`. Players will be given loadout {loadout1 + 1}! Please be aware that you will have to come back to this channel after this match."
+            f"Done! Round 1 starting now! Please join the `awesome 1v1 server`. Players will be given loadout {loadout1 + 1}! Please be aware that you will have to come back to this channel after this match.",
         )
         self.client.tournament_players = {
             author.uid: {"kills": 0, "wins": 0},
@@ -562,9 +564,9 @@ class Tournament(commands.Cog):
             if i > 60 * 30:
                 await cleanup()
                 await ctx.send(
-                    "This is taking too long! Run this command again or ping bobby if your opponent dipped."
+                    "This is taking too long! Run this command again or ping bobby if your opponent dipped.",
                 )
-                return
+                return None
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute("DELETE FROM whitelist")
@@ -572,7 +574,7 @@ class Tournament(commands.Cog):
 
         await ctx.send(f"{round_winner.discord.mention} wins the round!")
         await ctx.send(
-            f"{round_winner.discord.mention} please pick **ONE** map you do **NOT** want to play. Please type the name of the map you want to remove exactly as it is shown:"
+            f"{round_winner.discord.mention} please pick **ONE** map you do **NOT** want to play. Please type the name of the map you want to remove exactly as it is shown:",
         )
         map_message = await ctx.send(", ".join(maps))
         remove_map3 = await self.ask_map(ctx, round_winner.discord, maps)
@@ -582,7 +584,7 @@ class Tournament(commands.Cog):
         else:
             await cleanup()
             await ctx.send(
-                "You did not pick a valid map in 5 minutes! You have now forfeited."
+                "You did not pick a valid map in 5 minutes! You have now forfeited.",
             )
             if author.position == 0:
                 await self.set_match_winner(
@@ -598,9 +600,9 @@ class Tournament(commands.Cog):
                     round_loser.participant_id,
                     f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
                 )
-            return
+            return None
         await ctx.send(
-            f"{round_loser.discord.mention} please pick the map you **WANT** to play:"
+            f"{round_loser.discord.mention} please pick the map you **WANT** to play:",
         )
         chosen_map2 = await self.ask_map(ctx, round_loser.discord, maps)
         if chosen_map2 in maps:
@@ -609,7 +611,7 @@ class Tournament(commands.Cog):
         else:
             await cleanup()
             await ctx.send(
-                "You did not pick a valid map in 5 minutes! You have now forfeited."
+                "You did not pick a valid map in 5 minutes! You have now forfeited.",
             )
             if author.position == 0:
                 await self.set_match_winner(
@@ -625,18 +627,18 @@ class Tournament(commands.Cog):
                     round_winner.participant_id,
                     f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
                 )
-            return
+            return None
 
         loadout2 = random.randint(0, 9)
         while loadout2 == loadout1:
             loadout2 = random.randint(0, 9)
-        with open(f"tourney/loadout{loadout2}.json", "r") as f:
+        with open(f"tourney/loadout{loadout2}.json") as f:
             self.client.tournament_loadout = json.loads(f.read())
         if semifinals:
             await server.send_command(f"mp_gamemode ps; map {valid_maps[chosen_map2]}")
         else:
             await server.send_command(
-                f"mp_gamemode coliseum; map {valid_maps[chosen_map2]}"
+                f"mp_gamemode coliseum; map {valid_maps[chosen_map2]}",
             )
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
@@ -645,7 +647,7 @@ class Tournament(commands.Cog):
             await cursor.execute(f"INSERT INTO whitelist(uid) values({author.uid})")
             await db.commit()
         await ctx.send(
-            f"Done! Round 2 starting now! Please join the `awesome 1v1 server`. Players will be given loadout {loadout2 + 1}! Please be aware that you will have to come back to this channel after this match."
+            f"Done! Round 2 starting now! Please join the `awesome 1v1 server`. Players will be given loadout {loadout2 + 1}! Please be aware that you will have to come back to this channel after this match.",
         )
 
         self.client.tournament_players[author.uid]["kills"] = 0
@@ -711,9 +713,9 @@ class Tournament(commands.Cog):
             if i > 60 * 30:
                 await cleanup()
                 await ctx.send(
-                    "This is taking too long! Run this command again or ping bobby if your opponent dipped."
+                    "This is taking too long! Run this command again or ping bobby if your opponent dipped.",
                 )
-                return
+                return None
 
         if self.client.tournament_players[author.uid]["wins"] > 1:
             if author.position == 0:
@@ -757,11 +759,11 @@ class Tournament(commands.Cog):
             await db.commit()
 
         await ctx.send(
-            f"{round_winner.discord.mention} wins the round! Now entering a tiebreaker!!!"
+            f"{round_winner.discord.mention} wins the round! Now entering a tiebreaker!!!",
         )
         if not semifinals:
             await ctx.send(
-                f"{round_winner.discord.mention} please pick **ONE** map you do **NOT** want to play. Please type the name of the map you want to remove exactly as it is shown:"
+                f"{round_winner.discord.mention} please pick **ONE** map you do **NOT** want to play. Please type the name of the map you want to remove exactly as it is shown:",
             )
             map_message = await ctx.send(", ".join(maps))
             remove_map4 = await self.ask_map(ctx, round_winner.discord, maps)
@@ -771,7 +773,7 @@ class Tournament(commands.Cog):
             else:
                 await cleanup()
                 await ctx.send(
-                    "You did not pick a valid map in 5 minutes! You have now forfeited."
+                    "You did not pick a valid map in 5 minutes! You have now forfeited.",
                 )
                 if author.position == 0:
                     await self.set_match_winner(
@@ -789,7 +791,7 @@ class Tournament(commands.Cog):
                     )
                 return await cleanup()
         await ctx.send(
-            f"{round_loser.discord.mention} please pick the map you **WANT** to play:"
+            f"{round_loser.discord.mention} please pick the map you **WANT** to play:",
         )
         map_message = await ctx.send(", ".join(maps))
         chosen_map3 = await self.ask_map(ctx, round_loser.discord, maps)
@@ -799,7 +801,7 @@ class Tournament(commands.Cog):
         else:
             await cleanup()
             await ctx.send(
-                "You did not pick a valid map in 5 minutes! You have now forfeited."
+                "You did not pick a valid map in 5 minutes! You have now forfeited.",
             )
             if author.position == 0:
                 await self.set_match_winner(
@@ -815,17 +817,17 @@ class Tournament(commands.Cog):
                     round_winner.participant_id,
                     f"{opponent.scores[0]}-{author.scores[0]},{opponent.scores[1]}-{author.scores[1]},{opponent.scores[2]}-{author.scores[2]}",
                 )
-            return
+            return None
         loadout3 = random.randint(0, 9)
         while loadout3 == loadout1 or loadout3 == loadout2:
             loadout3 = random.randint(0, 9)
-        with open(f"tourney/loadout{loadout3}.json", "r") as f:
+        with open(f"tourney/loadout{loadout3}.json") as f:
             self.client.tournament_loadout = json.loads(f.read())
         if semifinals:
             await server.send_command(f"mp_gamemode ps; map {valid_maps[chosen_map3]}")
         else:
             await server.send_command(
-                f"mp_gamemode coliseum; map {valid_maps[chosen_map3]}"
+                f"mp_gamemode coliseum; map {valid_maps[chosen_map3]}",
             )
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
@@ -834,7 +836,7 @@ class Tournament(commands.Cog):
             await cursor.execute(f"INSERT INTO whitelist(uid) values({author.uid})")
             await db.commit()
         await ctx.send(
-            f"Done! Final round starting now! Players will be given loadout {loadout3 + 1}! Please join the `awesome 1v1 server`. This is the tiebreaker!"
+            f"Done! Final round starting now! Players will be given loadout {loadout3 + 1}! Please join the `awesome 1v1 server`. This is the tiebreaker!",
         )
 
         self.client.tournament_players[author.uid]["kills"] = 0
@@ -900,9 +902,9 @@ class Tournament(commands.Cog):
             if i > 60 * 30:
                 await cleanup()
                 await ctx.send(
-                    "This is taking too long! Run this command again or ping bobby if your opponent dipped."
+                    "This is taking too long! Run this command again or ping bobby if your opponent dipped.",
                 )
-                return
+                return None
 
         if (
             self.client.tournament_players[author.uid]["wins"]

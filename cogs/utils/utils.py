@@ -1,11 +1,11 @@
-from typing import Union
 import time
+from datetime import datetime
 
 import aiosqlite
-import config
 import humanize
-from datetime import datetime
 from discord.ext import commands
+
+import config
 
 # async def human_time_duration(seconds):
 #     TIME_DURATION_UNITS = (
@@ -41,13 +41,14 @@ async def get_uid_from_connection(did):
     async with aiosqlite.connect(config.bank, timeout=10) as db:
         cursor = await db.cursor()
         await cursor.execute(
-            "SELECT titanfallID FROM connection WHERE discordID = (?)", (did,)
+            "SELECT titanfallID FROM connection WHERE discordID = (?)",
+            (did,),
         )
         uid = await cursor.fetchone()
         return uid[0] if uid else None
 
 
-async def get_name_from_connection(did) -> Union[str, None]:
+async def get_name_from_connection(did) -> str | None:
     async with aiosqlite.connect(config.bank, timeout=10) as db:
         cursor = await db.cursor()
         uid = await get_uid_from_connection(did)
@@ -63,13 +64,14 @@ async def get_discord_id_user_from_connection(uid):
     async with aiosqlite.connect(config.bank, timeout=10) as db:
         cursor = await db.cursor()
         await cursor.execute(
-            "SELECT discordID FROM connection WHERE titanfallID = (?)", (uid,)
+            "SELECT discordID FROM connection WHERE titanfallID = (?)",
+            (uid,),
         )
         did = await cursor.fetchone()
         return did[0] if did else None
 
 
-async def get_uid_from_name(name: str = None) -> Union[int, None]:
+async def get_uid_from_name(name: str = None) -> int | None:
     async with aiosqlite.connect(config.bank, timeout=10) as db:
         cursor = await db.cursor()
         for s in config.servers:
@@ -114,7 +116,8 @@ async def get_row(name, condition, value, table):
     async with aiosqlite.connect(config.bank, timeout=10) as db:
         cursor = await db.cursor()
         await cursor.execute(
-            f"SELECT {name} FROM {table} WHERE {condition} = (?)", (value,)
+            f"SELECT {name} FROM {table} WHERE {condition} = (?)",
+            (value,),
         )
         result = await cursor.fetchone()
         return result[0] if result else None
@@ -123,7 +126,8 @@ async def get_row(name, condition, value, table):
 async def update_row(name, new_value, condition, cvalue, table):
     async with aiosqlite.connect(config.bank, timeout=10) as db:
         await db.execute(
-            f"UPDATE {table} SET {name} = ? WHERE {condition} = ?", (new_value, cvalue)
+            f"UPDATE {table} SET {name} = ? WHERE {condition} = ?",
+            (new_value, cvalue),
         )
         await db.commit()
 
@@ -147,7 +151,8 @@ async def is_linked(did) -> bool:
     async with aiosqlite.connect(config.bank, timeout=10) as db:
         cursor = await db.cursor()
         await cursor.execute(
-            "SELECT discordID FROM connection WHERE discordID = (?)", (did,)
+            "SELECT discordID FROM connection WHERE discordID = (?)",
+            (did,),
         )
         uid = await cursor.fetchone()
         return bool(uid)
@@ -254,7 +259,7 @@ async def get_ban_info(uid):
 async def ban_user(uid, reason="", expires=""):
     if expires:
         expires = datetime.fromtimestamp(int(time.time()) + expires).strftime(
-            "%Y-%m-%d %H:%M:%S"
+            "%Y-%m-%d %H:%M:%S",
         )
     else:
         expires = ""
@@ -281,10 +286,9 @@ async def unban_user(uid):
                     (now.strftime("%Y-%m-%d %H:%M:%S"), uid),
                 )
                 await db.commit()
-            else:
-                if datetime.strptime(ban[3], "%Y-%m-%d %H:%M:%S") > now:
-                    await cursor.execute(
-                        "UPDATE banned SET expire_date = (?) WHERE uid = (?) AND expire_date = (?)",
-                        (now.strftime("%Y-%m-%d %H:%M:%S"), uid, ban[3]),
-                    )
-                    await db.commit()
+            elif datetime.strptime(ban[3], "%Y-%m-%d %H:%M:%S") > now:
+                await cursor.execute(
+                    "UPDATE banned SET expire_date = (?) WHERE uid = (?) AND expire_date = (?)",
+                    (now.strftime("%Y-%m-%d %H:%M:%S"), uid, ban[3]),
+                )
+                await db.commit()

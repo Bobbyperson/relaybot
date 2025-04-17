@@ -4,11 +4,11 @@ import time
 from datetime import timedelta
 
 import aiosqlite
-import config
 import discord
 from discord.ext import commands
 
-import cogs.utils.utils as utils  # this is stupid
+import config
+from cogs.utils import utils  # this is stupid
 
 # import cogs.utils.crashes as crashes
 
@@ -38,14 +38,14 @@ class Stats(commands.Cog):
                     """Welcome to the awesome titanfall server!
 Unfortunately due to reasons outside of our control (most likely a raid), we have temporarily timed you out.
 To get un-timed out, please run the command `,.link <your titanfall name>`.
-If you have any trouble with this or cannot do this please contact an admin.."""
+If you have any trouble with this or cannot do this please contact an admin..""",
                 )
             else:
                 await member.send(
                     """Welcome to the awesome titanfall server!
 I am a stat tracking bot you can use to see all of your kills, deaths, games played, etc, but you need to link your titanfall and discord accounts first.
 Run `,.link <your titanfall name>` in the server to get started!
-My prefix is `,.` and my commands can be seen with `,.help`."""
+My prefix is `,.` and my commands can be seen with `,.help`.""",
                 )
 
         except discord.Forbidden:
@@ -77,12 +77,13 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
             message = f"{name}'s playtime:\n"
             for s in config.servers:
                 await cursor.execute(
-                    f"SELECT playtime FROM {s.name} WHERE name = ?", (name,)
+                    f"SELECT playtime FROM {s.name} WHERE name = ?",
+                    (name,),
                 )
                 playtime = await cursor.fetchone()
                 if playtime is None:
                     await ctx.send(
-                        "User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive."
+                        "User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.",
                     )
                     continue
                 playtime = playtime[0]
@@ -97,18 +98,15 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
             message = "this is in BETA and might not be accurate! please check #server-stats for a 100% accurate player count.\n```\n"
-            playing = (
-                self.client.playing[server]
-                if self.client.playing[server] > self.client.lazy_playing[server]
-                else self.client.lazy_playing[server]
-            )
+            playing = max(self.client.lazy_playing[server], self.client.playing[server])
             if len(playing) == 0:
                 message += "nobody```"
                 await ctx.send(message)
-                return
+                return None
             for uid in playing:
                 await cursor.execute(
-                    f"SELECT name FROM {server} WHERE uid = ?", (uid[0],)
+                    f"SELECT name FROM {server} WHERE uid = ?",
+                    (uid[0],),
                 )
                 result = await cursor.fetchone()
                 message += (
@@ -122,7 +120,7 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
         """See who has the most playtime."""
         if not server or not await utils.is_valid_server(server):
             return await ctx.send(
-                f"Invalid server. Valid servers are {', '.join(await utils.get_valid_server_names())}"
+                f"Invalid server. Valid servers are {', '.join(await utils.get_valid_server_names())}",
             )
         amount = 10
         async with aiosqlite.connect(config.bank, timeout=10) as db:
@@ -180,18 +178,18 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
             survivor_kills = await cursor.fetchone()
             total_kills += survivor_kills[0]
             await cursor.execute(
-                "SELECT COUNT(*) AS total_rows FROM killLog WHERE action <> 2 AND killer <> victim"
+                "SELECT COUNT(*) AS total_rows FROM killLog WHERE action <> 2 AND killer <> victim",
             )
             total_logged_kills = await cursor.fetchone()
             total_logged_kills = total_logged_kills[0]
             total_suicides = await cursor.execute(
-                "SELECT COUNT(*) AS total_rows FROM killLog WHERE action = 2 OR killer = victim"
+                "SELECT COUNT(*) AS total_rows FROM killLog WHERE action = 2 OR killer = victim",
             )
             await ctx.send(
-                f"Total kills in main: {total_kills}\nTotal kills in killLog: {total_logged_kills}\nTotal suicides: {total_suicides}\nUnlogged kills: {total_kills - total_logged_kills - total_suicides}"
+                f"Total kills in main: {total_kills}\nTotal kills in killLog: {total_logged_kills}\nTotal suicides: {total_suicides}\nUnlogged kills: {total_kills - total_logged_kills - total_suicides}",
             )
             await cursor.execute(
-                f"SELECT * FROM killLog WHERE num = {1000000 - total_logged_kills}"
+                f"SELECT * FROM killLog WHERE num = {1000000 - total_logged_kills}",
             )
             theinfo = await cursor.fetchall()
             await ctx.send(theinfo[0])
@@ -204,12 +202,12 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
         if server == "infection":
             if number < 1:
                 await ctx.send("Please provide a number greater than 0.")
-                return
+                return None
             if number < 151090:
                 await ctx.send(
-                    "Unfortunately, we did not start logging individual kills until kill number 151090. Please try a number greater than 151090."
+                    "Unfortunately, we did not start logging individual kills until kill number 151090. Please try a number greater than 151090.",
                 )
-                return
+                return None
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute(f"SELECT sum(kills_as_inf) FROM {server}")
@@ -219,12 +217,12 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
             survivor_kills = await cursor.fetchone()
             total_kills += survivor_kills[0]
             await cursor.execute(
-                f"SELECT COUNT(*) AS total_rows FROM {server}_kill_log WHERE action <> 2 AND killer <> victim"
+                f"SELECT COUNT(*) AS total_rows FROM {server}_kill_log WHERE action <> 2 AND killer <> victim",
             )
             total_kill_log_kills = await cursor.fetchone()
             total_kill_log_kills = total_kill_log_kills[0]
             await cursor.execute(
-                f"SELECT COUNT(*) AS total_rows FROM {server}_kill_log WHERE action = 2 OR killer = victim"
+                f"SELECT COUNT(*) AS total_rows FROM {server}_kill_log WHERE action = 2 OR killer = victim",
             )
             total_suicides = await cursor.fetchone()
             total_suicides = total_suicides[0]
@@ -232,33 +230,35 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
             offset = number - missing_kills - 1
             if offset < 0:
                 await ctx.send(
-                    "This kill number is not logged. Either it hasn't happened yet, or happened before we started logging individual kills."
+                    "This kill number is not logged. Either it hasn't happened yet, or happened before we started logging individual kills.",
                 )
-                return
+                return None
             await cursor.execute(
-                f"SELECT * FROM {server}_kill_log WHERE action <> 2 AND killer <> victim ORDER BY num ASC LIMIT 1 OFFSET {offset}"
+                f"SELECT * FROM {server}_kill_log WHERE action <> 2 AND killer <> victim ORDER BY num ASC LIMIT 1 OFFSET {offset}",
             )
             onemilkill = await cursor.fetchall()
             if onemilkill is not None:
                 onemilkill = onemilkill[0]
                 action = "killed" if onemilkill[2] == 0 else "infected"
                 await cursor.execute(
-                    f"SELECT name FROM {server} WHERE uid = ?", (onemilkill[1],)
+                    f"SELECT name FROM {server} WHERE uid = ?",
+                    (onemilkill[1],),
                 )
                 fetched = await cursor.fetchone()
                 killer_name = fetched[0]
                 await cursor.execute(
-                    f"SELECT name FROM {server} WHERE uid = ?", (onemilkill[3],)
+                    f"SELECT name FROM {server} WHERE uid = ?",
+                    (onemilkill[3],),
                 )
                 fetched = await cursor.fetchone()
                 victim_name = fetched[0]
                 timestamp = onemilkill[4]
                 await ctx.send(
-                    f"Kill number {number}:\n{killer_name} {action} {victim_name} at <t:{timestamp}:f>"
+                    f"Kill number {number}:\n{killer_name} {action} {victim_name} at <t:{timestamp}:f>",
                 )
             else:
                 await ctx.send(
-                    "This kill number is not logged. Either it hasn't happened yet, or happened before we started logging individual kills."
+                    "This kill number is not logged. Either it hasn't happened yet, or happened before we started logging individual kills.",
                 )
 
     @commands.hybrid_command()
@@ -273,7 +273,10 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
         for server in config.servers:
             try:
                 killsmilitia = await utils.get_row(
-                    "killsmilitia", "name", name, server.name
+                    "killsmilitia",
+                    "name",
+                    name,
+                    server.name,
                 )
 
                 killsimc = await utils.get_row("killsimc", "name", name, server.name)
@@ -281,7 +284,10 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
                 deathsimc = await utils.get_row("deathsimc", "name", name, server.name)
 
                 deathsmilitia = await utils.get_row(
-                    "deathsmilitia", "name", name, server.name
+                    "deathsmilitia",
+                    "name",
+                    name,
+                    server.name,
                 )
 
                 if (
@@ -305,7 +311,7 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
                 message += f"\n{server.name}: `{(killsmilitia + killsimc) / (deathsmilitia + deathsimc):.2f} ({killsmilitia + killsimc}:{deathsmilitia + deathsimc})`"
         if message == "":
             return await ctx.reply(
-                "User not found. Either you are not `,.link`ed or you made a typo. Names are case sensitive."
+                "User not found. Either you are not `,.link`ed or you made a typo. Names are case sensitive.",
             )
         await ctx.reply(message)
 
@@ -319,13 +325,15 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
             cursor = await db.cursor()
             for server in config.servers:
                 await cursor.execute(
-                    f"SELECT uid FROM {server.name} WHERE name=?", (user1,)
+                    f"SELECT uid FROM {server.name} WHERE name=?",
+                    (user1,),
                 )
                 killer = await cursor.fetchone()
                 killer = killer[0]
 
                 await cursor.execute(
-                    f"SELECT uid FROM {server.name} WHERE name=?", (user2,)
+                    f"SELECT uid FROM {server.name} WHERE name=?",
+                    (user2,),
                 )
                 victim = await cursor.fetchone()
                 victim = victim[0]
@@ -386,13 +394,13 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
         """See who has the most kills on a team."""
         if team != "survivor" and team != "infected" and server == "infection":
             await ctx.send("Error! Please specify team `infected` or `survivor`.")
-            return
+            return None
         if not server:
             return await ctx.send("Error! Please specify server.")
         if not await utils.is_valid_server(server):
             valid_servers = await utils.get_valid_server_names()
             return await ctx.send(
-                f"Invalid server. Valid servers are `{', '.join(valid_servers)}`."
+                f"Invalid server. Valid servers are `{', '.join(valid_servers)}`.",
             )
         showteam = team
         if team == "survivor":
@@ -404,16 +412,17 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
             cursor = await db.cursor()
             if server == "infection":
                 await cursor.execute(
-                    f"SELECT * FROM {server} ORDER BY kills{team} DESC"
+                    f"SELECT * FROM {server} ORDER BY kills{team} DESC",
                 )
             else:
                 await cursor.execute(
-                    f"SELECT * FROM {server} ORDER BY (killsmilitia + killsimc) DESC"
+                    f"SELECT * FROM {server} ORDER BY (killsmilitia + killsimc) DESC",
                 )
             users = await cursor.fetchall()
             if server == "infection":
                 em = discord.Embed(
-                    title=f"Top {amount} Kills as {showteam}", color=ctx.author.color
+                    title=f"Top {amount} Kills as {showteam}",
+                    color=ctx.author.color,
                 )
             else:
                 em = discord.Embed(title=f"Top {amount} Kills", color=ctx.author.color)
@@ -431,7 +440,9 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
                 else:
                     kills = user[3] + user[4]
                 em.add_field(
-                    name=f"{index}. {username}", value=f"{kills}", inline=False
+                    name=f"{index}. {username}",
+                    value=f"{kills}",
+                    inline=False,
                 )
             await ctx.send(embed=em)
 
@@ -446,7 +457,8 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
             await cursor.execute(f"SELECT * FROM {server} ORDER BY killstreak DESC")
             users = await cursor.fetchall()
             em = discord.Embed(
-                title=f"Top {amount} Killstreaks", color=ctx.author.color
+                title=f"Top {amount} Killstreaks",
+                color=ctx.author.color,
             )
             index = 0
             for user in users:
@@ -456,7 +468,9 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
                 username = user[1]
                 kills = user[10]
                 em.add_field(
-                    name=f"{index}. {username}", value=f"{kills}", inline=False
+                    name=f"{index}. {username}",
+                    value=f"{kills}",
+                    inline=False,
                 )
             await ctx.send(embed=em)
 
@@ -504,17 +518,17 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
         )
         if name is None:
             await ctx.send(
-                "User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive."
+                "User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.",
             )
-            return
+            return None
         message = f"{name}:\n"
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
             for server in config.servers:
-
                 # Use a parameterized query for the SELECT statements
                 await cursor.execute(
-                    f'SELECT "killstreak" FROM {server.name} WHERE name=?', (name,)
+                    f'SELECT "killstreak" FROM {server.name} WHERE name=?',
+                    (name,),
                 )
                 killstreak = await cursor.fetchone()
                 if killstreak is None:
@@ -522,7 +536,7 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
                 message += f"{server.name}: {killstreak[0]}\n"
         if message == f"{name}:\n":
             return await ctx.send(
-                "User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive."
+                "User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.",
             )
         await ctx.reply(message)
 
@@ -536,7 +550,7 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
         )
         if name is None:
             await ctx.send(
-                "User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive."
+                "User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.",
             )
             return
 
@@ -545,12 +559,13 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
 
             # Use a parameterized query for the SELECT statements
             await cursor.execute(
-                'SELECT "firstinfected" FROM infection WHERE name=?', (name,)
+                'SELECT "firstinfected" FROM infection WHERE name=?',
+                (name,),
             )
             killstreak = await cursor.fetchone()
             if killstreak is None:
                 await ctx.send(
-                    "User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive."
+                    "User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.",
                 )
                 return
             await ctx.reply(f"{name}: {killstreak[0]}")
@@ -567,7 +582,8 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
             name_exists = False
             for s in config.servers:
                 await cursor.execute(
-                    f"SELECT name FROM {s.name} WHERE name = ?", (name,)
+                    f"SELECT name FROM {s.name} WHERE name = ?",
+                    (name,),
                 )
                 name_exists = True if await cursor.fetchone() is not None else False
                 if name_exists:
@@ -580,40 +596,42 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
             uid = uid[0] if uid is not None else None
             if uid is None:
                 await ctx.send("User not found. Names are case sensitive.")
-                return
+                return None
 
             await cursor.execute(
-                "SELECT titanfallID from connection WHERE titanfallID = ?", (uid,)
+                "SELECT titanfallID from connection WHERE titanfallID = ?",
+                (uid,),
             )
             uid_exists = True if await cursor.fetchone() is not None else False
             if uid_exists:
                 await ctx.send(
-                    "This titanfall account is already linked to a discord account."
+                    "This titanfall account is already linked to a discord account.",
                 )
-                return
+                return None
 
             await cursor.execute(
-                "SELECT discordID from connection WHERE discordID = ?", (did,)
+                "SELECT discordID from connection WHERE discordID = ?",
+                (did,),
             )
             did_exists = True if await cursor.fetchone() is not None else False
             if did_exists:
                 await ctx.send(
-                    "This discord account is already linked to a titanfall account."
+                    "This discord account is already linked to a titanfall account.",
                 )
-                return
+                return None
             auth_code = secrets.randbits(20)
             # theres a fringe chance that someone will get the same code as someone else but i dont care
             try:
                 await ctx.author.send(
-                    f"Your code is: `{auth_code}`\nPlease paste it into the in-game titanfall chat without any spaces or other characters."
+                    f"Your code is: `{auth_code}`\nPlease paste it into the in-game titanfall chat without any spaces or other characters.",
                 )
             except discord.Forbidden:
                 await ctx.reply(
-                    "I can't DM you! Please enable DMs from server members and try again."
+                    "I can't DM you! Please enable DMs from server members and try again.",
                 )
-                return
+                return None
             await ctx.reply(
-                "Please check your DMs for a code and paste it into the in-game titanfall chat."
+                "Please check your DMs for a code and paste it into the in-game titanfall chat.",
             )
         self.client.auth[auth_code] = {"name": name, "confirmed": False}
         unix = int(time.time())
@@ -631,11 +649,11 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
                 )
                 await db.commit()
                 await ctx.reply(
-                    "Successfully linked your titanfall and discord accounts!"
+                    "Successfully linked your titanfall and discord accounts!",
                 )
                 adminrelay = await self.client.fetch_channel(config.admin_relay)
                 await adminrelay.send(
-                    f"{ctx.author.mention} just `,.link`ed to {name}!"
+                    f"{ctx.author.mention} just `,.link`ed to {name}!",
                 )
                 if self.client.raid_mode:
                     server = await self.client.get_guild(929895874799226881)
@@ -651,7 +669,7 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
         if not ctx.guild:
             return await ctx.reply("This command can only be used in servers.")
         await ctx.send(
-            "Are you absolutely sure you want to unlink your titanfall and discord accounts? You can relink them at any time with `,link`.\nType `yes` to confirm."
+            "Are you absolutely sure you want to unlink your titanfall and discord accounts? You can relink them at any time with `,link`.\nType `yes` to confirm.",
         )
         try:
             msg = await self.client.wait_for(
@@ -660,29 +678,31 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
                 check=lambda message: message.author == ctx.author
                 and message.channel == ctx.channel,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             await ctx.reply("Cancelled.")
-            return
+            return None
         if msg.content is not None:
             if msg.content.lower() == "yes":
                 async with aiosqlite.connect(config.bank, timeout=10) as db:
                     cursor = await db.cursor()
                     did = ctx.author.id
                     await cursor.execute(
-                        "SELECT discordID FROM connection WHERE discordID = ?", (did,)
+                        "SELECT discordID FROM connection WHERE discordID = ?",
+                        (did,),
                     )
                     did_exists = True if await cursor.fetchone() is not None else False
                     if not did_exists:
                         await ctx.send(
-                            "This discord account is not linked to a titanfall account."
+                            "This discord account is not linked to a titanfall account.",
                         )
-                        return
+                        return None
                     await cursor.execute(
-                        "DELETE FROM connection WHERE discordID = ?", (did,)
+                        "DELETE FROM connection WHERE discordID = ?",
+                        (did,),
                     )
                     await db.commit()
                     await ctx.reply(
-                        "Successfully unlinked your titanfall and discord accounts!"
+                        "Successfully unlinked your titanfall and discord accounts!",
                     )
                     adminrelay = self.client.get_channel(config.admin_relay)
                     await adminrelay.send(f"{ctx.author.mention} just `,.unlink`ed!")
@@ -697,13 +717,14 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute(
-                "SELECT titanfallID FROM connection WHERE discordID = ?", (name.id,)
+                "SELECT titanfallID FROM connection WHERE discordID = ?",
+                (name.id,),
             )
             uid = await cursor.fetchone()
             uid = uid[0] if uid is not None else None
             if uid is None:
                 await ctx.send(
-                    "This discord account is not linked to a titanfall account."
+                    "This discord account is not linked to a titanfall account.",
                 )
                 return
             titan_name = await utils.get_name_from_connection(uid)
@@ -722,17 +743,17 @@ My prefix is `,.` and my commands can be seen with `,.help`."""
         )
         if name is None:
             await ctx.send(
-                "User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive."
+                "User not found. Either you are not `,.link`ed or you mistyped a name. Names are case sensitive.",
             )
             return
         message = f"{name}:\n"
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
             for server in config.servers:
-
                 # Use a parameterized query for the SELECT statements
                 await cursor.execute(
-                    f'SELECT "gamesplayed" FROM {server.name} WHERE name=?', (name,)
+                    f'SELECT "gamesplayed" FROM {server.name} WHERE name=?',
+                    (name,),
                 )
                 gamesplayed = await cursor.fetchone()
                 if gamesplayed is None:

@@ -25,7 +25,7 @@ class CrashHandler:
         total_diff = timedelta()
 
         # Iterate through the array to calculate differences
-        for i in range(1, len(self.crashes) if len(self.crashes) < 4 else 4):
+        for i in range(1, min(4, len(self.crashes))):
             diff = self.crashes[i] - self.crashes[i - 1]
             total_diff += diff
 
@@ -44,7 +44,7 @@ async def whitelist_set(mode: int = 5) -> int:
         ) as f:
             f.write("")
         return 0
-    elif mode == 4:
+    if mode == 4:
         async with aiosqlite.connect("database.sqlite", timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute("SELECT uid FROM main")
@@ -92,7 +92,6 @@ async def whitelist_set(mode: int = 5) -> int:
             f.write("0")
     with open(
         r"whitelist\whitelist.txt",
-        "r",
     ) as f:
         lines = f.readlines()
     return len(lines)

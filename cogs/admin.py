@@ -1,12 +1,11 @@
-import asyncio
 import difflib
 import time
 
 import aiosqlite
-import config
 from discord.ext import commands
 
-import cogs.utils.utils as utils  # this is stupid
+import config
+from cogs.utils import utils  # this is stupid
 
 
 class Admin(commands.Cog):
@@ -40,7 +39,7 @@ class Admin(commands.Cog):
         await message.edit(
             content=f"🏓 Pong!\n"
             f"API Latency: `{round(duration)}ms`\n"
-            f"Websocket Latency: `{round(self.client.latency * 1000)}ms`"
+            f"Websocket Latency: `{round(self.client.latency * 1000)}ms`",
         )
 
     @commands.command()
@@ -56,7 +55,7 @@ class Admin(commands.Cog):
                 good_list.append(shit[0])  # tuple to array
             closest_match = difflib.get_close_matches(name, good_list, n=4, cutoff=0.3)
             await ctx.send(
-                f"This player has never joined {server}! Did you type the name incorrectly? The closest matches I found were `{closest_match}`."
+                f"This player has never joined {server}! Did you type the name incorrectly? The closest matches I found were `{closest_match}`.",
             )
 
         if ctx.author.id not in config.admins:
@@ -76,12 +75,14 @@ class Admin(commands.Cog):
                 try:
                     if isinstance(user, str):
                         await cursor.execute(
-                            f"SELECT name FROM {s.name} WHERE name = ?", (user,)
+                            f"SELECT name FROM {s.name} WHERE name = ?",
+                            (user,),
                         )
                         fetched = await cursor.fetchone()
                     elif isinstance(user, int):
                         await cursor.execute(
-                            f"SELECT name FROM {s.name} WHERE uid = ?", (user,)
+                            f"SELECT name FROM {s.name} WHERE uid = ?",
+                            (user,),
                         )
                         fetched = await cursor.fetchone()
                         uid = user
@@ -96,13 +97,14 @@ class Admin(commands.Cog):
                 if fetched is None and isinstance(user, str):
                     await closest_match(user, s.name)
                     continue
-                elif fetched is None and isinstance(user, int):
+                if fetched is None and isinstance(user, int):
                     await ctx.send("Could not find UID in database!")
                     continue
                 fetched = fetched[0]
                 if isinstance(user, str):
                     await cursor.execute(
-                        f"SELECT uid FROM {s.name} WHERE name = ?", (user,)
+                        f"SELECT uid FROM {s.name} WHERE name = ?",
+                        (user,),
                     )
                     uid = await cursor.fetchone()
                     if uid is None:
@@ -110,32 +112,39 @@ class Admin(commands.Cog):
                     else:
                         uid = uid[0]
                     await cursor.execute(
-                        f"SELECT last_join FROM {s.name} WHERE name = ?", (user,)
+                        f"SELECT last_join FROM {s.name} WHERE name = ?",
+                        (user,),
                     )
                     timestamp = await cursor.fetchone()
                     await cursor.execute(
-                        f"SELECT first_join FROM {s.name} WHERE name = ?", (user,)
+                        f"SELECT first_join FROM {s.name} WHERE name = ?",
+                        (user,),
                     )
                     first_join = await cursor.fetchone()
                     await cursor.execute(
-                        f"SELECT playtime FROM {s.name} WHERE name = ?", (user,)
+                        f"SELECT playtime FROM {s.name} WHERE name = ?",
+                        (user,),
                     )
                     playtime = await cursor.fetchone()
                 elif isinstance(user, int):
                     await cursor.execute(
-                        f"SELECT last_join FROM {s.name} WHERE uid = ?", (user,)
+                        f"SELECT last_join FROM {s.name} WHERE uid = ?",
+                        (user,),
                     )
                     timestamp = await cursor.fetchone()
                     await cursor.execute(
-                        f"SELECT first_join FROM {s.name} WHERE uid = ?", (user,)
+                        f"SELECT first_join FROM {s.name} WHERE uid = ?",
+                        (user,),
                     )
                     first_join = await cursor.fetchone()
                     await cursor.execute(
-                        f"SELECT playtime FROM {s.name} WHERE uid = ?", (user,)
+                        f"SELECT playtime FROM {s.name} WHERE uid = ?",
+                        (user,),
                     )
                     playtime = await cursor.fetchone()
                     await cursor.execute(
-                        f"SELECT name FROM {s.name} WHERE uid = ?", (user,)
+                        f"SELECT name FROM {s.name} WHERE uid = ?",
+                        (user,),
                     )
                     user = await cursor.fetchone()
                     user = user[0]
@@ -160,7 +169,7 @@ class Admin(commands.Cog):
                     await server.send_command("checkbans")
                 except ConnectionError:
                     await ctx.reply(
-                        f"couldn't tell {server.name} to update banlist! ban may be delayed for one round."
+                        f"couldn't tell {server.name} to update banlist! ban may be delayed for one round.",
                     )
         await ctx.send("done!")
 
@@ -187,9 +196,9 @@ class Admin(commands.Cog):
             await ctx.reply("ok done")
             channel = await self.client.fetch_channel(config.bigbrother)
             await channel.send(
-                f"`{ctx.author.name}` just ran `{' '.join(args)}` thru the bot to all servers"
+                f"`{ctx.author.name}` just ran `{' '.join(args)}` thru the bot to all servers",
             )
-            return
+            return None
         s = await utils.get_server(server)
         if not args:
             return await ctx.reply("Please specify a command!")
@@ -197,7 +206,7 @@ class Admin(commands.Cog):
         await ctx.reply("ok done")
         channel = await self.client.fetch_channel(config.bigbrother)
         await channel.send(
-            f"`{ctx.author.name}` just ran `{' '.join(args)}` thru the bot to {server}"
+            f"`{ctx.author.name}` just ran `{' '.join(args)}` thru the bot to {server}",
         )
 
     @commands.command(aliases=["spl"], hidden=True)
@@ -221,7 +230,7 @@ class Admin(commands.Cog):
 
                     # Ask user if they want to commit the changes
                     await ctx.send(
-                        "Do you want to commit these changes? Reply with 'yes' or 'no'."
+                        "Do you want to commit these changes? Reply with 'yes' or 'no'.",
                     )
                     try:
                         msg = await self.client.wait_for(
@@ -236,13 +245,13 @@ class Admin(commands.Cog):
                         else:
                             await cursor.execute("ROLLBACK;")
                             await ctx.send("Changes rolled back.")
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         await cursor.execute("ROLLBACK;")
                         await ctx.send("Confirmation timeout. Changes rolled back.")
 
         except Exception as e:
             print(e)
-            await ctx.send(f"Error: {str(e)}")
+            await ctx.send(f"Error: {e!s}")
 
     @commands.command(hidden=True)
     @commands.is_owner()
@@ -252,22 +261,25 @@ class Admin(commands.Cog):
             for s in config.servers:
                 for uid in config.admin_uids:
                     await cursor.execute(
-                        f"SELECT name FROM {s.name} WHERE uid = ?", (uid,)
+                        f"SELECT name FROM {s.name} WHERE uid = ?",
+                        (uid,),
                     )
                     name = await cursor.fetchone()
                     name = name[0]
                     await cursor.execute(
-                        f"SELECT last_join FROM {s.name} WHERE uid = ?", (uid,)
+                        f"SELECT last_join FROM {s.name} WHERE uid = ?",
+                        (uid,),
                     )
                     last_join = await cursor.fetchone()
                     last_join = last_join[0]
                     await cursor.execute(
-                        f"SELECT playtime FROM {s.name} WHERE uid = ?", (uid,)
+                        f"SELECT playtime FROM {s.name} WHERE uid = ?",
+                        (uid,),
                     )
                     playtime = await cursor.fetchone()
                     playtime = await utils.human_time_duration(playtime[0])
                     await ctx.send(
-                        f"{name}:\nLast seen: `{last_join}`\nPlaytime: `{playtime}`"
+                        f"{name}:\nLast seen: `{last_join}`\nPlaytime: `{playtime}`",
                     )
 
     # @commands.command(aliases=["defcon"])

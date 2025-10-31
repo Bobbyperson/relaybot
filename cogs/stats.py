@@ -53,7 +53,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
 
     @commands.command()
     @utils.is_admin()
-    async def raidmode(self, ctx, mode: bool = None):
+    async def raidmode(self, ctx, mode: bool | None = None):
         if mode is None:
             await ctx.send(f"Raid mode is currently {self.client.raid_mode}")
             return
@@ -65,7 +65,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
             await ctx.send("Raid mode disabled.")
 
     @commands.hybrid_command()
-    async def playtime(self, ctx, name: str = None):
+    async def playtime(self, ctx, name: str | None = None):
         """Get a user's playtime."""
         name = (
             await utils.get_name_from_connection(ctx.author.id)
@@ -91,7 +91,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
         await ctx.send(message)
 
     @commands.hybrid_command()
-    async def online(self, ctx, server: str = None):
+    async def online(self, ctx, server: str | None = None):
         """See who's online."""
         if not server or not await utils.is_valid_server(server):
             return await ctx.send("Invalid server.")
@@ -116,7 +116,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
             await ctx.send(message)
 
     @commands.hybrid_command()
-    async def playtimeboard(self, ctx, server: str = None):
+    async def playtimeboard(self, ctx, server: str | None = None):
         """See who has the most playtime."""
         if not server or not await utils.is_valid_server(server):
             return await ctx.send(
@@ -196,7 +196,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
 
     @commands.command()
     @commands.cooldown(1, 1, commands.BucketType.user)
-    async def killnumber(self, ctx, number: int = 0, server: str = None):
+    async def killnumber(self, ctx, number: int = 0, server: str | None = None):
         if server is None or not await utils.is_valid_server(server):
             return await ctx.send("Please provide a valid server.")
         if server == "infection":
@@ -262,7 +262,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
                 )
 
     @commands.hybrid_command()
-    async def kd(self, ctx, name: str = None):
+    async def kd(self, ctx, name: str | None = None):
         """Get a user's KD."""
         name = (
             await utils.get_name_from_connection(ctx.author.id)
@@ -316,7 +316,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
         await ctx.reply(message)
 
     @commands.hybrid_command()
-    async def killed(self, ctx, user1: str = None, user2: str = None):
+    async def killed(self, ctx, user1: str | None = None, user2: str | None = None):
         """See how many times two people have killed each other."""
         if not user1 or not user2:
             return await ctx.send("Please specify two users.")
@@ -390,7 +390,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
         await ctx.send(message)
 
     @commands.hybrid_command()
-    async def killboard(self, ctx, server: str = None, team: str = None):
+    async def killboard(self, ctx, server: str | None = None, team: str | None = None):
         """See who has the most kills on a team."""
         if team != "survivor" and team != "infected" and server == "infection":
             await ctx.send("Error! Please specify team `infected` or `survivor`.")
@@ -447,7 +447,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
             await ctx.send(embed=em)
 
     @commands.hybrid_command()
-    async def killstreakboard(self, ctx, server: str = None):
+    async def killstreakboard(self, ctx, server: str | None = None):
         """See who has the highest killstreak."""
         if not server or not await utils.is_valid_server(server):
             return await ctx.send("Error! Please specify server.")
@@ -509,7 +509,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
     #         await ctx.send(embed=em)
 
     @commands.hybrid_command(aliases=["ks", "kys", "killstreak"])
-    async def highestkillstreak(self, ctx, name: str = None):
+    async def highestkillstreak(self, ctx, name: str | None = None):
         """See someone's highest killstreak."""
         name = (
             await utils.get_name_from_connection(ctx.author.id)
@@ -541,7 +541,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
         await ctx.reply(message)
 
     @commands.hybrid_command()
-    async def firstinfected(self, ctx, name: str = None):
+    async def firstinfected(self, ctx, name: str | None = None):
         """See how many times someone has been first infected."""
         name = (
             await utils.get_name_from_connection(ctx.author.id)
@@ -734,7 +734,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
             await ctx.send(f"{name.name} is linked to {titan_name}.")
 
     @commands.hybrid_command()
-    async def gamesplayed(self, ctx, name: str = None):
+    async def gamesplayed(self, ctx, name: str | None = None):
         """See how many games someone has played."""
         name = (
             await utils.get_name_from_connection(ctx.author.id)
@@ -764,7 +764,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
         await ctx.reply(message)
 
     @commands.hybrid_command()
-    async def amiwhitelisted(self, ctx, name: str = None):
+    async def amiwhitelisted(self, ctx, name: str | None = None):
         return await ctx.send("The whitelist has been deprecated for now.")
         # if self.client.whitelist == 5:
         #     await ctx.send(

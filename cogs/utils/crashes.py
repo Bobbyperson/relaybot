@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 import aiosqlite
+import anyio
 from dateutil.relativedelta import relativedelta
 
 
@@ -38,7 +39,7 @@ async def whitelist_set(mode: int = 5) -> int:
     date_format = "%Y-%m-%d %H:%M:%S"
 
     if mode == 5:
-        with open(
+        async with anyio.open_file(
             r"whitelist\whitelist.txt",
             "w",
         ) as f:
@@ -49,7 +50,7 @@ async def whitelist_set(mode: int = 5) -> int:
             cursor = await db.cursor()
             await cursor.execute("SELECT uid FROM main")
             uids = await cursor.fetchall()
-            with open(
+            async with anyio.open_file(
                 r"whitelist\whitelist.txt",
                 "w",
             ) as f:
@@ -61,7 +62,7 @@ async def whitelist_set(mode: int = 5) -> int:
             cursor = await db.cursor()
             await cursor.execute("SELECT * FROM main")
             uids = await cursor.fetchall()
-            with open(
+            async with anyio.open_file(
                 r"whitelist\whitelist.txt",
                 "w",
             ) as f:
@@ -77,7 +78,7 @@ async def whitelist_set(mode: int = 5) -> int:
             cursor = await db.cursor()
             await cursor.execute("SELECT titanfallID FROM connection")
             uids = await cursor.fetchall()
-            with open(
+            async with anyio.open_file(
                 r"whitelist\whitelist.txt",
                 "w",
             ) as f:
@@ -85,12 +86,12 @@ async def whitelist_set(mode: int = 5) -> int:
                     uid = uid[0]
                     f.write(f"{uid}\n")
     elif mode == 1:
-        with open(
+        async with anyio.open_file(
             r"whitelist\whitelist.txt",
             "w",
         ) as f:
             f.write("0")
-    with open(
+    async with anyio.open_file(
         r"whitelist\whitelist.txt",
     ) as f:
         lines = f.readlines()

@@ -71,7 +71,7 @@ async def get_discord_id_user_from_connection(uid):
         return did[0] if did else None
 
 
-async def get_uid_from_name(name: str = None) -> int | None:
+async def get_uid_from_name(name: str | None = None) -> int | None:
     async with aiosqlite.connect(config.bank, timeout=10) as db:
         cursor = await db.cursor()
         for s in config.servers:
@@ -82,7 +82,7 @@ async def get_uid_from_name(name: str = None) -> int | None:
         return None
 
 
-async def is_valid_server(server: str = None) -> bool:
+async def is_valid_server(server: str | None = None) -> bool:
     for s in config.servers:
         if server == s.name:
             return True
@@ -92,7 +92,7 @@ async def is_valid_server(server: str = None) -> bool:
     return False
 
 
-async def check_server_auth(server: str = None, auth: str = None) -> bool:
+async def check_server_auth(server: str | None = None, auth: str | None = None) -> bool:
     for s in config.servers:
         if server == s.name:
             return auth == s.key
@@ -136,7 +136,7 @@ async def get_valid_server_names() -> list:
     return [s.name for s in config.servers]
 
 
-async def check_server_ip(server: str = None, ip: str = None) -> bool:
+async def check_server_ip(server: str | None = None, ip: str | None = None) -> bool:
     # for s in config.servers:
     #     if server == s.name:
     #         return ip == s.ip
@@ -158,7 +158,7 @@ async def is_linked(did) -> bool:
         return bool(uid)
 
 
-async def is_tournament_server(server: str = None) -> bool:
+async def is_tournament_server(server: str | None = None) -> bool:
     for s in config.tournament_servers:
         if server == s.name:
             return True

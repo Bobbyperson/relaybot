@@ -18,6 +18,7 @@ dependencies = [
     "rcon>=2.4.9",
     "humanize>=4.12.2",
     "pillow>=11.1.0",
+    "anyio>=4.11.0",
 ]
 
 [dependency-groups]
@@ -27,6 +28,22 @@ dev = [
 
 [tool.uv]
 package = false
+
+[tool.ruff.lint]
+select = [
+    "A004", # Check for import shadowing builtin functions: https://docs.astral.sh/ruff/rules/builtin-import-shadowing/
+    "RUF",
+    "UP",
+    "I",
+    "ASYNC",
+    "F",
+    "FURB",
+    "PLC",
+]
+extend-ignore = [
+    "ASYNC110", # I don't care
+    "ASYNC221",
+]
 
 [build-system]
 requires = ["hatchling"]

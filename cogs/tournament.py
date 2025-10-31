@@ -3,12 +3,15 @@ import json
 import random
 from copy import deepcopy
 
+import aiohttp
 import aiosqlite
-import requests
+import anyio
 from discord.ext import commands
 
 import config
 from cogs.utils import utils
+
+background_tasks = set()
 
 
 class Player:
@@ -90,70 +93,68 @@ class Tournament(commands.Cog):
         self.client = client
         self.client.tournament_players = {}
         self.client.reserved = False
+        # Reuse one aiohttp session for all API calls
+        self.session = aiohttp.ClientSession(
+            headers={"User-Agent": "FuckYouCloudflare/1.0"}
+        )
+
+    def cog_unload(self):
+        # Close session when the cog is unloaded
+        if not self.session.closed:
+            task = asyncio.create_task(self.session.close())
+            background_tasks.add(task)
+            task.add_done_callback(background_tasks.discard)
 
     @commands.Cog.listener()
     async def on_ready(self):
         print("Tournament ready")
 
-    async def get_tournament_id(self):
-        headers = {
-            "User-Agent": "FuckYouCloudflare/1.0",
-        }
-        result = requests.get(
-            f"https://api.challonge.com/v1/tournaments.json?api_key={api_key}",
-            headers=headers,
-        )
+    async def _get(self, url: str):
+        async with self.session.get(url) as resp:
+            if resp.status == 200:
+                return await resp.json()
+            return None
 
-        if result.status_code == 200:
-            data = result.json()[0]
-            return data
+    async def _post(self, url: str, data: dict | None = None):
+        async with self.session.post(url, data=data) as resp:
+            return resp.status == 200
+
+    async def _put(self, url: str, data: dict | None = None):
+        async with self.session.put(url, data=data) as resp:
+            if resp.status == 200:
+                try:
+                    return True, await resp.json()
+                except Exception:
+                    return True, None
+            return False, None
+
+    async def get_tournament_id(self):
+        result = await self._get(
+            f"https://api.challonge.com/v1/tournaments.json?api_key={api_key}"
+        )
+        if result:
+            return result[0]
         return None
 
     async def get_participants(self, tournament_id):
-        headers = {
-            "User-Agent": "FuckYouCloudflare/1.0",
-        }
-        result = requests.get(
-            f"https://api.challonge.com/v1/tournaments/{tournament_id}/participants.json?api_key={api_key}",
-            headers=headers,
+        return await self._get(
+            f"https://api.challonge.com/v1/tournaments/{tournament_id}/participants.json?api_key={api_key}"
         )
-
-        if result.status_code == 200:
-            data = result.json()
-            return data
-        return None
 
     async def get_participant(self, tournament_id, participant_id):
-        headers = {
-            "User-Agent": "FuckYouCloudflare/1.0",
-        }
-        result = requests.get(
-            f"https://api.challonge.com/v1/tournaments/{tournament_id}/participants/{participant_id}.json?api_key={api_key}",
-            headers=headers,
+        return await self._get(
+            f"https://api.challonge.com/v1/tournaments/{tournament_id}/participants/{participant_id}.json?api_key={api_key}"
         )
-
-        if result.status_code == 200:
-            data = result.json()
-            return data
-        return None
 
     async def get_matches(self, tournament_id):
-        headers = {
-            "User-Agent": "FuckYouCloudflare/1.0",
-        }
-        result = requests.get(
-            f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches.json?api_key={api_key}",
-            headers=headers,
+        return await self._get(
+            f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches.json?api_key={api_key}"
         )
-
-        if result.status_code == 200:
-            data = result.json()
-            return data
-        return None
 
     async def get_participant_next_match(self, tournament_id, participant_id):
         matches = await self.get_matches(tournament_id)
-
+        if not matches:
+            return None
         for match in matches:
             if (
                 match["match"]["player1_id"] == participant_id
@@ -163,42 +164,25 @@ class Tournament(commands.Cog):
         return None
 
     async def get_participant_discord_id(self, tournament_id, participant_id):
-        headers = {
-            "User-Agent": "FuckYouCloudflare/1.0",
-        }
-        result = requests.get(
-            f"https://api.challonge.com/v1/tournaments/{tournament_id}/participants/{participant_id}.json?api_key={api_key}",
-            headers=headers,
+        data = await self._get(
+            f"https://api.challonge.com/v1/tournaments/{tournament_id}/participants/{participant_id}.json?api_key={api_key}"
         )
-
-        if result.status_code == 200:
-            data = json.loads(result.text)
-            custom_field_response = data["participant"]["custom_field_response"]
-
+        if data and "participant" in data:
+            custom_field_response = data["participant"].get("custom_field_response")
             if not custom_field_response:
                 return None
-
             for _, value in custom_field_response.items():
-                # we only care about the first value
                 return value.strip()
-
         return None
 
     async def get_participants_in_match(self, tournament_id, match_id):
-        headers = {
-            "User-Agent": "FuckYouCloudflare/1.0",
-        }
-        result = requests.get(
-            f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches/{match_id}.json?api_key={api_key}",
-            headers=headers,
+        data = await self._get(
+            f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches/{match_id}.json?api_key={api_key}"
         )
-
-        if result.status_code == 200:
-            data = result.json()
-            return await self.get_participant(
-                tournament_id,
-                data["match"]["player1_id"],
-            ), await self.get_participant(tournament_id, data["match"]["player2_id"])
+        if data:
+            p1 = await self.get_participant(tournament_id, data["match"]["player1_id"])
+            p2 = await self.get_participant(tournament_id, data["match"]["player2_id"])
+            return p1, p2
         return None
 
     async def ask_map(self, ctx, user, maps):
@@ -212,11 +196,7 @@ class Tournament(commands.Cog):
             return False
 
         try:
-            msg = await self.client.wait_for(
-                "message",
-                check=check,
-                timeout=300.0,
-            )
+            msg = await self.client.wait_for("message", check=check, timeout=300.0)
         except TimeoutError:
             return None
 
@@ -225,48 +205,28 @@ class Tournament(commands.Cog):
         return None
 
     async def mark_match_as_underway(self, tournament_id, match_id):
-        headers = {
-            "User-Agent": "FuckYouCloudflare/1.0",
-        }
-        result = requests.post(
-            f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches/{match_id}/mark_as_underway.json?api_key={api_key}",
-            headers=headers,
+        ok = await self._post(
+            f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches/{match_id}/mark_as_underway.json?api_key={api_key}"
         )
-
-        if result.status_code == 200:
-            return True
-        return False
+        return ok
 
     async def update_match(self, tournament_id, match_id, score):
-        headers = {
-            "User-Agent": "FuckYouCloudflare/1.0",
-        }
-        result = requests.put(
+        ok, _ = await self._put(
             f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches/{match_id}.json?api_key={api_key}",
-            headers=headers,
             data={"match[scores_csv]": score},
         )
-
-        print(result.status_code)
-
-        if result.status_code == 200:
+        print(200 if ok else "failed")
+        if ok:
             return True
         print("failed to update match!!!")
         return False
 
     async def set_match_winner(self, tournament_id, match_id, winner_id, scores):
-        headers = {
-            "User-Agent": "FuckYouCloudflare/1.0",
-        }
-        result = requests.put(
+        ok, _ = await self._put(
             f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches/{match_id}.json?api_key={api_key}",
-            headers=headers,
             data={"match[winner_id]": winner_id, "match[scores_csv]": scores},
         )
-
-        if result.status_code == 200:
-            return True
-        return False
+        return ok
 
     @commands.command()
     async def playmatch(self, ctx):
@@ -302,10 +262,9 @@ class Tournament(commands.Cog):
 
         participants = await self.get_participants(tournament_id)
 
-        for participant in participants:
+        for participant in participants or []:
             discord_id = await self.get_participant_discord_id(
-                tournament_id,
-                participant["participant"]["id"],
+                tournament_id, participant["participant"]["id"]
             )
             if (
                 discord_id == str(ctx.author.id)
@@ -322,8 +281,7 @@ class Tournament(commands.Cog):
         await ctx.send("Found user. Checking for open match...")
 
         next_match = await self.get_participant_next_match(
-            tournament_id,
-            author.participant_id,
+            tournament_id, author.participant_id
         )
 
         if not next_match:
@@ -332,12 +290,11 @@ class Tournament(commands.Cog):
             )
         await ctx.send("Match found! Checking for opponent...")
         for i, participant in enumerate(
-            await self.get_participants_in_match(tournament_id, next_match),
+            await self.get_participants_in_match(tournament_id, next_match)
         ):
             if participant["participant"]["id"] != author.participant_id:
                 opponent.discord_id = await self.get_participant_discord_id(
-                    tournament_id,
-                    participant["participant"]["id"],
+                    tournament_id, participant["participant"]["id"]
                 )
                 opponent.position = i
                 opponent.participant_id = participant["participant"]["id"]
@@ -421,10 +378,8 @@ class Tournament(commands.Cog):
         if random.randint(0, 1) == 0:
             first = author
             second = opponent
-            # second = author  # ! TEMP
         else:
             first = opponent
-            # first = author  # ! TEMP
             second = author
 
         if semifinals:
@@ -474,7 +429,7 @@ class Tournament(commands.Cog):
             )
             return None
         loadout1 = random.randint(0, 9)
-        with open(f"tourney/loadout{loadout1}.json") as f:
+        async with anyio.open_file(f"tourney/loadout{loadout1}.json") as f:
             self.client.tournament_loadout = json.loads(f.read())
         server = await utils.get_server("oneVone")
         try:
@@ -632,7 +587,7 @@ class Tournament(commands.Cog):
         loadout2 = random.randint(0, 9)
         while loadout2 == loadout1:
             loadout2 = random.randint(0, 9)
-        with open(f"tourney/loadout{loadout2}.json") as f:
+        async with anyio.open_file(f"tourney/loadout{loadout2}.json") as f:
             self.client.tournament_loadout = json.loads(f.read())
         if semifinals:
             await server.send_command(f"mp_gamemode ps; map {valid_maps[chosen_map2]}")
@@ -821,7 +776,7 @@ class Tournament(commands.Cog):
         loadout3 = random.randint(0, 9)
         while loadout3 == loadout1 or loadout3 == loadout2:
             loadout3 = random.randint(0, 9)
-        with open(f"tourney/loadout{loadout3}.json") as f:
+        async with anyio.open_file(f"tourney/loadout{loadout3}.json") as f:
             self.client.tournament_loadout = json.loads(f.read())
         if semifinals:
             await server.send_command(f"mp_gamemode ps; map {valid_maps[chosen_map3]}")
@@ -971,21 +926,6 @@ class Tournament(commands.Cog):
             await cursor.execute(f"INSERT INTO whitelist(uid) values({player2})")
             await db.commit()
         await ctx.send("Done!")
-
-
-# @commands.Cog.listener()
-# async def on_command_error(self, ctx, error):
-#     # check if command is reserve command
-#     if ctx.command.name == "reserve":
-#         await ctx.send(
-#             "It looks like the reserve command errored out! Resetting the server."
-#         )
-#         self.client.reserved = False
-#         self.client.tournament_players = {}
-#         async with aiosqlite.connect(config.bank, timeout=10) as db:
-#             cursor = await db.cursor()
-#             await cursor.execute("DELETE FROM whitelist")
-#             await db.commit()
 
 
 async def setup(client):

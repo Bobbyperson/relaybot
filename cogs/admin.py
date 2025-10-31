@@ -187,7 +187,7 @@ class Admin(commands.Cog):
 
     @commands.command(aliases=["rcon"])
     @utils.is_admin()
-    async def parse(self, ctx, server: str = None, *args):
+    async def parse(self, ctx, server: str | None = None, *args):
         if (not server or not await utils.get_server(server)) and server != "all":
             return await ctx.reply("Please specify a server!")
         if server == "all":
@@ -211,7 +211,7 @@ class Admin(commands.Cog):
 
     @commands.command(aliases=["spl"], hidden=True)
     @commands.is_owner()
-    async def sql(self, ctx, command: str = None):
+    async def sql(self, ctx, command: str | None = None):
         if not command:
             await ctx.send("Please provide an SQL command to run.")
             return

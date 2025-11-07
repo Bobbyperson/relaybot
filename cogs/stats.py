@@ -8,9 +8,7 @@ import discord
 from discord.ext import commands
 
 import config
-from cogs.utils import utils  # this is stupid
-
-# import cogs.utils.crashes as crashes
+from cogs.utils import utils
 
 
 class Stats(commands.Cog):

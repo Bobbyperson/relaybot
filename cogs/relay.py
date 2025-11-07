@@ -2,8 +2,6 @@ import asyncio
 import io
 import json
 import math
-
-# import cogs.utils.crashes as crashes
 import re
 import sys
 import time

@@ -5,7 +5,7 @@ import aiosqlite
 from discord.ext import commands
 
 import config
-from cogs.utils import utils  # this is stupid
+from cogs.utils import utils
 
 
 class Admin(commands.Cog):

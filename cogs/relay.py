@@ -1434,6 +1434,11 @@ expire_date TEXT
         elif isinstance(error, commands.BadArgument):
             ctx.command.reset_cooldown(ctx)
             await ctx.reply("One of the arguments you specified was not valid.")
+        elif isinstance(error, commands.CheckFailure):
+            ctx.command.reset_cooldown(ctx)
+            await ctx.reply(
+                "A necessary check failed before running the command. This likely means you are not authorized to run it."
+            )
         else:
             ctx.command.reset_cooldown(ctx)
             channel = await self.client.fetch_channel(1096272472204115968)

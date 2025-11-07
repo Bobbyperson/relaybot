@@ -69,6 +69,7 @@ class Admin(commands.Cog):
         except ValueError:
             pass
         message = ""
+        uid = None
         async with aiosqlite.connect(config.bank, timeout=10) as db:
             cursor = await db.cursor()
             for s in config.servers:
@@ -153,7 +154,8 @@ class Admin(commands.Cog):
                 playtime = playtime[0]
                 message += f"`{s.name}:\n{user}`:\nUID: `{uid}`\nFirst seen: `{first_join}`\nLast seen: `{timestamp}`\nPlaytime: `{await utils.human_time_duration(playtime)}`\n"
         await ctx.send(message)
-        await ctx.send(await utils.get_ban_info(uid))
+        if uid:
+            await ctx.send(await utils.get_ban_info(uid))
 
     @commands.hybrid_command()
     @utils.is_admin()

@@ -466,7 +466,6 @@ class Relay(commands.Cog):
         while not self.client.is_closed():
             try:
                 wait_time = await self.seconds_until_next_interval(5)
-                print(f"Next server check in {wait_time:.2f} seconds")
                 await asyncio.sleep(wait_time)
                 await self.create_server_tracker_db()
                 try:
@@ -978,7 +977,6 @@ expire_date TEXT
                             server_identifier,
                         )
                 case "command":
-                    print(f"Command {data['args']}|{server_identifier}.")
                     await self.big_brother(
                         f"Command `{data['args']}|{server_identifier}`.",
                     )
@@ -1063,7 +1061,6 @@ expire_date TEXT
             victim_uid = data["object"]["uid"]
             print(f"killer uid: {killer_uid}")
         else:
-            print("unknown tournament verb: " + data["verb"])
             return
 
         if self.client.tournament_should_track_kills:
@@ -1164,14 +1161,12 @@ expire_date TEXT
         output = discord.utils.escape_mentions(output)
         output = discord.utils.escape_markdown(output)
         sent = await channel.send(f"[**__{team}__**] **{player}**: " + output)
-        print(output)
         await self.check_for_bad(player, message, uid, sent)
 
     async def send_relay_misc(self, msg, server_identifier):
         server = await utils.get_server(server_identifier)
         channel = self.client.get_channel(server.relay)
         await channel.send(msg)
-        print(msg)
 
     async def send_relay_kill(
         self,

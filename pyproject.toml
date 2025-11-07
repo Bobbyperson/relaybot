@@ -3,7 +3,7 @@ name = "relaybot"
 version = "0.1.0"
 description = "northstar relay bot"
 authors = [{ name = "Bobbyperson", email = "bobbyperson12345@gmail.com" }]
-requires-python = ">=3.11,<3.13,!=3.12.5"
+requires-python = ">=3.14"
 readme = "README.md"
 license = "GNU GPLv3"
 dependencies = [

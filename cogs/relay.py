@@ -387,13 +387,8 @@ class Relay(commands.Cog):
                 remove_chars = "`;&|'\"\\"
                 translation_table = str.maketrans("", "", remove_chars)
                 cleaned_message = message.content.translate(translation_table)
-                cleaned_message.replace("\n", " ").strip()
-                cleaned_message = re.sub(
-                    r"\s+",
-                    " ",
-                    cleaned_message,
-                )  # replace multiple spaces with a single space
-                cleaned_message.strip()  # for good measure
+                cleaned_message = cleaned_message.replace("\n", " ").strip()
+                cleaned_message = re.sub(r"\s+", " ", cleaned_message).strip()
 
                 await s.send_command(
                     f"serversay {message.author.name} {cleaned_message}",

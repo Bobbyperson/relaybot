@@ -490,14 +490,15 @@ class Relay(commands.Cog):
                                     "INSERT INTO server_tracker (server_name, score) VALUES (?, ?)",
                                     (server["name"], server["playerCount"]),
                                 )
-                            await cursor.execute(
-                                "INSERT INTO players_tracker (server_name, playercount, timestamp) VALUES (?, ?, ?)",
-                                (
-                                    server["name"],
-                                    server["playerCount"],
-                                    int(time.time()),
-                                ),
-                            )
+                            if server["playerCount"] != 0:
+                                await cursor.execute(
+                                    "INSERT INTO players_tracker (server_name, playercount, timestamp) VALUES (?, ?, ?)",
+                                    (
+                                        server["name"],
+                                        server["playerCount"],
+                                        int(time.time()),
+                                    ),
+                                )
                     await db.commit()
             except Exception as e:
                 print(e)

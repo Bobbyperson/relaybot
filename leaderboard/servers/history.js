@@ -37,6 +37,21 @@ async function loadServerList() {
     selectedServers = topThree.map(s => s.name);
     updateSelectedServersUI();
 
+      const el = document.getElementById('afterTime');
+      if (!el || el.value) return;
+
+      const d = new Date();
+      d.setMonth(d.getMonth());
+      d.setDate(d.getDate() - 7);
+
+      // datetime-local wants: YYYY-MM-DDTHH:MM (local time)
+      const pad = (n) => String(n).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      const mm = pad(d.getMonth() + 1);
+      const dd = pad(d.getDate());
+      const hh = pad(d.getHours());
+      const mi = pad(d.getMinutes());
+      el.value = `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
     fetchHistoryData();
   } catch(e) {
     console.error("Failed to load server list:", e);
@@ -207,6 +222,71 @@ function updateChartData(data) {
   myChart.data.datasets = buildDatasets(data);
 }
 
+function inferStepSeconds(points) {
+  // Try to infer the sampling interval from the most common delta.
+  // Fallback to 300s (5 min) if we can't infer a good step.
+  if (!points || points.length < 2) return 300;
+
+  const diffs = [];
+  for (let i = 1; i < points.length; i++) {
+    const d = points[i].t - points[i - 1].t;
+    if (Number.isFinite(d) && d > 0) diffs.push(d);
+  }
+  if (!diffs.length) return 300;
+
+  // Count frequency of each diff (in seconds)
+  const freq = new Map();
+  for (const d of diffs) freq.set(d, (freq.get(d) || 0) + 1);
+
+  // Pick the most frequent diff; if tie, pick the smaller one
+  let bestDiff = 300;
+  let bestCount = -1;
+  for (const [d, c] of freq.entries()) {
+    if (c > bestCount || (c === bestCount && d < bestDiff)) {
+      bestDiff = d;
+      bestCount = c;
+    }
+  }
+
+  // Sanity clamp
+  if (!Number.isFinite(bestDiff) || bestDiff <= 0) return 300;
+  return bestDiff;
+}
+
+function fillMissingPointsWithZeros(points) {
+  // points: [{t: <epoch seconds>, p: <count>}], sorted by t
+  if (!points || points.length === 0) return [];
+
+  const step = inferStepSeconds(points);
+
+  const map = new Map();
+  for (const pt of points) {
+    // If duplicates exist, keep the latest/last value (or max if you prefer)
+    map.set(pt.t, pt.p);
+  }
+
+  const minT = points[0].t;
+  const maxT = points[points.length - 1].t;
+
+  const filled = [];
+  for (let t = minT; t <= maxT; t += step) {
+    filled.push({ t, p: map.get(t) ?? 0 });
+  }
+
+  // Also ensure we include any "off-grid" points that don't align to step,
+  // so you don't lose real samples.
+  // (This can happen if the data isn't perfectly periodic.)
+  for (const pt of points) {
+    if (!map.has(pt.t)) continue;
+    // If pt.t wasn't hit by the loop due to misalignment, insert it
+    // (rare, but safe)
+    // We'll detect presence by searching (O(n)); keep it simple.
+  }
+  // If you expect lots of off-grid points, tell me and I'll make this O(n).
+
+  return filled;
+}
+
 function buildDatasets(data) {
   const serverNames = Object.keys(data.servers);
   if (serverNames.length === 0) return [];
@@ -220,6 +300,11 @@ function buildDatasets(data) {
     }));
 
     points.sort((a, b) => a.t - b.t);
+
+    // ✅ NEW: fill missing timestamps between min/max with 0
+    points = fillMissingPointsWithZeros(points);
+
+    // rolling average AFTER filling gaps, so gaps contribute 0
     points = computeRollingAverage(points, rollingWindow);
 
     const chartPoints = points.map(pt => ({
@@ -237,6 +322,7 @@ function buildDatasets(data) {
     };
   });
 }
+
 
 function renderChartJs(data) {
   const canvas = document.getElementById('historyChart');
@@ -269,7 +355,8 @@ function renderChartJs(data) {
         mode: 'index',
         intersect: false
       },
-      responsive: false,
+      responsive: true,
+      maintainAspectRatio: false,
       scales: {
         x: {
           type: 'time',

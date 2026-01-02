@@ -81,10 +81,10 @@ button {
   max-height: 200px;
 }
 
-#chartContainer {
-  display: flex;
-  justify-content: center;
-  margin-top: 1rem;
+#historyChart {
+  width: 100vw;
+  height: 70vh; /* adjust as you like */
+  display: block;
 }
 
 @media only screen and (max-width: 768px) {

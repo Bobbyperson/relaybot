@@ -474,6 +474,7 @@ class Relay(commands.Cog):
                 async with aiosqlite.connect(config.bank) as db:
                     async with db.cursor() as cursor:
                         for server in servers:
+                            server["name"] = re.sub(r"\^.{8}", "", server["name"])
                             await cursor.execute(
                                 "SELECT * FROM server_tracker WHERE server_name = ?",
                                 (server["name"],),

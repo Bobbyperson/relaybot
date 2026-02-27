@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 
 import aiosqlite
 import asyncpg
+import config
 import discord
 import humanize
 import requests
@@ -17,7 +18,6 @@ from aiohttp import ClientSession, web
 from discord.ext import commands, tasks
 from PIL import Image
 
-import config
 from cogs.utils import utils  # this is stupid
 
 
@@ -302,7 +302,7 @@ class Relay(commands.Cog):
                 fetched = await cursor.fetchall()
                 if fetched:
                     for row in fetched:
-                        reason = row[2] if row[2] else "Not listed"
+                        reason = row[2] or "Not listed"
                         if row[3]:
                             expire_date = datetime.strptime(row[3], "%Y-%m-%d %H:%M:%S")
                             now = datetime.now()
@@ -876,11 +876,11 @@ expire_date TEXT
             player = data["subject"]["name"]
             uid = data["subject"]["uid"]
             team = data["subject"]["teamId"]
-        except (KeyError, TypeError):
+        except KeyError, TypeError:
             pass
         try:
             message = data["object"]["message"]
-        except (KeyError, TypeError):
+        except KeyError, TypeError:
             pass
         server_identifier = data["server_identifier"]
         ip = request.headers.get("X-Forwarded-For")
@@ -908,7 +908,7 @@ expire_date TEXT
         await self.register_server(server_identifier)
         try:
             custom = data["custom"]
-        except (KeyError, TypeError):
+        except KeyError, TypeError:
             custom = False
         if custom:
             match custom:

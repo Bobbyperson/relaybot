@@ -4,10 +4,10 @@ import time
 from datetime import timedelta
 
 import aiosqlite
+import config
 import discord
 from discord.ext import commands
 
-import config
 from cogs.utils import utils
 
 

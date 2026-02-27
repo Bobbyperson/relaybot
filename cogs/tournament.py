@@ -6,9 +6,9 @@ from copy import deepcopy
 import aiohttp
 import aiosqlite
 import anyio
+import config
 from discord.ext import commands
 
-import config
 from cogs.utils import utils
 
 background_tasks = set()

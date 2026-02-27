@@ -2,9 +2,9 @@ import difflib
 import time
 
 import aiosqlite
+import config
 from discord.ext import commands
 
-import config
 from cogs.utils import utils
 
 

@@ -2,10 +2,9 @@ import time
 from datetime import datetime
 
 import aiosqlite
+import config
 import humanize
 from discord.ext import commands
-
-import config
 
 # async def human_time_duration(seconds):
 #     TIME_DURATION_UNITS = (
@@ -236,7 +235,7 @@ async def get_ban_info(uid):
                 fetched = await cursor.fetchall()
                 if fetched:
                     for row in fetched:
-                        reason = row[2] if row[2] else "Not listed"
+                        reason = row[2] or "Not listed"
                         if row[3]:
                             expire_date = datetime.strptime(row[3], "%Y-%m-%d %H:%M:%S")
                             now = datetime.now()

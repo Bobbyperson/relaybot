@@ -3,11 +3,10 @@ import os
 import sys
 import traceback
 
+import config
 import discord
 from discord.ext import commands
 from pretty_help import PrettyHelp
-
-import config
 
 intents = discord.Intents().all()
 client = commands.Bot(command_prefix=",.", intents=intents, help_command=PrettyHelp())

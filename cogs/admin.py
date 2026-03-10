@@ -2,7 +2,6 @@ import difflib
 import time
 
 import aiosqlite
-import config
 from discord.ext import commands
 
 from cogs.utils import utils
@@ -58,7 +57,7 @@ class Admin(commands.Cog):
                 f"This player has never joined {server}! Did you type the name incorrectly? The closest matches I found were `{closest_match}`.",
             )
 
-        if ctx.author.id not in config.admins:
+        if ctx.author.id not in self.client.config["admins"]["discord_ids"]:
             await ctx.send("no")
             return
         if user is None:
@@ -70,9 +69,9 @@ class Admin(commands.Cog):
             pass
         message = ""
         uid = None
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
-            for s in config.servers:
+            for s in self.client.servers:
                 try:
                     if isinstance(user, str):
                         await cursor.execute(
@@ -155,18 +154,18 @@ class Admin(commands.Cog):
                 message += f"`{s.name}:\n{user}`:\nUID: `{uid}`\nFirst seen: `{first_join}`\nLast seen: `{timestamp}`\nPlaytime: `{await utils.human_time_duration(playtime)}`\n"
         await ctx.send(message)
         if uid:
-            await ctx.send(await utils.get_ban_info(uid))
+            await ctx.send(await utils.get_ban_info(self.client, uid))
 
     @commands.hybrid_command()
     @utils.is_admin()
     async def ban(self, ctx, uid: str = "", reason: str = "", length: str = ""):
-        if ctx.author.id not in config.admins:
+        if ctx.author.id not in self.client.config["admins"]["discord_ids"]:
             return await ctx.reply("naw")
         if not uid:
             return await ctx.reply("Please specify a uid!")
         async with ctx.typing():
-            await utils.ban_user(uid, reason, utils.human_time_to_seconds(length))
-            for server in config.servers:
+            await utils.ban_user(self.client, uid, reason, utils.human_time_to_seconds(length))
+            for server in self.client.servers:
                 try:
                     await server.send_command("checkbans")
                 except ConnectionError:
@@ -178,35 +177,35 @@ class Admin(commands.Cog):
     @commands.hybrid_command()
     @utils.is_admin()
     async def unban(self, ctx, uid: str = ""):
-        if ctx.author.id not in config.admins:
+        if ctx.author.id not in self.client.config["admins"]["discord_ids"]:
             await ctx.reply("naw")
             return
         if uid == "":
             await ctx.reply("Please specify a uid!")
             return
-        await utils.unban_user(uid)
+        await utils.unban_user(self.client, uid)
         await ctx.send("ok done")
 
     @commands.command(aliases=["rcon"])
     @utils.is_admin()
     async def parse(self, ctx, server: str | None = None, *args):
-        if (not server or not await utils.get_server(server)) and server != "all":
+        if (not server or not await utils.get_server(self.client, server)) and server != "all":
             return await ctx.reply("Please specify a server!")
         if server == "all":
-            for s in config.servers:
+            for s in self.client.servers:
                 await s.send_command(" ".join(args))
             await ctx.reply("ok done")
-            channel = await self.client.fetch_channel(config.bigbrother)
+            channel = await self.client.fetch_channel(self.client.config["channels"]["bigbrother"])
             await channel.send(
                 f"`{ctx.author.name}` just ran `{' '.join(args)}` thru the bot to all servers",
             )
             return None
-        s = await utils.get_server(server)
+        s = await utils.get_server(self.client, server)
         if not args:
             return await ctx.reply("Please specify a command!")
         await s.send_command(" ".join(args))
         await ctx.reply("ok done")
-        channel = await self.client.fetch_channel(config.bigbrother)
+        channel = await self.client.fetch_channel(self.client.config["channels"]["bigbrother"])
         await channel.send(
             f"`{ctx.author.name}` just ran `{' '.join(args)}` thru the bot to {server}",
         )
@@ -221,7 +220,7 @@ class Admin(commands.Cog):
         await ctx.send(f"Executing: {command}")
 
         try:
-            async with aiosqlite.connect(config.bank, timeout=10) as db:
+            async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
                 async with db.cursor() as cursor:
                     # Begin the transaction
                     await cursor.execute("BEGIN TRANSACTION;")
@@ -258,10 +257,10 @@ class Admin(commands.Cog):
     @commands.command(hidden=True)
     @commands.is_owner()
     async def audit(self, ctx):
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
-            for s in config.servers:
-                for uid in config.admin_uids:
+            for s in self.client.servers:
+                for uid in self.client.config["admins"]["northstar_uids"]:
                     await cursor.execute(
                         f"SELECT name FROM {s.name} WHERE uid = ?",
                         (uid,),
@@ -308,7 +307,7 @@ class Admin(commands.Cog):
     #         with open(whitelist_on, "w") as f:
     #             f.write("1")
     #         async with ctx.typing():
-    #             async with aiosqlite.connect(config.bank, timeout=10) as db:
+    #             async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
     #                 cursor = await db.cursor()
     #                 await cursor.execute("SELECT uid FROM main")
     #                 uids = await cursor.fetchall()
@@ -322,7 +321,7 @@ class Admin(commands.Cog):
     #         with open(whitelist_on, "w") as f:
     #             f.write("1")
     #         async with ctx.typing():
-    #             async with aiosqlite.connect(config.bank, timeout=10) as db:
+    #             async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
     #                 cursor = await db.cursor()
     #                 await cursor.execute("SELECT * FROM main")
     #                 uids = await cursor.fetchall()
@@ -338,7 +337,7 @@ class Admin(commands.Cog):
     #         with open(whitelist_on, "w") as f:
     #             f.write("1")
     #         async with ctx.typing():
-    #             async with aiosqlite.connect(config.bank, timeout=10) as db:
+    #             async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
     #                 cursor = await db.cursor()
     #                 await cursor.execute("SELECT titanfallID FROM connection")
     #                 uids = await cursor.fetchall()
@@ -385,7 +384,7 @@ class Admin(commands.Cog):
     @commands.command()
     @utils.is_admin()
     async def forcelink(self, ctx, did, uid):
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute(
                 "INSERT INTO connection(discordID, titanfallID) VALUES(?, ?)",

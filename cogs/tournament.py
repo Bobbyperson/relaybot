@@ -6,7 +6,6 @@ from copy import deepcopy
 import aiohttp
 import aiosqlite
 import anyio
-import config
 from discord.ext import commands
 
 from cogs.utils import utils
@@ -23,8 +22,6 @@ class Player:
         self.position = position
         self.scores = [0, 0, 0]
 
-
-api_key = config.challonge_api
 
 valid_maps = {
     "coliseum": "mp_coliseum",
@@ -93,6 +90,7 @@ class Tournament(commands.Cog):
         self.client = client
         self.client.tournament_players = {}
         self.client.reserved = False
+        self.api_key = self.client.config["challonge"]["api_key"]
         # Reuse one aiohttp session for all API calls
         self.session = aiohttp.ClientSession(
             headers={"User-Agent": "FuckYouCloudflare/1.0"}
@@ -130,7 +128,7 @@ class Tournament(commands.Cog):
 
     async def get_tournament_id(self):
         result = await self._get(
-            f"https://api.challonge.com/v1/tournaments.json?api_key={api_key}"
+            f"https://api.challonge.com/v1/tournaments.json?api_key={self.api_key}"
         )
         if result:
             return result[0]
@@ -138,17 +136,17 @@ class Tournament(commands.Cog):
 
     async def get_participants(self, tournament_id):
         return await self._get(
-            f"https://api.challonge.com/v1/tournaments/{tournament_id}/participants.json?api_key={api_key}"
+            f"https://api.challonge.com/v1/tournaments/{tournament_id}/participants.json?api_key={self.api_key}"
         )
 
     async def get_participant(self, tournament_id, participant_id):
         return await self._get(
-            f"https://api.challonge.com/v1/tournaments/{tournament_id}/participants/{participant_id}.json?api_key={api_key}"
+            f"https://api.challonge.com/v1/tournaments/{tournament_id}/participants/{participant_id}.json?api_key={self.api_key}"
         )
 
     async def get_matches(self, tournament_id):
         return await self._get(
-            f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches.json?api_key={api_key}"
+            f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches.json?api_key={self.api_key}"
         )
 
     async def get_participant_next_match(self, tournament_id, participant_id):
@@ -165,7 +163,7 @@ class Tournament(commands.Cog):
 
     async def get_participant_discord_id(self, tournament_id, participant_id):
         data = await self._get(
-            f"https://api.challonge.com/v1/tournaments/{tournament_id}/participants/{participant_id}.json?api_key={api_key}"
+            f"https://api.challonge.com/v1/tournaments/{tournament_id}/participants/{participant_id}.json?api_key={self.api_key}"
         )
         if data and "participant" in data:
             custom_field_response = data["participant"].get("custom_field_response")
@@ -177,7 +175,7 @@ class Tournament(commands.Cog):
 
     async def get_participants_in_match(self, tournament_id, match_id):
         data = await self._get(
-            f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches/{match_id}.json?api_key={api_key}"
+            f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches/{match_id}.json?api_key={self.api_key}"
         )
         if data:
             p1 = await self.get_participant(tournament_id, data["match"]["player1_id"])
@@ -206,13 +204,13 @@ class Tournament(commands.Cog):
 
     async def mark_match_as_underway(self, tournament_id, match_id):
         ok = await self._post(
-            f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches/{match_id}/mark_as_underway.json?api_key={api_key}"
+            f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches/{match_id}/mark_as_underway.json?api_key={self.api_key}"
         )
         return ok
 
     async def update_match(self, tournament_id, match_id, score):
         ok, _ = await self._put(
-            f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches/{match_id}.json?api_key={api_key}",
+            f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches/{match_id}.json?api_key={self.api_key}",
             data={"match[scores_csv]": score},
         )
         print(200 if ok else "failed")
@@ -223,7 +221,7 @@ class Tournament(commands.Cog):
 
     async def set_match_winner(self, tournament_id, match_id, winner_id, scores):
         ok, _ = await self._put(
-            f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches/{match_id}.json?api_key={api_key}",
+            f"https://api.challonge.com/v1/tournaments/{tournament_id}/matches/{match_id}.json?api_key={self.api_key}",
             data={"match[winner_id]": winner_id, "match[scores_csv]": scores},
         )
         return ok
@@ -233,12 +231,12 @@ class Tournament(commands.Cog):
         async def cleanup():
             self.client.reserved = False
             self.client.tournament_players = {}
-            async with aiosqlite.connect(config.bank, timeout=10) as db:
+            async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
                 cursor = await db.cursor()
                 await cursor.execute("DELETE FROM whitelist")
                 await db.commit()
 
-        if not await utils.is_linked(ctx.author.id):
+        if not await utils.is_linked(self.client, ctx.author.id):
             return await ctx.send(
                 "Your titanfall and discord accounts are not linked. Please join any of our servers and run the command `,.link (in-game name)` (besides the 1v1 server). Then run this command again.",
             )
@@ -249,7 +247,7 @@ class Tournament(commands.Cog):
             )
 
         author = Player(
-            await utils.get_uid_from_connection(ctx.author.id),
+            await utils.get_uid_from_connection(self.client, ctx.author.id),
             ctx.author.id,
             None,
             ctx.author,
@@ -313,7 +311,7 @@ class Tournament(commands.Cog):
                 "Your opponent did not supply a valid discord id. Please ping them and ask them to edit their sign-in. Ping Bobby if needed.",
             )
 
-        opponent.uid = await utils.get_uid_from_connection(opponent.discord_id)
+        opponent.uid = await utils.get_uid_from_connection(self.client, opponent.discord_id)
 
         opponent.discord = await self.client.fetch_user(opponent.discord_id)
 
@@ -431,7 +429,7 @@ class Tournament(commands.Cog):
         loadout1 = random.randint(0, 9)
         async with anyio.open_file(f"tourney/loadout{loadout1}.json") as f:
             self.client.tournament_loadout = json.loads(f.read())
-        server = await utils.get_server("oneVone")
+        server = await utils.get_server(self.client, "oneVone")
         try:
             if semifinals:
                 await server.send_command(
@@ -445,7 +443,7 @@ class Tournament(commands.Cog):
             await ctx.send("Couldn't set map. Is the server online? Ping bobby.")
             return None
 
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute("DELETE FROM whitelist")
             await cursor.execute(f"INSERT INTO whitelist(uid) values({opponent.uid})")
@@ -522,7 +520,7 @@ class Tournament(commands.Cog):
                     "This is taking too long! Run this command again or ping bobby if your opponent dipped.",
                 )
                 return None
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute("DELETE FROM whitelist")
             await db.commit()
@@ -595,7 +593,7 @@ class Tournament(commands.Cog):
             await server.send_command(
                 f"mp_gamemode coliseum; map {valid_maps[chosen_map2]}",
             )
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute("DELETE FROM whitelist")
             await cursor.execute(f"INSERT INTO whitelist(uid) values({opponent.uid})")
@@ -708,7 +706,7 @@ class Tournament(commands.Cog):
             await ctx.send(f"Match has been won 2-0 by {opponent.discord.mention}!!!")
             return await cleanup()
 
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute("DELETE FROM whitelist")
             await db.commit()
@@ -784,7 +782,7 @@ class Tournament(commands.Cog):
             await server.send_command(
                 f"mp_gamemode coliseum; map {valid_maps[chosen_map3]}",
             )
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute("DELETE FROM whitelist")
             await cursor.execute(f"INSERT INTO whitelist(uid) values({opponent.uid})")
@@ -903,7 +901,7 @@ class Tournament(commands.Cog):
     async def reset(self, ctx):
         self.client.reserved = False
         self.client.tournament_players = {}
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute("DELETE FROM whitelist")
             await db.commit()
@@ -919,7 +917,7 @@ class Tournament(commands.Cog):
             player1: {"kills": 0, "wins": 0},
             player2: {"kills": 0, "wins": 0},
         }
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute("DELETE FROM whitelist")
             await cursor.execute(f"INSERT INTO whitelist(uid) values({player1})")

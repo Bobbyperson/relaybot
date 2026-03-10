@@ -2,7 +2,6 @@ import time
 from datetime import datetime
 
 import aiosqlite
-import config
 import humanize
 from discord.ext import commands
 
@@ -29,15 +28,15 @@ async def human_time_duration(seconds: int) -> str:
 
 
 def is_admin() -> bool:
-    return commands.check(lambda ctx: ctx.author.id in config.admins)
+    return commands.check(lambda ctx: ctx.author.id in ctx.bot.config["admins"]["discord_ids"])
 
 
 async def commafy(num: int) -> str:
     return format(num, ",d")
 
 
-async def get_uid_from_connection(did):
-    async with aiosqlite.connect(config.bank, timeout=10) as db:
+async def get_uid_from_connection(bot, did):
+    async with aiosqlite.connect(bot.config["bot"]["bank"], timeout=10) as db:
         cursor = await db.cursor()
         await cursor.execute(
             "SELECT titanfallID FROM connection WHERE discordID = (?)",
@@ -47,11 +46,11 @@ async def get_uid_from_connection(did):
         return uid[0] if uid else None
 
 
-async def get_name_from_connection(did) -> str | None:
-    async with aiosqlite.connect(config.bank, timeout=10) as db:
+async def get_name_from_connection(bot, did) -> str | None:
+    async with aiosqlite.connect(bot.config["bot"]["bank"], timeout=10) as db:
         cursor = await db.cursor()
-        uid = await get_uid_from_connection(did)
-        for s in config.servers:
+        uid = await get_uid_from_connection(bot, did)
+        for s in bot.servers:
             await cursor.execute(f"SELECT name FROM {s.name} WHERE uid = (?)", (uid,))
             name = await cursor.fetchone()
             if name:
@@ -59,8 +58,8 @@ async def get_name_from_connection(did) -> str | None:
         return None
 
 
-async def get_discord_id_user_from_connection(uid):
-    async with aiosqlite.connect(config.bank, timeout=10) as db:
+async def get_discord_id_user_from_connection(bot, uid):
+    async with aiosqlite.connect(bot.config["bot"]["bank"], timeout=10) as db:
         cursor = await db.cursor()
         await cursor.execute(
             "SELECT discordID FROM connection WHERE titanfallID = (?)",
@@ -70,10 +69,10 @@ async def get_discord_id_user_from_connection(uid):
         return did[0] if did else None
 
 
-async def get_uid_from_name(name: str | None = None) -> int | None:
-    async with aiosqlite.connect(config.bank, timeout=10) as db:
+async def get_uid_from_name(bot, name: str | None = None) -> int | None:
+    async with aiosqlite.connect(bot.config["bot"]["bank"], timeout=10) as db:
         cursor = await db.cursor()
-        for s in config.servers:
+        for s in bot.servers:
             await cursor.execute(f"SELECT uid FROM {s.name} WHERE name = (?)", (name,))
             uid = await cursor.fetchone()
             if uid:
@@ -81,38 +80,38 @@ async def get_uid_from_name(name: str | None = None) -> int | None:
         return None
 
 
-async def is_valid_server(server: str | None = None) -> bool:
-    for s in config.servers:
+async def is_valid_server(bot, server: str | None = None) -> bool:
+    for s in bot.servers:
         if server == s.name:
             return True
-    for s in config.tournament_servers:
+    for s in bot.tournament_servers:
         if server == s.name:
             return True
     return False
 
 
-async def check_server_auth(server: str | None = None, auth: str | None = None) -> bool:
-    for s in config.servers:
+async def check_server_auth(bot, server: str | None = None, auth: str | None = None) -> bool:
+    for s in bot.servers:
         if server == s.name:
             return auth == s.key
-    for s in config.tournament_servers:
+    for s in bot.tournament_servers:
         if server == s.name:
             return auth == s.key
     return False
 
 
-async def get_server(server):
-    for s in config.servers:
+async def get_server(bot, server):
+    for s in bot.servers:
         if server == s.name:
             return s
-    for s in config.tournament_servers:
+    for s in bot.tournament_servers:
         if server == s.name:
             return s
     return None
 
 
-async def get_row(name, condition, value, table):
-    async with aiosqlite.connect(config.bank, timeout=10) as db:
+async def get_row(bot, name, condition, value, table):
+    async with aiosqlite.connect(bot.config["bot"]["bank"], timeout=10) as db:
         cursor = await db.cursor()
         await cursor.execute(
             f"SELECT {name} FROM {table} WHERE {condition} = (?)",
@@ -122,8 +121,8 @@ async def get_row(name, condition, value, table):
         return result[0] if result else None
 
 
-async def update_row(name, new_value, condition, cvalue, table):
-    async with aiosqlite.connect(config.bank, timeout=10) as db:
+async def update_row(bot, name, new_value, condition, cvalue, table):
+    async with aiosqlite.connect(bot.config["bot"]["bank"], timeout=10) as db:
         await db.execute(
             f"UPDATE {table} SET {name} = ? WHERE {condition} = ?",
             (new_value, cvalue),
@@ -131,8 +130,8 @@ async def update_row(name, new_value, condition, cvalue, table):
         await db.commit()
 
 
-async def get_valid_server_names() -> list:
-    return [s.name for s in config.servers]
+async def get_valid_server_names(bot) -> list:
+    return [s.name for s in bot.servers]
 
 
 async def check_server_ip(server: str | None = None, ip: str | None = None) -> bool:
@@ -146,8 +145,8 @@ async def check_server_ip(server: str | None = None, ip: str | None = None) -> b
     return True
 
 
-async def is_linked(did) -> bool:
-    async with aiosqlite.connect(config.bank, timeout=10) as db:
+async def is_linked(bot, did) -> bool:
+    async with aiosqlite.connect(bot.config["bot"]["bank"], timeout=10) as db:
         cursor = await db.cursor()
         await cursor.execute(
             "SELECT discordID FROM connection WHERE discordID = (?)",
@@ -157,8 +156,8 @@ async def is_linked(did) -> bool:
         return bool(uid)
 
 
-async def is_tournament_server(server: str | None = None) -> bool:
-    for s in config.tournament_servers:
+async def is_tournament_server(bot, server: str | None = None) -> bool:
+    for s in bot.tournament_servers:
         if server == s.name:
             return True
     return False
@@ -220,8 +219,8 @@ def human_time_to_seconds(*args) -> int:
     return int(value)
 
 
-async def get_ban_info(uid):
-    async with aiosqlite.connect(config.bank, timeout=10) as db:
+async def get_ban_info(bot, uid):
+    async with aiosqlite.connect(bot.config["bot"]["bank"], timeout=10) as db:
         cursor = await db.cursor()
         await cursor.execute("SELECT * FROM banned WHERE uid = (?)", (uid,))
         ban_info = await cursor.fetchall()
@@ -229,7 +228,7 @@ async def get_ban_info(uid):
         is_banned = False
         reason = "None"
         expires = "None"
-        async with aiosqlite.connect(config.bank) as db:
+        async with aiosqlite.connect(bot.config["bot"]["bank"]) as db:
             async with db.execute("SELECT * FROM banned WHERE uid=?", (uid,)) as cursor:
                 # uid, reason, expires (datetime object)
                 fetched = await cursor.fetchall()
@@ -255,14 +254,14 @@ async def get_ban_info(uid):
         return ban_info
 
 
-async def ban_user(uid, reason="", expires=""):
+async def ban_user(bot, uid, reason="", expires=""):
     if expires:
         expires = datetime.fromtimestamp(int(time.time()) + expires).strftime(
             "%Y-%m-%d %H:%M:%S",
         )
     else:
         expires = ""
-    async with aiosqlite.connect(config.bank, timeout=10) as db:
+    async with aiosqlite.connect(bot.config["bot"]["bank"], timeout=10) as db:
         cursor = await db.cursor()
         await cursor.execute(
             "INSERT INTO banned(uid, reason, expire_date) VALUES(?, ?, ?)",
@@ -271,9 +270,9 @@ async def ban_user(uid, reason="", expires=""):
         await db.commit()
 
 
-async def unban_user(uid):
+async def unban_user(bot, uid):
     # get current ban and set expire time to right now
-    async with aiosqlite.connect(config.bank, timeout=10) as db:
+    async with aiosqlite.connect(bot.config["bot"]["bank"], timeout=10) as db:
         now = datetime.now()
         cursor = await db.cursor()
         await cursor.execute("SELECT * FROM banned WHERE uid = (?)", (uid,))

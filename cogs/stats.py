@@ -4,7 +4,6 @@ import time
 from datetime import timedelta
 
 import aiosqlite
-import config
 import discord
 from discord.ext import commands
 
@@ -66,14 +65,14 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
     async def playtime(self, ctx, name: str | None = None):
         """Get a user's playtime."""
         name = (
-            await utils.get_name_from_connection(ctx.author.id)
+            await utils.get_name_from_connection(self.client, ctx.author.id)
             if name is None
             else name
         )
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             message = f"{name}'s playtime:\n"
-            for s in config.servers:
+            for s in self.client.servers:
                 await cursor.execute(
                     f"SELECT playtime FROM {s.name} WHERE name = ?",
                     (name,),
@@ -91,9 +90,9 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
     @commands.hybrid_command()
     async def online(self, ctx, server: str | None = None):
         """See who's online."""
-        if not server or not await utils.is_valid_server(server):
+        if not server or not await utils.is_valid_server(self.client, server):
             return await ctx.send("Invalid server.")
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             message = "this is in BETA and might not be accurate! please check #server-stats for a 100% accurate player count.\n```\n"
             playing = max(self.client.lazy_playing[server], self.client.playing[server])
@@ -116,12 +115,12 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
     @commands.hybrid_command()
     async def playtimeboard(self, ctx, server: str | None = None):
         """See who has the most playtime."""
-        if not server or not await utils.is_valid_server(server):
+        if not server or not await utils.is_valid_server(self.client, server):
             return await ctx.send(
-                f"Invalid server. Valid servers are {', '.join(await utils.get_valid_server_names())}",
+                f"Invalid server. Valid servers are {', '.join(await utils.get_valid_server_names(self.client))}",
             )
         amount = 10
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute(f"SELECT * FROM {server} ORDER BY playtime DESC")
             users = await cursor.fetchall()
@@ -146,8 +145,8 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
         total_users = 0
         users = []
         total_kills = 0
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
-            for s in config.servers:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
+            for s in self.client.servers:
                 await db.execute(f"SELECT * FROM {s.name}")
                 fetch = await db.fetchall()
                 for user in fetch:
@@ -167,7 +166,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
     @commands.command(hidden=True)
     @commands.is_owner()
     async def checkdifference(self, ctx):
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute("SELECT sum(kills_as_inf) FROM main")
             total_kills = await cursor.fetchone()
@@ -195,7 +194,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
     @commands.command()
     @commands.cooldown(1, 1, commands.BucketType.user)
     async def killnumber(self, ctx, number: int = 0, server: str | None = None):
-        if server is None or not await utils.is_valid_server(server):
+        if server is None or not await utils.is_valid_server(self.client, server):
             return await ctx.send("Please provide a valid server.")
         if server == "infection":
             if number < 1:
@@ -206,7 +205,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
                     "Unfortunately, we did not start logging individual kills until kill number 151090. Please try a number greater than 151090.",
                 )
                 return None
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute(f"SELECT sum(kills_as_inf) FROM {server}")
             total_kills = await cursor.fetchone()
@@ -263,25 +262,25 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
     async def kd(self, ctx, name: str | None = None):
         """Get a user's KD."""
         name = (
-            await utils.get_name_from_connection(ctx.author.id)
+            await utils.get_name_from_connection(self.client, ctx.author.id)
             if name is None
             else name
         )
         message = ""
-        for server in config.servers:
+        for server in self.client.servers:
             try:
-                killsmilitia = await utils.get_row(
+                killsmilitia = await utils.get_row(self.client,
                     "killsmilitia",
                     "name",
                     name,
                     server.name,
                 )
 
-                killsimc = await utils.get_row("killsimc", "name", name, server.name)
+                killsimc = await utils.get_row(self.client,"killsimc", "name", name, server.name)
 
-                deathsimc = await utils.get_row("deathsimc", "name", name, server.name)
+                deathsimc = await utils.get_row(self.client,"deathsimc", "name", name, server.name)
 
-                deathsmilitia = await utils.get_row(
+                deathsmilitia = await utils.get_row(self.client,
                     "deathsmilitia",
                     "name",
                     name,
@@ -319,9 +318,9 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
         if not user1 or not user2:
             return await ctx.send("Please specify two users.")
         message = ""
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
-            for server in config.servers:
+            for server in self.client.servers:
                 await cursor.execute(
                     f"SELECT uid FROM {server.name} WHERE name=?",
                     (user1,),
@@ -395,8 +394,8 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
             return None
         if not server:
             return await ctx.send("Error! Please specify server.")
-        if not await utils.is_valid_server(server):
-            valid_servers = await utils.get_valid_server_names()
+        if not await utils.is_valid_server(self.client, server):
+            valid_servers = await utils.get_valid_server_names(self.client)
             return await ctx.send(
                 f"Invalid server. Valid servers are `{', '.join(valid_servers)}`.",
             )
@@ -406,7 +405,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
         if team == "infected":
             team = "imc"
         amount = 10
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             if server == "infection":
                 await cursor.execute(
@@ -447,10 +446,10 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
     @commands.hybrid_command()
     async def killstreakboard(self, ctx, server: str | None = None):
         """See who has the highest killstreak."""
-        if not server or not await utils.is_valid_server(server):
+        if not server or not await utils.is_valid_server(self.client, server):
             return await ctx.send("Error! Please specify server.")
         amount = 10
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute(f"SELECT * FROM {server} ORDER BY killstreak DESC")
             users = await cursor.fetchall()
@@ -486,7 +485,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
     #     elif team == "infected":
     #         team = "inf"
     #     amount = 10
-    #     async with aiosqlite.connect(config.bank, timeout=10) as db:
+    #     async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
     #         cursor = await db.cursor()
     #         await cursor.execute(f"SELECT * FROM main ORDER BY deaths_as_{team} DESC")
     #         users = await cursor.fetchall()
@@ -510,7 +509,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
     async def highestkillstreak(self, ctx, name: str | None = None):
         """See someone's highest killstreak."""
         name = (
-            await utils.get_name_from_connection(ctx.author.id)
+            await utils.get_name_from_connection(self.client, ctx.author.id)
             if name is None
             else name
         )
@@ -520,9 +519,9 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
             )
             return None
         message = f"{name}:\n"
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
-            for server in config.servers:
+            for server in self.client.servers:
                 # Use a parameterized query for the SELECT statements
                 await cursor.execute(
                     f'SELECT "killstreak" FROM {server.name} WHERE name=?',
@@ -542,7 +541,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
     async def firstinfected(self, ctx, name: str | None = None):
         """See how many times someone has been first infected."""
         name = (
-            await utils.get_name_from_connection(ctx.author.id)
+            await utils.get_name_from_connection(self.client, ctx.author.id)
             if name is None
             else name
         )
@@ -552,7 +551,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
             )
             return
 
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
 
             # Use a parameterized query for the SELECT statements
@@ -574,11 +573,11 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
         """Link your titanfall and discord"""
         if name == "":
             return await ctx.reply("Please specify your in game name.")
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             did = ctx.author.id
             name_exists = False
-            for s in config.servers:
+            for s in self.client.servers:
                 await cursor.execute(
                     f"SELECT name FROM {s.name} WHERE name = ?",
                     (name,),
@@ -639,7 +638,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
         ):
             await asyncio.sleep(1)
         if self.client.auth[auth_code]["confirmed"]:
-            async with aiosqlite.connect(config.bank, timeout=10) as db:
+            async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
                 cursor = await db.cursor()
                 await cursor.execute(
                     "INSERT INTO connection(discordID, titanfallID) VALUES(?, ?)",
@@ -649,7 +648,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
                 await ctx.reply(
                     "Successfully linked your titanfall and discord accounts!",
                 )
-                adminrelay = await self.client.fetch_channel(config.admin_relay)
+                adminrelay = await self.client.fetch_channel(self.client.config["channels"]["admin_relay"])
                 await adminrelay.send(
                     f"{ctx.author.mention} just `,.link`ed to {name}!",
                 )
@@ -681,7 +680,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
             return None
         if msg.content is not None:
             if msg.content.lower() == "yes":
-                async with aiosqlite.connect(config.bank, timeout=10) as db:
+                async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
                     cursor = await db.cursor()
                     did = ctx.author.id
                     await cursor.execute(
@@ -702,7 +701,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
                     await ctx.reply(
                         "Successfully unlinked your titanfall and discord accounts!",
                     )
-                    adminrelay = self.client.get_channel(config.admin_relay)
+                    adminrelay = self.client.get_channel(self.client.config["channels"]["admin_relay"])
                     await adminrelay.send(f"{ctx.author.mention} just `,.unlink`ed!")
             else:
                 await ctx.reply("Cancelled.")
@@ -712,7 +711,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
         """Get the titanfall account linked to a discord account."""
         if name is None:
             name = ctx.author
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute(
                 "SELECT titanfallID FROM connection WHERE discordID = ?",
@@ -725,7 +724,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
                     "This discord account is not linked to a titanfall account.",
                 )
                 return
-            titan_name = await utils.get_name_from_connection(uid)
+            titan_name = await utils.get_name_from_connection(self.client, uid)
             if titan_name is None:
                 await ctx.send("Something catastrophic has happened. Ping bobby.")
                 return
@@ -735,7 +734,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
     async def gamesplayed(self, ctx, name: str | None = None):
         """See how many games someone has played."""
         name = (
-            await utils.get_name_from_connection(ctx.author.id)
+            await utils.get_name_from_connection(self.client, ctx.author.id)
             if name is None
             else name
         )
@@ -745,9 +744,9 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
             )
             return
         message = f"{name}:\n"
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
-            for server in config.servers:
+            for server in self.client.servers:
                 # Use a parameterized query for the SELECT statements
                 await cursor.execute(
                     f'SELECT "gamesplayed" FROM {server.name} WHERE name=?',
@@ -770,7 +769,7 @@ My prefix is `,.` and my commands can be seen with `,.help`.""",
         #     )
         #     return
         # name = (
-        #     await utils.get_name_from_connection(ctx.author.id)
+        #     await utils.get_name_from_connection(self.client, ctx.author.id)
         #     if name is None
         #     else name
         # )

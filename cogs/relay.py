@@ -10,7 +10,6 @@ from datetime import datetime, timedelta
 
 import aiosqlite
 import asyncpg
-import config
 import discord
 import humanize
 import requests
@@ -37,13 +36,13 @@ class Relay(commands.Cog):
             AttributeError,
             json.decoder.JSONDecodeError,
         ]
-        if not config.debug:
+        if not self.client.config["bot"]["debug"]:
             for error in errors:
                 self.update_stats.add_exception_type(error)
         self.client.playing = {}
         self.client.lazy_playing = {}
         self.client.online = {}
-        for s in config.servers + config.tournament_servers:
+        for s in self.client.servers + self.client.tournament_servers:
             self.client.playing[s.name] = []
             self.client.lazy_playing[s.name] = []
             self.client.online[s.name] = False
@@ -70,7 +69,7 @@ class Relay(commands.Cog):
         self.app.router.add_route("OPTIONS", "/server-history", self.handle_options)
         self.runner = web.AppRunner(self.app)
         self.message_queue = {}
-        for s in config.servers:
+        for s in self.client.servers:
             self.message_queue[s.name] = ""
         self.client.tournament_loadout = {}
         self.client.tournament_should_track_kills = True
@@ -84,14 +83,14 @@ class Relay(commands.Cog):
     async def add_to_message_queue(self, server, message):
         self.message_queue[server] += message + "\n"
         if len(self.message_queue[server]) > 1000:
-            server = await utils.get_server(server)
+            server = await utils.get_server(self.client, server)
             channel = self.client.get_channel(server.relay)
             await channel.send(self.message_queue[server])
             self.message_queue[server] = ""
 
     @tasks.loop(seconds=10)
     async def post_relay(self):
-        for server in config.servers:
+        for server in self.client.servers:
             if self.message_queue[server.name] != "":
                 channel = self.client.get_channel(server.relay)
                 await channel.send(self.message_queue[server])
@@ -125,7 +124,7 @@ class Relay(commands.Cog):
                 headers=corsheaders,
             )
         server = data["server"]
-        server = await utils.get_server(server)
+        server = await utils.get_server(self.client, server)
         if server is None:
             return web.Response(
                 status=404,
@@ -159,7 +158,7 @@ class Relay(commands.Cog):
         stat = data["stat"]
         if stat not in valid_stats:
             return web.Response(status=400, text="invalid stat", headers=corsheaders)
-        async with aiosqlite.connect(config.bank) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"]) as db:
             if stat == "kills":
                 async with db.execute(
                     f"SELECT name, killsimc, killsmilitia FROM {server.name} ORDER BY killsimc + killsmilitia DESC LIMIT 10 OFFSET 10*{page - 1}",
@@ -246,9 +245,9 @@ class Relay(commands.Cog):
             "Access-Control-Allow-Headers": "Content-Type",
         }
         result = {"servers": {}}
-        async with aiosqlite.connect(config.bank) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"]) as db:
             # get amount of rows in all servers
-            for server in config.servers:
+            for server in self.client.servers:
                 async with db.execute(f"SELECT COUNT(*) FROM {server.name}") as cursor:
                     response = await cursor.fetchone()
                     if server.name == "infection":
@@ -279,7 +278,7 @@ class Relay(commands.Cog):
         uid = request.query.get("uid")
 
         # check if uid is whitelisted
-        async with aiosqlite.connect(config.bank) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"]) as db:
             async with db.execute("SELECT uid FROM whitelist") as cursor:
                 fetched = await cursor.fetchall()
                 for row in fetched:
@@ -296,7 +295,7 @@ class Relay(commands.Cog):
         uid = request.query.get("uid")
 
         # check if uid is banned
-        async with aiosqlite.connect(config.bank) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"]) as db:
             async with db.execute("SELECT * FROM banned WHERE uid=?", (uid,)) as cursor:
                 # uid, reason, expires (datetime object)
                 fetched = await cursor.fetchall()
@@ -356,7 +355,7 @@ class Relay(commands.Cog):
                 await asyncio.sleep(3600)
                 await role.edit(mentionable=True)
                 await self.discord_log("looking to play is now mentionable")
-        for s in config.servers:
+        for s in self.client.servers:
             if message.channel.id == s.relay:
                 if message.attachments:
                     async with io.BytesIO() as f:
@@ -406,7 +405,7 @@ class Relay(commands.Cog):
         self.client.loop.create_task(self.track_servers())
 
     async def create_server_tracker_db(self):
-        async with aiosqlite.connect(config.bank) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"]) as db:
             await db.execute(
                 "CREATE TABLE IF NOT EXISTS server_tracker(num INTEGER PRIMARY KEY AUTOINCREMENT, server_name TEXT, score INTEGER)",
             )
@@ -465,13 +464,13 @@ class Relay(commands.Cog):
                 await self.create_server_tracker_db()
                 try:
                     async with ClientSession() as session:
-                        async with session.get(config.masterurl) as response:
+                        async with session.get(self.client.config["master"]["url"]) as response:
                             servers = await response.json()
                 except Exception as e:
                     print("Error fetching servers " + e)
                     await asyncio.sleep(10)
                     continue
-                async with aiosqlite.connect(config.bank) as db:
+                async with aiosqlite.connect(self.client.config["bot"]["bank"]) as db:
                     async with db.cursor() as cursor:
                         for server in servers:
                             server["name"] = re.sub(r"\^.{8}", "", server["name"])
@@ -516,7 +515,7 @@ class Relay(commands.Cog):
             check=lambda m: m.author == ctx.author,
         )
         if msg.content.lower() == "yes":
-            async with aiosqlite.connect(config.bank) as db:
+            async with aiosqlite.connect(self.client.config["bot"]["bank"]) as db:
                 await db.execute("DROP TABLE server_tracker")
                 await db.execute("DROP TABLE players_tracker")
                 await db.commit()
@@ -528,7 +527,7 @@ class Relay(commands.Cog):
     @commands.command()
     @commands.is_owner()
     async def scoretransfer(self, ctx, old, new):
-        async with aiosqlite.connect(config.bank) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"]) as db:
             async with db.cursor() as cursor:
                 await cursor.execute(
                     "SELECT score FROM server_tracker WHERE server_name = ?",
@@ -569,7 +568,7 @@ class Relay(commands.Cog):
             "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type",
         }
-        async with aiosqlite.connect(config.bank) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"]) as db:
             cursor = await db.cursor()
             await cursor.execute("SELECT * FROM server_tracker ORDER BY score DESC")
             rows = await cursor.fetchall()
@@ -590,7 +589,7 @@ class Relay(commands.Cog):
         key = request.query.get("key")
         authorized = False
         if key:
-            if key in config.keys:
+            if key in self.client.config["bot"]["keys"]:
                 authorized = True
         if not before:
             before = int(time.time())
@@ -617,7 +616,7 @@ class Relay(commands.Cog):
                 text="After time is greater than before time. You likely want to swap them.",
                 headers=corsheaders,
             )
-        async with aiosqlite.connect(config.bank) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"]) as db:
             async with db.cursor() as cursor:
                 servers = []
                 await cursor.execute("SELECT server_name FROM server_tracker")
@@ -662,7 +661,7 @@ class Relay(commands.Cog):
     # events
     @tasks.loop(seconds=30)
     async def update_stats(self):
-        channel = self.client.get_channel(config.stats_channel)
+        channel = self.client.get_channel(self.client.config["channels"]["stats_channel"])
         fetch_message = None
         async for message in channel.history(limit=200):
             if message.author.id == self.client.user.id:
@@ -676,7 +675,7 @@ class Relay(commands.Cog):
             msg = None
 
         async with ClientSession() as session:
-            async with session.get(config.masterurl) as response:
+            async with session.get(self.client.config["master"]["url"]) as response:
                 servers = await response.json()
 
         query_results = []
@@ -685,19 +684,19 @@ class Relay(commands.Cog):
         for server in servers:
             total_players += server["playerCount"]
 
-        for s in config.servers + config.tournament_servers:
+        for s in self.client.servers + self.client.tournament_servers:
             for server in servers:
                 if s.display_name in server["name"]:
                     query_results.append(server)
                     if not self.client.online[s.name]:
                         self.client.online[s.name] = True
-                        adminrelay = self.client.get_channel(config.admin_relay)
+                        adminrelay = self.client.get_channel(self.client.config["channels"]["admin_relay"])
                         await adminrelay.send(f"{s.display_name} just came online")
                     break
             else:
                 if self.client.online[s.name]:
                     self.client.online[s.name] = False
-                    adminrelay = self.client.get_channel(config.admin_relay)
+                    adminrelay = self.client.get_channel(self.client.config["channels"]["admin_relay"])
                     await adminrelay.send(
                         f"{s.display_name} just went offline, did it crash?",
                     )
@@ -744,7 +743,7 @@ class Relay(commands.Cog):
             await msg.edit(embed=embed)
 
     async def register_server(self, server_identifier):
-        async with aiosqlite.connect(config.bank) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"]) as db:
             await db.execute(
                 f"""CREATE TABLE IF NOT EXISTS {server_identifier}(
 num INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -801,9 +800,9 @@ expire_date TEXT
             return web.Response(status=400, text="No player")
         kills = 0
         deaths = 0
-        async with aiosqlite.connect(config.bank) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"]) as db:
             cursor = await db.cursor()
-            for server in config.servers:
+            for server in self.client.servers:
                 if server.name == "infection":
                     continue
                 await cursor.execute(
@@ -830,7 +829,7 @@ expire_date TEXT
         player = int(player)
         kills = 0
         deaths = 1
-        async with aiosqlite.connect(config.bank) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"]) as db:
             cursor = await db.cursor()
             await cursor.execute(f"SELECT * FROM {server} WHERE name = ?", (player,))
             results = await cursor.fetchone()
@@ -888,13 +887,13 @@ expire_date TEXT
             ip = ip.split(",")[0]
         else:
             ip = request.remote
-        if not await utils.is_valid_server(server_identifier):
+        if not await utils.is_valid_server(self.client, server_identifier):
             print(
                 f"Warning! Invalid server identifier for {server_identifier}. Provided data was {data}. IP of request was {ip}.",
             )
             return web.Response(status=401, text="Bad identifier")
         auth_header = request.headers.get("authentication")
-        if not await utils.check_server_auth(server_identifier, auth_header):
+        if not await utils.check_server_auth(self.client, server_identifier, auth_header):
             print(
                 f"Warning! Invalid auth header for {server_identifier}. Provided auth was {auth_header}. IP of request was {ip}.",
             )
@@ -902,7 +901,7 @@ expire_date TEXT
         if not await utils.check_server_ip(server_identifier, ip):
             print(f"Warning! Invalid ip for {server_identifier}. Provided ip was {ip}.")
             return web.Response(status=401, text="Bad IP")
-        if await utils.is_tournament_server(server_identifier):
+        if await utils.is_tournament_server(self.client, server_identifier):
             await self.handle_tournament(data, server_identifier)
             return web.Response(status=200, text="OK")
         await self.register_server(server_identifier)
@@ -1084,7 +1083,7 @@ expire_date TEXT
         self.client.playing[server_identifier].append([player, unix])
 
     async def remove_playing(self, player, server_identifier):
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
 
             # Using reversed enumeration to ensure list consistency when popping elements
@@ -1103,7 +1102,7 @@ expire_date TEXT
             await db.commit()
 
     async def clear_playing(self, server_identifier):
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
 
             self.client.lazy_playing[server_identifier] = self.client.playing[
@@ -1123,7 +1122,7 @@ expire_date TEXT
             await db.commit()
 
     async def award_games_to_online(self, server_identifier):
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             playing = max(
                 self.client.lazy_playing[server_identifier],
@@ -1137,7 +1136,7 @@ expire_date TEXT
             await db.commit()
 
     async def send_relay_msg(self, player, message, team, uid, server_identifier):
-        server = await utils.get_server(server_identifier)
+        server = await utils.get_server(self.client, server_identifier)
         channel = self.client.get_channel(server.relay)
         if server_identifier == "infection":
             if team == 3:
@@ -1157,7 +1156,7 @@ expire_date TEXT
         await self.check_for_bad(player, message, uid, sent)
 
     async def send_relay_misc(self, msg, server_identifier):
-        server = await utils.get_server(server_identifier)
+        server = await utils.get_server(self.client, server_identifier)
         channel = self.client.get_channel(server.relay)
         await channel.send(msg)
 
@@ -1182,7 +1181,7 @@ expire_date TEXT
         # action = "killed"
         if killer == victim:
             await self.log_kill_db(killer, 2, victim, server_identifier)
-            # server = await utils.get_server(server_identifier)
+            # server = await utils.get_server(self.client, server_identifier)
             # channel = self.client.get_channel(server.relay)
             # await channel.send(f"{killer} bid farewell, cruel world!")
         else:
@@ -1191,13 +1190,13 @@ expire_date TEXT
         #     killer = discord.utils.escape_markdown(killer)
         #     victim = discord.utils.escape_markdown(victim)
         # output = f"{killer} {action} {victim}."
-        # server = await utils.get_server(server_identifier)
+        # server = await utils.get_server(self.client, server_identifier)
         # channel = self.client.get_channel(server.relay)
         # await channel.send(output)
 
     async def log_kill_db(self, killer, action, victim, server_identifier):
         # 0 = s kills i, 1 = i kills s, 2, suicide
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute(
                 f"SELECT uid FROM {server_identifier} WHERE name=?",
@@ -1226,10 +1225,10 @@ expire_date TEXT
             await db.commit()
 
     async def check_for_changed_name(self, uid, name):
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             changed = False
-            for server in config.servers:
+            for server in self.client.servers:
                 await cursor.execute(
                     f"SELECT name FROM {server.name} WHERE uid = ?",
                     (uid,),
@@ -1241,17 +1240,17 @@ expire_date TEXT
                     changed = True
                     break
             if changed:
-                for server in config.servers:
+                for server in self.client.servers:
                     await cursor.execute(
                         f"UPDATE {server.name} SET name = ? WHERE uid = ?",
                         (name, uid),
                     )
                     await db.commit()
-                adminrelay = self.client.get_channel(config.admin_relay)
+                adminrelay = self.client.get_channel(self.client.config["channels"]["admin_relay"])
                 await adminrelay.send(
                     f"Name change detected.\n`{result[0]}` -> `{name}`\nUID: `{uid}`",
                 )
-                discord_id = await utils.get_discord_id_user_from_connection(uid)
+                discord_id = await utils.get_discord_id_user_from_connection(self.client, uid)
                 if discord_id is not None:
                     discord_user = await self.client.fetch_user(discord_id)
                     if discord_user is not None:
@@ -1265,7 +1264,7 @@ expire_date TEXT
                             )
 
     async def new_account(self, user, uid, server_identifier):
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             if server_identifier == "infection":
@@ -1284,7 +1283,7 @@ expire_date TEXT
             await db.commit()
 
     async def log_firstinfected(self, name):
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute(
                 "UPDATE infection SET firstinfected = firstinfected + 1 WHERE name=?",
@@ -1293,7 +1292,7 @@ expire_date TEXT
             await db.commit()
 
     async def log_killstreak(self, name, kills, server_identifier):
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute(
                 f"SELECT killstreak FROM {server_identifier} WHERE name = ?",
@@ -1309,7 +1308,7 @@ expire_date TEXT
                 await db.commit()
 
     async def log_join(self, player, uid, server_identifier):
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             cursor = await db.cursor()
             await cursor.execute(
                 f'SELECT "first_join" FROM {server_identifier} WHERE uid=?',
@@ -1325,11 +1324,11 @@ expire_date TEXT
             await db.commit()
 
     async def discord_log(self, msg):
-        channel = await self.client.fetch_channel(config.log_channel)
+        channel = await self.client.fetch_channel(self.client.config["channels"]["log_channel"])
         await channel.send(msg)
 
     async def big_brother(self, msg):
-        channel = await self.client.fetch_channel(config.bigbrother)
+        channel = await self.client.fetch_channel(self.client.config["channels"]["bigbrother"])
         await channel.send(msg)
 
     async def log_kill(self, line, server_identifier):
@@ -1338,7 +1337,7 @@ expire_date TEXT
         uid = line["subject"]["uid"]
         victim = line["object"]["name"]
         vuid = line["object"]["uid"]
-        async with aiosqlite.connect(config.bank, timeout=10) as db:
+        async with aiosqlite.connect(self.client.config["bot"]["bank"], timeout=10) as db:
             if player == victim:
                 if team == 2:
                     await db.execute(
@@ -1372,29 +1371,29 @@ expire_date TEXT
             await db.commit()
 
     async def check_for_bad(self, player, message, uid, sent):
-        for word in config.ban_words:
+        for word in self.client.config["moderation"]["ban_words"]:
             # Search for the pattern in the text
             if re.search(word, message, re.IGNORECASE):
                 await utils.ban_user(
-                    uid,
+                    self.client, uid,
                     reason="AUTO BAN: Rule breaking language",
                     expires=utils.human_time_to_seconds("1w"),
                 )
-                adminrelay = self.client.get_channel(config.admin_relay)
+                adminrelay = self.client.get_channel(self.client.config["channels"]["admin_relay"])
                 await adminrelay.send(
                     f"`{player}` has been automatically banned due to a rule breaking message:\n`{message}`\nMatches pattern:`{word}`\nUID: `{uid}`\nPlease review: {sent.jump_url}",
                 )
-                banlog = self.client.get_channel(config.ban_log)
+                banlog = self.client.get_channel(self.client.config["channels"]["ban_log"])
                 await banlog.send(
                     f"{player} has been automatically banned.\nReason: Rule breaking language\nContext: {sent.jump_url}",
                 )
-                for server in config.servers:
+                for server in self.client.servers:
                     await server.send_command("checkbans")
                 return
 
-        for word in config.bad_words:
+        for word in self.client.config["moderation"]["bad_words"]:
             if re.search(word, message, re.IGNORECASE):
-                adminrelay = self.client.get_channel(config.admin_relay)
+                adminrelay = self.client.get_channel(self.client.config["channels"]["admin_relay"])
                 await adminrelay.send(
                     f"Message from `{player}`: `{message}` matches pattern `{word}`\nUID: `{uid}`\nPlease review: {sent.jump_url}",
                 )

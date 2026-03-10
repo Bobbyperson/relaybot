@@ -1,0 +1,71 @@
+[bot]
+token = ""
+debug = false
+owner_id = 0
+bank = "database.sqlite"
+keys = []
+
+[channels]
+admin_relay = 0
+ban_log = 0
+channel_id = 0  # dedicated stats channel id
+log_channel = 0
+bigbrother = 0
+stats_channel = 0
+
+[admins]
+discord_ids = []      # discord ids
+northstar_uids = []   # northstar ids
+
+[moderation]
+ban_words = ["fag+ot", "nig+er"]  # automatic ban words
+bad_words = [                      # admin warnings
+    "nigg",
+    "fag",
+    "bundle of sticks",
+    "tnd",
+    'f([aeiou*x])\1*g+([aeiou*x])\1*t',
+]
+
+[master]
+url = "https://northstar.tf/client/servers"  # don't change this
+query = ["server name"]
+
+[challonge]
+api_key = ""
+
+[[servers]]
+name = "server1"
+display_name = "100th attrition server"
+relay = 0
+ip = "127.0.0.1"
+key = "secretkey1"
+rcon_password = "rconpass1"
+rcon_port = 1234
+
+[[servers]]
+name = "server2"
+display_name = "101st attrition server"
+relay = 0
+ip = "127.0.0.1"
+key = "secretkey2"
+rcon_password = "rconpass2"
+rcon_port = 1234
+
+[[servers]]
+name = "server3"
+display_name = "102nd attrition server"
+relay = 0
+ip = "127.0.0.1"
+key = "secretkey3"
+rcon_password = "rconpass3"
+rcon_port = 1234
+
+[[tournament_servers]]
+name = "tournament1"
+display_name = "awesome tournament server"
+relay = 0
+ip = "127.0.0.1"
+key = "secretkey1"
+rcon_password = "rconpass1"
+rcon_port = 1234

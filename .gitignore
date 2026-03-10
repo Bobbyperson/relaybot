@@ -2,7 +2,7 @@
 *.lnk
 *.sqlite
 __pycache__
-config.py
+config.toml
 .stignore
 parkour.py
 .venv

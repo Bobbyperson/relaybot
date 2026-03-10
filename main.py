@@ -1,20 +1,35 @@
 import asyncio
 import os
 import sys
+import tomllib
 import traceback
 
-import config
 import discord
 from discord.ext import commands
 from pretty_help import PrettyHelp
 
+from server import Server
+
 intents = discord.Intents().all()
-client = commands.Bot(command_prefix=",.", intents=intents, help_command=PrettyHelp())
+
+
+class Bot(commands.Bot):
+    def __init__(self, *args, **kwargs):
+        with open("config.toml", "rb") as f:
+            self.config = tomllib.load(f)
+        self.servers = [Server(**s) for s in self.config.get("servers", [])]
+        self.tournament_servers = [
+            Server(**s) for s in self.config.get("tournament_servers", [])
+        ]
+        super().__init__(*args, **kwargs)
+
+
+client = Bot(command_prefix=",.", intents=intents, help_command=PrettyHelp())
 
 
 @client.command(hidden=True)
 async def load(ctx, extension):
-    if ctx.author.id == config.owner_id:
+    if ctx.author.id == ctx.bot.config["bot"]["owner_id"]:
         await client.load_extension(f"cogs.{extension}")
         await ctx.send(f"{extension} loaded.")
     else:
@@ -23,7 +38,7 @@ async def load(ctx, extension):
 
 @client.command(hidden=True)
 async def unload(ctx, extension):
-    if ctx.author.id == config.owner_id:
+    if ctx.author.id == ctx.bot.config["bot"]["owner_id"]:
         await client.unload_extension(f"cogs.{extension}")
         await ctx.send(f"{extension} unloaded.")
     else:
@@ -32,7 +47,7 @@ async def unload(ctx, extension):
 
 @client.command(hidden=True)
 async def reload(ctx, extension):
-    if ctx.author.id == config.owner_id:
+    if ctx.author.id == ctx.bot.config["bot"]["owner_id"]:
         await client.unload_extension(f"cogs.{extension}")
         await ctx.send(f"{extension} unloaded.")
         await client.load_extension(f"cogs.{extension}")
@@ -52,11 +67,11 @@ async def main():
         for filename in os.listdir("./cogs"):
             if filename.endswith(".py"):
                 await client.load_extension(f"cogs.{filename[:-3]}")
-        await client.start(config.TOKEN)
+        await client.start(client.config["bot"]["token"])
 
 
 async def send_error_to_channel(error_message):
-    channel = client.get_channel(config.log_channel)
+    channel = client.get_channel(client.config["channels"]["log_channel"])
     await channel.send(error_message)
 
 

@@ -568,13 +568,29 @@ class Relay(commands.Cog):
             "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type",
         }
+        period = request.query.get("period", "all")
+        period_seconds = {
+            "24h": 86400,
+            "7d": 604800,
+            "30d": 2592000,
+            "1y": 31536000,
+        }
         async with aiosqlite.connect(self.client.config["bot"]["bank"]) as db:
             cursor = await db.cursor()
-            await cursor.execute("SELECT * FROM server_tracker ORDER BY score DESC")
+            if period in period_seconds:
+                since = int(time.time()) - period_seconds[period]
+                await cursor.execute(
+                    "SELECT server_name, SUM(playercount) as score FROM players_tracker WHERE timestamp > ? GROUP BY server_name ORDER BY score DESC",
+                    (since,),
+                )
+            else:
+                await cursor.execute(
+                    "SELECT server_name, score FROM server_tracker ORDER BY score DESC"
+                )
             rows = await cursor.fetchall()
             result = {"rows": len(rows), "servers": []}
             for row in rows:
-                result["servers"].append({"name": row[1], "score": row[2]})
+                result["servers"].append({"name": row[0], "score": row[1]})
         return web.json_response(result, headers=corsheaders, status=200)
 
     async def get_scoreboard_history(self, request):

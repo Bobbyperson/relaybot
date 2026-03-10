@@ -876,12 +876,15 @@ expire_date TEXT
         server = request.query.get("server")
         if player is None:
             return web.Response(status=400, text="No player")
+        server = await utils.get_server(self.client, server)
+        if server is None:
+            return web.Response(status=404, text="server not found")
         player = int(player)
         kills = 0
         deaths = 1
         async with aiosqlite.connect(self.client.config["bot"]["bank"]) as db:
             cursor = await db.cursor()
-            await cursor.execute(f"SELECT * FROM {server} WHERE name = ?", (player,))
+            await cursor.execute(f"SELECT * FROM {server.name} WHERE name = ?", (player,))
             results = await cursor.fetchone()
             kills = results[3] + results[4]
             deaths = results[5] + results[6]

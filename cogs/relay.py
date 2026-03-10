@@ -158,80 +158,102 @@ class Relay(commands.Cog):
         stat = data["stat"]
         if stat not in valid_stats:
             return web.Response(status=400, text="invalid stat", headers=corsheaders)
+        search = data.get("search", "").strip()
+        result = {"results": [], "is_search": bool(search)}
+        sp = (f"%{search}%",)
         async with aiosqlite.connect(self.client.config["bot"]["bank"]) as db:
-            if stat == "kills":
-                async with db.execute(
-                    f"SELECT name, killsimc, killsmilitia FROM {server.name} ORDER BY killsimc + killsmilitia DESC LIMIT 10 OFFSET 10*{page - 1}",
-                ) as cursor:
-                    fetched = await cursor.fetchall()
-                    result = {"results": []}
-                    for row in fetched:
-                        result["results"].append(
-                            {"name": row[0], "stat": row[1] + row[2]},
-                        )
-            elif stat == "deaths":
-                async with db.execute(
-                    f"SELECT name, deathsimc, deathsmilitia FROM {server.name} ORDER BY deathsimc + deathsmilitia DESC LIMIT 10 OFFSET 10*{page - 1}",
-                ) as cursor:
-                    fetched = await cursor.fetchall()
-                    result = {"results": []}
-                    for row in fetched:
-                        result["results"].append(
-                            {"name": row[0], "stat": row[1] + row[2]},
-                        )
-            elif stat == "survivor kills":
-                async with db.execute(
-                    f"SELECT name, killsmilitia FROM {server.name} ORDER BY killsmilitia DESC LIMIT 10 OFFSET 10*{page - 1}",
-                ) as cursor:
-                    fetched = await cursor.fetchall()
-                    result = {"results": []}
-                    for row in fetched:
-                        result["results"].append({"name": row[0], "stat": row[1]})
-            elif stat == "survivor deaths":
-                async with db.execute(
-                    f"SELECT name, deathsmilitia FROM {server.name} ORDER BY deathsmilitia DESC LIMIT 10 OFFSET 10*{page - 1}",
-                ) as cursor:
-                    fetched = await cursor.fetchall()
-                    result = {"results": []}
-                    for row in fetched:
-                        result["results"].append({"name": row[0], "stat": row[1]})
-            elif stat == "infected kills":
-                async with db.execute(
-                    f"SELECT name, killsimc FROM {server.name} ORDER BY killsimc DESC LIMIT 10 OFFSET 10*{page - 1}",
-                ) as cursor:
-                    fetched = await cursor.fetchall()
-                    result = {"results": []}
-                    for row in fetched:
-                        result["results"].append({"name": row[0], "stat": row[1]})
-            elif stat == "infected deaths":
-                async with db.execute(
-                    f"SELECT name, deathsimc FROM {server.name} ORDER BY deathsimc DESC LIMIT 10 OFFSET 10*{page - 1}",
-                ) as cursor:
-                    fetched = await cursor.fetchall()
-                    result = {"results": []}
-                    for row in fetched:
-                        result["results"].append({"name": row[0], "stat": row[1]})
-            elif stat == "playtime":
-                async with db.execute(
-                    f"SELECT name, playtime FROM {server.name} ORDER BY playtime DESC LIMIT 10 OFFSET 10*{page - 1}",
-                ) as cursor:
-                    fetched = await cursor.fetchall()
-                    result = {"results": []}
-                    for row in fetched:
-                        result["results"].append(
-                            {
-                                "name": row[0],
-                                "stat": await utils.human_time_duration(row[1]),
-                            },
-                        )
+            if search:
+                # CTE ranks over the full table; WHERE filters by name after ranking
+                if stat == "kills":
+                    q = f"WITH r AS (SELECT name, killsimc+killsmilitia AS val, ROW_NUMBER() OVER (ORDER BY killsimc+killsmilitia DESC) AS rank FROM {server.name}) SELECT name, val, rank FROM r WHERE name LIKE ? ORDER BY val DESC LIMIT 50"
+                    async with db.execute(q, sp) as cursor:
+                        for row in await cursor.fetchall():
+                            result["results"].append({"name": row[0], "stat": row[1], "rank": row[2]})
+                elif stat == "deaths":
+                    q = f"WITH r AS (SELECT name, deathsimc+deathsmilitia AS val, ROW_NUMBER() OVER (ORDER BY deathsimc+deathsmilitia DESC) AS rank FROM {server.name}) SELECT name, val, rank FROM r WHERE name LIKE ? ORDER BY val DESC LIMIT 50"
+                    async with db.execute(q, sp) as cursor:
+                        for row in await cursor.fetchall():
+                            result["results"].append({"name": row[0], "stat": row[1], "rank": row[2]})
+                elif stat == "survivor kills":
+                    q = f"WITH r AS (SELECT name, killsmilitia AS val, ROW_NUMBER() OVER (ORDER BY killsmilitia DESC) AS rank FROM {server.name}) SELECT name, val, rank FROM r WHERE name LIKE ? ORDER BY val DESC LIMIT 50"
+                    async with db.execute(q, sp) as cursor:
+                        for row in await cursor.fetchall():
+                            result["results"].append({"name": row[0], "stat": row[1], "rank": row[2]})
+                elif stat == "survivor deaths":
+                    q = f"WITH r AS (SELECT name, deathsmilitia AS val, ROW_NUMBER() OVER (ORDER BY deathsmilitia DESC) AS rank FROM {server.name}) SELECT name, val, rank FROM r WHERE name LIKE ? ORDER BY val DESC LIMIT 50"
+                    async with db.execute(q, sp) as cursor:
+                        for row in await cursor.fetchall():
+                            result["results"].append({"name": row[0], "stat": row[1], "rank": row[2]})
+                elif stat == "infected kills":
+                    q = f"WITH r AS (SELECT name, killsimc AS val, ROW_NUMBER() OVER (ORDER BY killsimc DESC) AS rank FROM {server.name}) SELECT name, val, rank FROM r WHERE name LIKE ? ORDER BY val DESC LIMIT 50"
+                    async with db.execute(q, sp) as cursor:
+                        for row in await cursor.fetchall():
+                            result["results"].append({"name": row[0], "stat": row[1], "rank": row[2]})
+                elif stat == "infected deaths":
+                    q = f"WITH r AS (SELECT name, deathsimc AS val, ROW_NUMBER() OVER (ORDER BY deathsimc DESC) AS rank FROM {server.name}) SELECT name, val, rank FROM r WHERE name LIKE ? ORDER BY val DESC LIMIT 50"
+                    async with db.execute(q, sp) as cursor:
+                        for row in await cursor.fetchall():
+                            result["results"].append({"name": row[0], "stat": row[1], "rank": row[2]})
+                elif stat == "playtime":
+                    q = f"WITH r AS (SELECT name, playtime AS val, ROW_NUMBER() OVER (ORDER BY playtime DESC) AS rank FROM {server.name}) SELECT name, val, rank FROM r WHERE name LIKE ? ORDER BY val DESC LIMIT 50"
+                    async with db.execute(q, sp) as cursor:
+                        for row in await cursor.fetchall():
+                            result["results"].append({"name": row[0], "stat": await utils.human_time_duration(row[1]), "rank": row[2]})
+                else:
+                    q = f"WITH r AS (SELECT name, {stat} AS val, ROW_NUMBER() OVER (ORDER BY {stat} DESC) AS rank FROM {server.name}) SELECT name, val, rank FROM r WHERE name LIKE ? ORDER BY val DESC LIMIT 50"
+                    async with db.execute(q, sp) as cursor:
+                        for row in await cursor.fetchall():
+                            result["results"].append({"name": row[0], "stat": row[1], "rank": row[2]})
             else:
-                async with db.execute(
-                    f"SELECT name, {stat} FROM {server.name} ORDER BY {stat} DESC LIMIT 10 OFFSET 10*{page - 1}",
-                ) as cursor:
-                    fetched = await cursor.fetchall()
-                    result = {"results": []}
-                    for row in fetched:
-                        result["results"].append({"name": row[0], "stat": row[1]})
+                offset = f"LIMIT 10 OFFSET 10*{page - 1}"
+                if stat == "kills":
+                    async with db.execute(
+                        f"SELECT name, killsimc, killsmilitia FROM {server.name} ORDER BY killsimc + killsmilitia DESC {offset}",
+                    ) as cursor:
+                        for row in await cursor.fetchall():
+                            result["results"].append({"name": row[0], "stat": row[1] + row[2]})
+                elif stat == "deaths":
+                    async with db.execute(
+                        f"SELECT name, deathsimc, deathsmilitia FROM {server.name} ORDER BY deathsimc + deathsmilitia DESC {offset}",
+                    ) as cursor:
+                        for row in await cursor.fetchall():
+                            result["results"].append({"name": row[0], "stat": row[1] + row[2]})
+                elif stat == "survivor kills":
+                    async with db.execute(
+                        f"SELECT name, killsmilitia FROM {server.name} ORDER BY killsmilitia DESC {offset}",
+                    ) as cursor:
+                        for row in await cursor.fetchall():
+                            result["results"].append({"name": row[0], "stat": row[1]})
+                elif stat == "survivor deaths":
+                    async with db.execute(
+                        f"SELECT name, deathsmilitia FROM {server.name} ORDER BY deathsmilitia DESC {offset}",
+                    ) as cursor:
+                        for row in await cursor.fetchall():
+                            result["results"].append({"name": row[0], "stat": row[1]})
+                elif stat == "infected kills":
+                    async with db.execute(
+                        f"SELECT name, killsimc FROM {server.name} ORDER BY killsimc DESC {offset}",
+                    ) as cursor:
+                        for row in await cursor.fetchall():
+                            result["results"].append({"name": row[0], "stat": row[1]})
+                elif stat == "infected deaths":
+                    async with db.execute(
+                        f"SELECT name, deathsimc FROM {server.name} ORDER BY deathsimc DESC {offset}",
+                    ) as cursor:
+                        for row in await cursor.fetchall():
+                            result["results"].append({"name": row[0], "stat": row[1]})
+                elif stat == "playtime":
+                    async with db.execute(
+                        f"SELECT name, playtime FROM {server.name} ORDER BY playtime DESC {offset}",
+                    ) as cursor:
+                        for row in await cursor.fetchall():
+                            result["results"].append({"name": row[0], "stat": await utils.human_time_duration(row[1])})
+                else:
+                    async with db.execute(
+                        f"SELECT name, {stat} FROM {server.name} ORDER BY {stat} DESC {offset}",
+                    ) as cursor:
+                        for row in await cursor.fetchall():
+                            result["results"].append({"name": row[0], "stat": row[1]})
         return web.json_response(
             text=json.dumps(result),
             status=200,

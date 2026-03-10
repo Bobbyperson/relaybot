@@ -1,50 +1,61 @@
 // im pretty sure this is public. i programmed this in 1 session while hungry as fuck its ROUGH man
 
-
 if (Math.floor(Math.random() * 5) == 0) {
     document.getElementById('ad').style.display = 'block';
 }   // show benjaminperla.hair ad
 
-const baseUrl_scoreboard = 'https://leaderboard.bluetick.dev:8383/scoreboard/'
 var pageNum = 1;
-
-
-const filledSquare = document.getElementById('filled-square');
+var searchQuery = '';
+var searchTimeout = null;
 
 const pagesLength = 10; // how many buttons
 const pagesDiv = document.getElementById('pages');
-function createButton(text, fn) {
+const statsBody = document.getElementById('stats-body');
+const loadingEl = document.getElementById('loading');
+const emptyEl = document.getElementById('empty');
+
+document.getElementById('search-players').addEventListener('input', function () {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        searchQuery = this.value.trim();
+        pageNum = 1;
+        pagesStart = 1;
+        displayInfo();
+    }, 300);
+});
+
+function createButton(text, fn, cssClass) {
     var button = document.createElement('button');
-    var textNode = document.createTextNode(text);
-    button.appendChild(textNode);
+    button.textContent = text;
     button.setAttribute('value', text);
     button.setAttribute('onclick', fn);
-    document.getElementById('pages').appendChild(button);
+    if (cssClass) button.classList.add(cssClass);
+    pagesDiv.appendChild(button);
 }
 
 var pagesStart = 1;
 function updatePages() {
     pagesDiv.innerHTML = '';
-    createButton('<<', 'pageBackward();');
+    createButton('\u00AB', 'pageBackward();', 'nav-arrow');
     for (i = 0; i < pagesLength && (i + pagesStart - 1)*10 < data['servers'][serversDropdown.value]['rows']; i++) {
         createButton(i + pagesStart, `changePage(${i + pagesStart});`);
     }
-    createButton('>>', 'pageForward();');
-    document.querySelector(`button[value=\'${pageNum}\']`).classList.add('depressed');
+    createButton('\u00BB', 'pageForward();', 'nav-arrow');
+    var activeBtn = document.querySelector(`#pages button[value='${pageNum}']`);
+    if (activeBtn) activeBtn.classList.add('active');
 }
 
 function changePage(page) {
-    if (document.querySelector(`button[value=\'${pageNum}\']`) != null) {
-        document.querySelector(`button[value=\'${pageNum}\']`).classList.remove('depressed');
-    }
+    var oldBtn = document.querySelector(`#pages button[value='${pageNum}']`);
+    if (oldBtn) oldBtn.classList.remove('active');
     pageNum = page;
-    document.querySelector(`button[value=\'${pageNum}\']`).classList.add('depressed');
+    var newBtn = document.querySelector(`#pages button[value='${pageNum}']`);
+    if (newBtn) newBtn.classList.add('active');
     displayInfo();
 }
 
 function pageForward() {
     if ((pagesStart + pagesLength - 1)*10 > data['servers'][serversDropdown.value]['rows']) { return; }
-    // ^ if further than data available. -1 because the last page will be truncated
     pagesStart += pagesLength;
     pageNum = pagesStart;
     updatePages();
@@ -60,13 +71,11 @@ function pageBackward() {
 
 
 // getting basic information
-// var leaderboardInfo;
-fetch("https://relay.bluetick.dev/leaderboard-info", {
+fetch("https://relay.awesome.tf/leaderboard-info", {
     method: "GET"
 })
 .then(response => response.json())
 .then(data => {
-    // console.log(data);
     var result = [];
     const keys = Object.keys(data.servers);
     for (key in Object.keys(data.servers)) {
@@ -77,39 +86,29 @@ fetch("https://relay.bluetick.dev/leaderboard-info", {
     result.sort(function (a, b) {
         return a.rows < b.rows;
     });
-    // console.log(result);
 
-    for (const i in result) {  // update server list
+    for (const i in result) {
         server = result[i];
-        // console.log(server);
-
         var option = document.createElement('option');
         option.setAttribute('value', server.name);
         textNode = document.createTextNode(server.name);
         option.appendChild(textNode);
         serversDropdown.appendChild(option);
-
     }
-    
+
     updateDropdowns(data);
-    // return result;
 })
 .catch((error) => {
     console.error('Error:', error);
+    loadingEl.style.display = 'none';
+    emptyEl.style.display = 'block';
+    emptyEl.textContent = 'Failed to load server data';
     return;
 });
 
 
 async function getInfo(req) {
-
-    // req =
-    // {
-    //     "server": document.getElementById('dropdown-servers').value.toLowerCase(), 
-    //     "page": 1, 
-    //     "stat": document.getElementById('dropdown-stats').value.toLowerCase()
-    // };
-
-    fetch("https://relay.bluetick.dev/leaderboard", {
+    fetch("https://relay.awesome.tf/leaderboard", {
         method: "POST",
         body: JSON.stringify(req),
         headers: {
@@ -118,69 +117,67 @@ async function getInfo(req) {
     })
     .then(response => response.json())
     .then(data => {
-        // console.log('Success:', data);
         updateInfo(data);
     })
     .catch((error) => {
         console.error('Error:', error);
         return;
     });
-
 }
 // takes JSON 'server', 'page', 'stat'
 
 async function displayInfo() {
-
-    // console.log({
-    //     "server": document.getElementById('dropdown-servers').value.toLowerCase(), 
-    //     "page": pageNum, 
-    //     "stat": document.getElementById('dropdown-stats').value.toLowerCase()
-    // });
-
-    const stats = await getInfo({
-        "server": document.getElementById('dropdown-servers').value.toLowerCase(), 
-        "page": pageNum, 
+    loadingEl.classList.add('visible');
+    const req = {
+        "server": document.getElementById('dropdown-servers').value.toLowerCase(),
+        "page": pageNum,
         "stat": document.getElementById('dropdown-stats').value.toLowerCase()
-    });
+    };
+    if (searchQuery) req.search = searchQuery;
+    const stats = await getInfo(req);
 }
 
 const pageLength = 10;
-const statsTable = document.getElementById('stats-table');
 function updateInfo(info) {
+    loadingEl.classList.remove('visible');
+    statsBody.innerHTML = '';
 
-    while (statsTable.childNodes.length > 2) {
-        statsTable.removeChild(statsTable.lastChild);
+    if (!info.results || info.results.length === 0) {
+        emptyEl.style.display = 'block';
+        return;
+    }
+    emptyEl.style.display = 'none';
+
+    pagesDiv.style.display = info.is_search ? 'none' : '';
+
+    // Update stat column header
+    const statHeader = document.getElementById('stat-header');
+    if (statsDropdown.value) {
+        statHeader.textContent = statsDropdown.value;
     }
 
-    var n = 0;
-
-    for (const infoRow of info.results) {
-        n++;
+    for (const [n, infoRow] of info.results.entries()) {
         const tableRow = document.createElement('tr');
-        var textNode;
+        const rank = info.is_search ? infoRow.rank : (n + 1) + (pageNum - 1) * pageLength;
 
-        const rank = document.createElement('th');
-        rank.classList.add('rank');
-        textNode = document.createTextNode(n + (pageNum-1)*pageLength);
-        rank.appendChild(textNode);
+        const rankCell = document.createElement('td');
+        rankCell.textContent = rank;
+        if (rank <= 3 && pageNum === 1 && pagesStart === 1) {
+            rankCell.classList.add('top-rank');
+            rankCell.style.color = 'var(--accent-orange)';
+        }
 
-        const name = document.createElement('th');
-        name.classList.add('name');
-        textNode = document.createTextNode(infoRow.name);
-        name.appendChild(textNode);
+        const nameCell = document.createElement('td');
+        nameCell.textContent = infoRow.name;
 
-        const stat = document.createElement('th');
-        stat.classList.add('stat');
-        textNode = document.createTextNode(infoRow.stat);
-        stat.appendChild(textNode);
+        const statCell = document.createElement('td');
+        statCell.textContent = infoRow.stat;
 
-        tableRow.appendChild(rank);
-        tableRow.appendChild(name);
-        tableRow.appendChild(stat);
-
-        statsTable.appendChild(tableRow);
+        tableRow.appendChild(rankCell);
+        tableRow.appendChild(nameCell);
+        tableRow.appendChild(statCell);
+        statsBody.appendChild(tableRow);
     }
-
 
 
 // [][][][][][][][][][][][][] <----- blockchain
@@ -190,13 +187,12 @@ const serversDropdown = document.getElementById('dropdown-servers');
 const statsDropdown = document.getElementById('dropdown-stats');
 var data;
 function updateDropdowns(leaderboardInfo) {
-    if (data != undefined) {  // first time loading into page shouldn't do this
+    if (data != undefined) {
         pageNum = 1;
         pagesStart = 1;
         updatePages();
     }
 
-    // console.log(leaderboardInfo);
     if (leaderboardInfo != undefined) { data = leaderboardInfo } else { leaderboardInfo = data }
 
     const selectedServer = serversDropdown.value;
@@ -210,30 +206,18 @@ function updateDropdowns(leaderboardInfo) {
         textNode = document.createTextNode(stat);
         option.appendChild(textNode);
         statsDropdown.appendChild(option);
-
     }
 
-    // console.log(document.getElementById('dropdown-servers').value, document.getElementById('dropdown-stats').value)
     displayInfo();
-
     updatePages();
 }
 updateDropdowns();
 
 
 function titleCase(str) {
-
     const words = str.split(" ");
-
     for (let i = 0; i < words.length; i++) {
         words[i] = words[i][0].toUpperCase() + words[i].substr(1);
     }
-
     return words.join(" ");
 }
-
-// function usernameLookup(event) {
-//     event.preventDefault();
-//     const query = document.getElementById('search').value;
-//     console.log('Search query:', query);
-// }

@@ -1,25 +1,59 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Northstar Server Scoreboard</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div id="wrapper">
+<div class="page-shell">
+    <nav class="site-nav">
+        <a href="/">Players</a>
+        <a href="/servers/" class="active">Servers</a>
+        <a href="/servers/history.html">History</a>
+    </nav>
 
-    <h1>Northstar Server Scoreboard</h1>
+    <header class="page-header">
+        <h1><span class="accent">Server</span> Scoreboard</h1>
+        <p class="subtitle">Ranked by accumulated player-hours</p>
+    </header>
 
-    <table id="scoreboard-table">
-        <tr>
-            <th>Rank</th>
-            <th>Server</th>
-            <th>Score</th>
-        </tr>
-    </table>
+    <div class="top-controls">
+        <div class="filter-bar" id="filter-bar">
+        <button class="filter-btn" onclick="setFilter('24h')">24H</button>
+        <button class="filter-btn" onclick="setFilter('7d')">7D</button>
+        <button class="filter-btn active" onclick="setFilter('30d')">30D</button>
+        <button class="filter-btn" onclick="setFilter('1y')">1Y</button>
+        <button class="filter-btn" onclick="setFilter('all')">All Time</button>
+    </div>
+        <input type="search" id="search-servers" placeholder="Search servers..." autocomplete="off">
+    </div>
 
-    <div id="pages"></div>
-    <p>Every 5 minutes a server gains score equal to the number of players on that server. Due to limitations, if your server's name changes, you lose your score. You can request a score transfer in the <a href="https://discord.awesome.tf">Discord</a>. This is still a heavy WIP, so expect resets while features improve. Click <a href="/servers/history.html">here</a> for historical data.</p>
+    <div class="data-table-wrap">
+        <table class="data-table" id="scoreboard-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Server</th>
+                    <th>Hours</th>
+                </tr>
+            </thead>
+            <tbody id="scoreboard-body"></tbody>
+        </table>
+        <div class="loading-indicator visible" id="loading">Loading servers&hellip;</div>
+        <div class="empty-state" id="empty" style="display:none;">No server data available</div>
+    </div>
+
+    <div class="pagination" id="pages"></div>
+
+    <p class="info-text">
+        Player-hours are calculated from activity snapshots taken every 5 minutes.
+        Due to limitations, if your server's name changes, you lose your all-time score. You can request
+        a score transfer in the <a href="https://discord.awesome.tf">Discord</a>.
+        This is still a heavy WIP, so expect resets while features improve.
+    </p>
 </div>
 
 <a href="https://benjaminperla.hair/" target="_blank" id="ad">

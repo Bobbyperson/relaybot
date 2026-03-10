@@ -1,6 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Server History Graph</title>
   <link rel="stylesheet" href="history.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -8,55 +10,59 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
 </head>
 <body>
-<div id="wrapper">
-  <h1>Players Over Time</h1>
-  <p class="info-text">
-    Search for servers, add them, optionally pick date/time, then click "Fetch History".
-  </p>
 
-  <div id="topRow">
-    <div class="column">
-      <label for="searchInput" class="label-above">Server Search:</label>
-      <input type="text" id="searchInput" placeholder="Type partial name..." />
-      <button id="searchBtn" style="margin-top:0.5rem;">Search</button>
+<div class="page-shell">
+  <nav class="site-nav">
+    <a href="/">Players</a>
+    <a href="/servers/">Servers</a>
+    <a href="/servers/history.html" class="active">History</a>
+  </nav>
 
-      <div class="box" id="searchResults" style="margin-top:1rem;"></div>
+  <header class="page-header">
+    <h1>Players <span class="accent">Over Time</span></h1>
+  </header>
+
+  <!-- Toolbar: date presets + custom range + smoothness -->
+  <div class="toolbar">
+    <div class="toolbar-section">
+      <span class="toolbar-label">Range</span>
+      <div class="preset-group">
+        <button class="preset" data-days="1">24h</button>
+        <button class="preset active" data-days="7">7d</button>
+        <button class="preset" data-days="14">14d</button>
+        <button class="preset" data-days="30">30d</button>
+      </div>
+      <div class="custom-range">
+        <input type="datetime-local" id="afterTime" title="From" />
+        <span class="range-sep">&mdash;</span>
+        <input type="datetime-local" id="beforeTime" title="To" />
+        <button class="toolbar-btn" id="customRangeBtn" title="Apply custom range">Apply</button>
+      </div>
     </div>
-
-    <div class="column">
-      <h3>Selected Servers</h3>
-      <div class="box" id="selectedServers" style="max-height:250px;"></div>
+    <div class="toolbar-section">
+      <label class="toolbar-label" for="rollingSlider">Smooth</label>
+      <input type="range" id="rollingSlider" min="1" max="30" value="1" step="1" />
+      <span class="slider-value" id="sliderValue">1</span>
     </div>
-
-    <div class="column">
-      <label for="afterTime" class="label-above">From:</label>
-      <input type="datetime-local" id="afterTime" />
-
-      <label for="beforeTime" class="label-above" style="margin-top:0.7rem;">To:</label>
-      <input type="datetime-local" id="beforeTime" />
-    </div>
-    <div style="text-align:center; margin-top:1rem;">
-      <label for="rollingSlider">Graph Smoothness: </label>
-      <input 
-        type="range" 
-        id="rollingSlider" 
-        min="1" 
-        max="30" 
-        value="1" 
-        step="1"
-        style="vertical-align: middle;"
-      />
-      <span id="sliderValue">1</span>
-    </div>
-
   </div>
 
-  <button id="fetchDataBtn" class="fetch-button">
-    Fetch History
-  </button>
+  <!-- Server chips -->
+  <div class="server-bar">
+    <div class="server-chips" id="serverChips">
+      <span class="chips-loading">Loading servers&hellip;</span>
+    </div>
+    <div class="server-search-wrap">
+      <input type="text" id="searchInput" placeholder="Filter servers&hellip;" />
+    </div>
+  </div>
 
-  <div id="chartContainer">
-    <canvas id="historyChart" width="900" height="450"></canvas>
+  <!-- Chart -->
+  <div class="chart-wrap">
+    <div class="chart-loading" id="chartLoading">
+      <div class="spinner"></div>
+      <span>Fetching data&hellip;</span>
+    </div>
+    <canvas id="historyChart"></canvas>
   </div>
 </div>
 

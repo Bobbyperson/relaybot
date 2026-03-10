@@ -3,67 +3,82 @@ if (Math.floor(Math.random() * 5) === 0) {
 }
 
 let allServers = [];
+let filteredServers = [];
+let serverSearchQuery = '';
 let pageNum = 1;
 let pagesStart = 1;
+let currentPeriod = '30d';
 const pagesLength = 10;
 const pageLength = 10;
 
 const pagesDiv = document.getElementById('pages');
-const scoreboardTable = document.getElementById('scoreboard-table');
+const scoreboardBody = document.getElementById('scoreboard-body');
+const loadingEl = document.getElementById('loading');
+const emptyEl = document.getElementById('empty');
 
-function createButton(text, fn) {
+document.getElementById('search-servers').addEventListener('input', function () {
+    serverSearchQuery = this.value.trim().toLowerCase();
+    filteredServers = applySearch(allServers);
+    pageNum = 1;
+    pagesStart = 1;
+    updatePages();
+    updateInfo();
+});
+
+function applySearch(servers) {
+    if (!serverSearchQuery) return servers;
+    return servers.filter(s => s.name.toLowerCase().includes(serverSearchQuery));
+}
+
+function createButton(text, fn, cssClass) {
     const button = document.createElement('button');
-    const textNode = document.createTextNode(text);
-
-    button.appendChild(textNode);
+    button.textContent = text;
     button.setAttribute('value', text);
     button.setAttribute('onclick', fn);
-
+    if (cssClass) button.classList.add(cssClass);
     pagesDiv.appendChild(button);
 }
 
 function updatePages() {
-    if (!allServers.length) return;
+    if (!filteredServers.length) return;
 
     pagesDiv.innerHTML = '';
 
-    createButton('<<', 'pageBackward();');
+    createButton('\u00AB', 'pageBackward();', 'nav-arrow');
 
-    const totalServers = allServers.length;
+    const totalServers = filteredServers.length;
     for (let i = 0; i < pagesLength && ((i + pagesStart - 1) * pageLength) < totalServers; i++) {
         createButton(i + pagesStart, `changePage(${i + pagesStart});`);
     }
 
-    createButton('>>', 'pageForward();');
+    createButton('\u00BB', 'pageForward();', 'nav-arrow');
 
-    const currentButton = document.querySelector(`button[value='${pageNum}']`);
+    const currentButton = document.querySelector(`#pages button[value='${pageNum}']`);
     if (currentButton) {
-        currentButton.classList.add('depressed');
+        currentButton.classList.add('active');
     }
 }
 
-
 function changePage(page) {
-    const oldPageButton = document.querySelector(`button[value='${pageNum}']`);
+    const oldPageButton = document.querySelector(`#pages button[value='${pageNum}']`);
     if (oldPageButton) {
-        oldPageButton.classList.remove('depressed');
+        oldPageButton.classList.remove('active');
     }
 
     pageNum = page;
 
-    const newPageButton = document.querySelector(`button[value='${pageNum}']`);
+    const newPageButton = document.querySelector(`#pages button[value='${pageNum}']`);
     if (newPageButton) {
-        newPageButton.classList.add('depressed');
+        newPageButton.classList.add('active');
     }
 
     updateInfo();
 }
 
 function pageForward() {
-    if (!allServers.length) return;
+    if (!filteredServers.length) return;
 
-    const totalServers = allServers.length;
-    // Avoid going beyond the number of servers
+    const totalServers = filteredServers.length;
     if ((pagesStart + pagesLength - 1) * pageLength >= totalServers) {
         return;
     }
@@ -87,53 +102,80 @@ function pageBackward() {
     changePage(pageNum);
 }
 
+function setFilter(period) {
+    currentPeriod = period;
+
+    const labelMap = { '24h': '24H', '7d': '7D', '30d': '30D', '1y': '1Y', 'all': 'All Time' };
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent === labelMap[period]);
+    });
+
+    pageNum = 1;
+    pagesStart = 1;
+    allServers = [];
+    scoreboardBody.innerHTML = '';
+    emptyEl.style.display = 'none';
+    loadingEl.classList.add('visible');
+    loadAllServers();
+}
+
 async function loadAllServers() {
     // are you a dev? feel free to use this endpoint, let me know what cool stuff you make :D
-    fetch("https://relay.awesome.tf/server-scoreboard", {
+    fetch(`https://relay.awesome.tf/server-scoreboard?period=${currentPeriod}`, {
         method: "GET"
     })
         .then(response => response.json())
         .then(info => {
-            // `info` should be { servers: [{name, score}, ...] }
-            allServers = info.servers || [];
+            allServers = (info.servers || []).map((s, i) => ({ ...s, rank: i + 1 }));
+            filteredServers = applySearch(allServers);
+            loadingEl.classList.remove('visible');
+
+            if (filteredServers.length === 0) {
+                emptyEl.style.display = 'block';
+                return;
+            }
 
             updatePages();
             updateInfo();
         })
         .catch((error) => {
             console.error('Error:', error);
+            loadingEl.classList.remove('visible');
+            emptyEl.style.display = 'block';
+            emptyEl.textContent = 'Failed to load server data';
         });
 }
 
 function updateInfo() {
-    while (scoreboardTable.rows.length > 1) {
-        scoreboardTable.deleteRow(scoreboardTable.rows.length - 1);
-    }
+    scoreboardBody.innerHTML = '';
 
-    if (!allServers.length) return;
+    if (!filteredServers.length) return;
 
     const startIndex = (pageNum - 1) * pageLength;
     const endIndex = startIndex + pageLength;
-    const currentServers = allServers.slice(startIndex, endIndex);
+    const currentServers = filteredServers.slice(startIndex, endIndex);
 
     for (let i = 0; i < currentServers.length; i++) {
         const server = currentServers[i];
-        const row = scoreboardTable.insertRow();
+        const row = document.createElement('tr');
+        const displayRank = server.rank;
+        const rankCell = document.createElement('td');
+        rankCell.textContent = displayRank;
+        if (displayRank <= 3) {
+            rankCell.style.color = 'var(--accent-orange)';
+        }
 
-        // Rank cell
-        const rankCell = row.insertCell();
-        rankCell.classList.add('rank');
-        rankCell.textContent = startIndex + i + 1;
-
-        // Server Name cell
-        const nameCell = row.insertCell();
-        nameCell.classList.add('name');
+        const nameCell = document.createElement('td');
         nameCell.textContent = server.name;
 
-        // Score cell
-        const scoreCell = row.insertCell();
-        scoreCell.classList.add('score');
-        scoreCell.textContent = server.score;
+        const hours = (server.score * 5 / 60).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        const scoreCell = document.createElement('td');
+        scoreCell.textContent = hours;
+
+        row.appendChild(rankCell);
+        row.appendChild(nameCell);
+        row.appendChild(scoreCell);
+        scoreboardBody.appendChild(row);
     }
 }
 

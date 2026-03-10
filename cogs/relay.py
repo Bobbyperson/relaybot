@@ -586,6 +586,8 @@ class Relay(commands.Cog):
         before = request.query.get("before")
         after = request.query.get("after")
         name_filter = request.query.get("filter")
+        # "filters" accepts comma-separated exact server names for batch queries
+        name_filters = request.query.get("filters")
         key = request.query.get("key")
         authorized = False
         if key:
@@ -604,7 +606,8 @@ class Relay(commands.Cog):
                 text="Before and after must be integers",
                 headers=corsheaders,
             )
-        if before - after > 60 * 60 * 24 * 30 and not name_filter and not authorized:
+        has_filter = name_filter or name_filters
+        if before - after > 60 * 60 * 24 * 30 and not has_filter and not authorized:
             return web.Response(
                 status=403,
                 text="Time range too large, provide a filter or reduce range to 30 days or less.",
@@ -619,15 +622,24 @@ class Relay(commands.Cog):
         async with aiosqlite.connect(self.client.config["bot"]["bank"]) as db:
             async with db.cursor() as cursor:
                 servers = []
-                await cursor.execute("SELECT server_name FROM server_tracker")
-                server_names = await cursor.fetchall()
-                for name in server_names:
-                    if name_filter:
-                        if name_filter in name[0]:
+                if name_filters:
+                    # Exact match mode: comma-separated server names
+                    requested = [
+                        n.strip() for n in name_filters.split(",") if n.strip()
+                    ]
+                    await cursor.execute("SELECT server_name FROM server_tracker")
+                    known = {row[0] for row in await cursor.fetchall()}
+                    servers = [n for n in requested if n in known]
+                else:
+                    await cursor.execute("SELECT server_name FROM server_tracker")
+                    server_names = await cursor.fetchall()
+                    for name in server_names:
+                        if name_filter:
+                            if name_filter in name[0]:
+                                servers.append(name[0])
+                        else:
                             servers.append(name[0])
-                    else:
-                        servers.append(name[0])
-                if name_filter:
+                if has_filter:
                     if len(servers) == 0:
                         return web.Response(
                             status=404,

@@ -18,7 +18,7 @@ dependencies = [
     "rcon>=2.4.9",
     "humanize>=4.16.0",
     "pillow>=12.3.0",
-    "anyio>=4.14.1",
+    "anyio>=4.14.2",
 ]
 
 [dependency-groups]

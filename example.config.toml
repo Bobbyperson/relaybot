@@ -27,6 +27,12 @@ bad_words = [                      # admin warnings
     'f([aeiou*x])\1*g+([aeiou*x])\1*t',
 ]
 
+[vamp]
+enabled = false
+key = ""
+port = 2586
+relay_channel = 0
+
 [master]
 url = "https://northstar.tf/client/servers"  # don't change this
 query = ["server name"]

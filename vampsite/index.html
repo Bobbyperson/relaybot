@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VAMP // Terminal</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="page-shell">
+    <nav class="site-nav">
+        <button data-view="terminal" class="active">Terminal</button>
+        <button data-view="leaderboard">Leaderboard</button>
+        <button data-view="ranks">Ranks</button>
+        <button data-view="records">Records</button>
+        <button data-view="versus">Versus</button>
+        <span class="nav-status"><span class="status-dot" id="engine-dot"></span><span id="engine-text">Connecting</span></span>
+    </nav>
+
+    <header class="page-header">
+        <h1><span class="accent">VAMP</span> Terminal</h1>
+        <p class="subtitle" id="page-subtitle">Live combat feed</p>
+    </header>
+
+    <!-- ================= TERMINAL ================= -->
+    <section class="view active" id="view-terminal">
+        <div class="panel-grid">
+            <div class="panel span-2">
+                <div class="panel-title">Recent signal // Live duel event</div>
+                <div class="signal" id="latest-duel">
+                    <div class="empty-state" style="padding:0.5rem 0;">Awaiting new duel&hellip;</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">Active cycle</div>
+                <div class="countdown" id="cycle-countdown">--:--:--</div>
+                <div class="countdown-label" id="cycle-label">Cycle &mdash;</div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">Active combatants // Online now</div>
+                <div class="stat-list" id="online-players"></div>
+            </div>
+
+            <div class="panel span-2">
+                <div class="panel-title">Heatmap // Duels by hour (UTC) // 7d</div>
+                <div class="heatmap" id="heatmap"></div>
+                <div class="heatmap-axis"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">Hot right now</div>
+                <div class="stat-list" id="hot-streaks"></div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">Spiraling</div>
+                <div class="stat-list" id="cold-streaks"></div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">Top eliminators // Cycle</div>
+                <div class="stat-list" id="top-eliminators"></div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">Most eliminated // Cycle</div>
+                <div class="stat-list" id="most-eliminated"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= LEADERBOARD ================= -->
+    <section class="view" id="view-leaderboard">
+        <div class="controls-bar">
+            <div class="control-group">
+                <label for="lb-window">Window</label>
+                <select id="lb-window">
+                    <option value="24h">Last 24h</option>
+                    <option value="7d" selected>Last 7d</option>
+                    <option value="30d">Last 30d</option>
+                    <option value="all">All time</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="lb-sort">Sort</label>
+                <select id="lb-sort">
+                    <option value="wins">Wins</option>
+                    <option value="winrate">Win rate</option>
+                    <option value="duels">Duels</option>
+                    <option value="acc">Accuracy</option>
+                    <option value="streak">Streak</option>
+                    <option value="losses">Losses</option>
+                </select>
+            </div>
+            <div class="control-group search-group">
+                <label for="lb-search">Search</label>
+                <input type="search" id="lb-search" placeholder="Player name&hellip;" autocomplete="off">
+            </div>
+        </div>
+
+        <div class="data-table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>#</th><th>Player</th>
+                        <th style="text-align:right">W</th>
+                        <th style="text-align:right">L</th>
+                        <th style="text-align:right">Win %</th>
+                        <th style="text-align:right">Acc %</th>
+                        <th style="text-align:right">Streak</th>
+                    </tr>
+                </thead>
+                <tbody id="lb-body"></tbody>
+            </table>
+            <div class="loading-indicator" id="lb-loading">Loading data&hellip;</div>
+            <div class="empty-state" id="lb-empty" style="display:none;">No data available</div>
+        </div>
+        <div class="pagination" id="lb-pages"></div>
+    </section>
+
+    <!-- ================= RANKS ================= -->
+    <section class="view" id="view-ranks">
+        <div class="controls-bar">
+            <div class="control-group">
+                <label for="rk-cycle">Cycle</label>
+                <select id="rk-cycle"></select>
+            </div>
+            <div class="control-group">
+                <label>Reset in</label>
+                <span id="rk-reset" style="color:var(--accent-orange);font-variant-numeric:tabular-nums;">--:--:--</span>
+            </div>
+        </div>
+        <div class="data-table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>#</th><th>Player</th>
+                        <th style="text-align:right">W</th>
+                        <th style="text-align:right">L</th>
+                        <th style="text-align:right">Win %</th>
+                        <th style="text-align:right">Acc %</th>
+                    </tr>
+                </thead>
+                <tbody id="rk-body"></tbody>
+            </table>
+            <div class="loading-indicator" id="rk-loading">Loading data&hellip;</div>
+            <div class="empty-state" id="rk-empty" style="display:none;">No duels this cycle</div>
+        </div>
+    </section>
+
+    <!-- ================= RECORDS ================= -->
+    <section class="view" id="view-records">
+        <div class="controls-bar">
+            <div class="control-group">
+                <label for="rc-window">Window</label>
+                <select id="rc-window">
+                    <option value="24h">Last 24h</option>
+                    <option value="7d" selected>Last 7d</option>
+                    <option value="30d">Last 30d</option>
+                    <option value="all">All time</option>
+                </select>
+            </div>
+        </div>
+        <div class="data-table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th><th>Signal_time</th>
+                        <th>Victor</th><th>V_uid</th><th style="text-align:right">Acc %</th>
+                        <th>Victim</th><th>L_uid</th><th style="text-align:right">L_acc %</th>
+                        <th style="text-align:right">Dur</th>
+                    </tr>
+                </thead>
+                <tbody id="rc-body"></tbody>
+            </table>
+            <div class="loading-indicator" id="rc-loading">Loading data&hellip;</div>
+            <div class="empty-state" id="rc-empty" style="display:none;">No duels recorded</div>
+        </div>
+        <div class="pagination" id="rc-pages"></div>
+    </section>
+
+    <!-- ================= VERSUS ================= -->
+    <section class="view" id="view-versus">
+        <div class="versus-inputs">
+            <input type="text" id="vs-a" placeholder="Player A" autocomplete="off" list="vs-names">
+            <span style="color:var(--text-muted);letter-spacing:0.15em;">VS</span>
+            <input type="text" id="vs-b" placeholder="Player B" autocomplete="off" list="vs-names">
+            <datalist id="vs-names"></datalist>
+        </div>
+        <div class="versus-score" id="vs-score" style="display:none;">
+            <div class="vs-side">
+                <div class="vs-name" id="vs-a-name">&mdash;</div>
+                <div class="vs-count" id="vs-a-count">0</div>
+            </div>
+            <div class="vs-sep">WINS</div>
+            <div class="vs-side">
+                <div class="vs-name" id="vs-b-name">&mdash;</div>
+                <div class="vs-count" id="vs-b-count">0</div>
+            </div>
+        </div>
+        <div class="data-table-wrap" id="vs-wrap" style="display:none;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Signal_time</th><th>Victor</th>
+                        <th style="text-align:right">Acc %</th>
+                        <th>Victim</th>
+                        <th style="text-align:right">L_acc %</th>
+                        <th style="text-align:right">Dur</th>
+                    </tr>
+                </thead>
+                <tbody id="vs-body"></tbody>
+            </table>
+        </div>
+        <div class="empty-state" id="vs-empty">Enter two player names to compare their duel history.</div>
+    </section>
+</div>
+
+<script src="/static/script.js"></script>
+</body>
+</html>

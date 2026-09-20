@@ -756,11 +756,13 @@ class Relay(commands.Cog):
         else:
             sdescription = "All servers down. Uh oh."
 
-        embed = discord.Embed(
-            title="Server Stats",
-            description=sdescription,
-            color=discord.Color.blue(),
-        )
+        embeds = [
+            discord.Embed(
+                title="Server Stats",
+                description=sdescription,
+                color=discord.Color.blue(),
+            ),
+        ]
 
         table = []
         for server in query_results:
@@ -772,25 +774,29 @@ class Relay(commands.Cog):
                     server["map"],
                 ],
             )
-            if table:
-                embed.add_field(
-                    name="Name:",
-                    value=server["name"],
-                    inline=False,
-                )
-                embed.add_field(
-                    name="Playercount:",
-                    value=str(server["playerCount"]) + "/" + str(server["maxPlayers"]),
-                    inline=True,
-                )
-                embed.add_field(name="Gamemode:", value=server["playlist"], inline=True)
-                embed.add_field(name="Map:", value=server["map"], inline=True)
-            embed.set_footer(text=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            # Discord rejects an embed with more than 25 fields and every server
+            # takes four, so roll over into another embed rather than 400ing once
+            # a seventh server comes online.
+            if len(embeds[-1].fields) + 4 > 25:
+                embeds.append(discord.Embed(color=discord.Color.blue()))
+            embeds[-1].add_field(
+                name="Name:",
+                value=server["name"],
+                inline=False,
+            )
+            embeds[-1].add_field(
+                name="Playercount:",
+                value=str(server["playerCount"]) + "/" + str(server["maxPlayers"]),
+                inline=True,
+            )
+            embeds[-1].add_field(name="Gamemode:", value=server["playlist"], inline=True)
+            embeds[-1].add_field(name="Map:", value=server["map"], inline=True)
+        embeds[-1].set_footer(text=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
         if msg is None:
-            await channel.send(embed=embed)
+            await channel.send(embeds=embeds)
         else:
-            await msg.edit(embed=embed)
+            await msg.edit(embeds=embeds)
 
     async def register_server(self, server_identifier):
         async with aiosqlite.connect(self.client.config["bot"]["bank"]) as db:
